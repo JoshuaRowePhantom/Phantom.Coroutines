@@ -2,7 +2,8 @@ cmake_minimum_required (VERSION 3.17)
 
 add_executable(
 	Phantom.Coroutines.Test
-	enable_if_in_types_test.cpp
+	atomic_state_test.cpp
+	type_traits_test.cpp
 	task_test.cpp
 	)
 

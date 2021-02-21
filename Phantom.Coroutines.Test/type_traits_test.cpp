@@ -1,4 +1,4 @@
-#include "Phantom.Coroutines/detail/enable_if_in_types.h"
+#include "Phantom.Coroutines/detail/type_traits.h"
 #include <tuple>
 #include <type_traits>
 
@@ -29,6 +29,14 @@ enable_if_in_types_works_impl_v<
 >;
 
 }
+
+static_assert(false == is_in_types<int>);
+static_assert(true == is_in_types<int, int>);
+static_assert(false == is_in_types<int, bool>);
+static_assert(true == is_in_types<int, int, bool>);
+static_assert(true == is_in_types<int, bool, int>);
+static_assert(true == is_in_types<int, int, int>);
+static_assert(false == is_in_types<int, bool, bool>);
 
 static_assert(std::is_same_v<int, enable_if_in_types_t<int, int>>);
 static_assert(std::is_same_v<int, enable_if_in_types_t<int, int, bool>>);
