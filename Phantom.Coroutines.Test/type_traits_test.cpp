@@ -5,7 +5,7 @@
 namespace Phantom::Coroutines::detail
 {
 
-namespace 
+namespace
 {
 template<
     typename Tuple,
@@ -28,15 +28,13 @@ enable_if_in_types_works_impl_v<
     std::tuple<T, Types...>
 >;
 
-}
-
-static_assert(false == is_in_types<int>);
-static_assert(true == is_in_types<int, int>);
-static_assert(false == is_in_types<int, bool>);
-static_assert(true == is_in_types<int, int, bool>);
-static_assert(true == is_in_types<int, bool, int>);
-static_assert(true == is_in_types<int, int, int>);
-static_assert(false == is_in_types<int, bool, bool>);
+static_assert(false == is_in_types_v<int>);
+static_assert(true == is_in_types_v<int, int>);
+static_assert(false == is_in_types_v<int, bool>);
+static_assert(true == is_in_types_v<int, int, bool>);
+static_assert(true == is_in_types_v<int, bool, int>);
+static_assert(true == is_in_types_v<int, int, int>);
+static_assert(false == is_in_types_v<int, bool, bool>);
 
 static_assert(std::is_same_v<int, enable_if_in_types_t<int, int>>);
 static_assert(std::is_same_v<int, enable_if_in_types_t<int, int, bool>>);
@@ -49,5 +47,69 @@ static_assert(enable_if_in_types_works_v<int, int, bool>);
 // Now verify that enable_if_in_types doesn't produce a result in these cases.
 static_assert(!enable_if_in_types_works_v<int, bool>);
 static_assert(!enable_if_in_types_works_v<int>);
+
+// Verify that filter_tuple_types works
+template<
+    typename T
+> struct FilterTupleTypesTestFilter : std::bool_constant<
+    std::is_same_v<T, int>
+    || std::is_same_v<T, bool>>
+{};
+
+static_assert(std::is_same_v<
+    std::tuple<>,
+    typename filter_tuple_types<FilterTupleTypesTestFilter, std::tuple<>>::tuple_type
+    >);
+
+static_assert(std::is_same_v<
+    std::tuple<int, int, bool>,
+    typename filter_tuple_types<FilterTupleTypesTestFilter, std::tuple<char, int, double, struct foo, int, float, bool>>::tuple_type
+    >);
+}
+
+// Verify that tuple_has_element_v works
+static_assert(false == tuple_has_element_v<int, std::tuple<>>);
+static_assert(false == tuple_has_element_v<int, std::tuple<char>>);
+static_assert(true == tuple_has_element_v<int, std::tuple<int>>);
+static_assert(false == tuple_has_element_v<int, std::tuple<char, char>>);
+static_assert(true == tuple_has_element_v<int, std::tuple<char, int>>);
+static_assert(true == tuple_has_element_v<int, std::tuple<int, char>>);
+static_assert(true == tuple_has_element_v<int, std::tuple<int, int>>);
+
+// Used to test tuple_element_index
+template<
+    typename Type,
+    typename Tuple,
+    typename = void
+> constexpr bool tuple_element_index_works = false;
+
+template<
+    typename Type,
+    typename Tuple
+> constexpr bool tuple_element_index_works<
+    Type,
+    Tuple,
+    std::void_t<decltype(tuple_element_index<Type, Tuple>::value)>
+> = true;
+
+// Verify that tuple_element_index_works can return true.
+static_assert(tuple_element_index_works<int, std::tuple<int>>);
+
+// Verify that tuple_element_index doesn't return a value in these cases
+static_assert(!tuple_element_index_works<int, std::tuple<>>);
+static_assert(!tuple_element_index_works<int, std::tuple<char>>);
+static_assert(!tuple_element_index_works<int, std::tuple<int, int>>);
+static_assert(!tuple_element_index_works<int, std::tuple<int, char, int>>);
+static_assert(!tuple_element_index_works<int, std::tuple<char, int, int>>);
+static_assert(!tuple_element_index_works<int, std::tuple<int, int, char>>);
+static_assert(!tuple_element_index_works<int, std::tuple<int, int, int>>);
+
+// Verify that tuple_element_index itself can return a value.
+static_assert(0 == tuple_element_index_v<int, std::tuple<int>>);
+static_assert(0 == tuple_element_index_v<int, std::tuple<int, char>>);
+static_assert(1 == tuple_element_index_v<int, std::tuple<char, int>>);
+static_assert(0 == tuple_element_index_v<int, std::tuple<int, char, char>>);
+static_assert(1 == tuple_element_index_v<int, std::tuple<char, int, char>>);
+static_assert(2 == tuple_element_index_v<int, std::tuple<char, char, int>>);
 
 }
