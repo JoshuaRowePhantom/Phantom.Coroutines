@@ -17,6 +17,7 @@ template<
 {
 public:
     typedef TLabel Label;
+    const bool is_singleton = true;
 
     SingletonState(
         TLabel label = TLabel()
@@ -31,8 +32,9 @@ template<
 template<
     // A label for the type of state being stored.
     typename TLabel,
-    // The type of state object being stored.
-    typename TStateSetType,
+    // The type of state object being stored,
+    // which may be the same as the label.
+    typename TStateSetType = TLabel,
     // The traits for converting a state object value to an underlying representation and back.
     template<
         typename TStateSetType, 
@@ -43,7 +45,8 @@ template<
 public:
     typedef TLabel Label;
     typedef TStateSetType element_type;
-    
+    const bool is_singleton = false;
+
     // This object is not constructible.
     StateSet() = delete; 
 };
@@ -139,9 +142,15 @@ template<
     static inline std::max_align_t g_objectWithUniqueAddressValue;
 
 protected:
+    static constexpr bool is_singleton(
+        atomic_state_handler_tag<TLabel>)
+    {
+        return true;
+    }
+
     static bool is_state(
         void* representation,
-        atomic_state_handler_tag<SingletonState<TLabel>>)
+        atomic_state_handler_tag<TLabel>)
     {
         return representation == &g_objectWithUniqueAddressValue;
     }
@@ -178,6 +187,7 @@ template<
     StateSetIndexPointerMask
 >
 {
+    static const uintptr_t c_StateSetIndex = StateSetIndex;
     static const uintptr_t c_StateSetIndexPointerMask = StateSetIndexPointerMask;
 
     static_assert(
@@ -187,11 +197,17 @@ template<
     typedef TStateSetTraits<TStateSetType, void*> state_set_traits;
 
 protected:
+    static constexpr bool is_singleton(
+        atomic_state_handler_tag<TLabel>)
+    {
+        return false;
+    }
+
     static bool is_state(
         void* representation,
         atomic_state_handler_tag<TLabel>)
     {
-        return reinterpret_cast<uintptr_t>(representation) & StateSetIndexPointerMask == StateSetIndex;
+        return (reinterpret_cast<uintptr_t>(representation) & c_StateSetIndexPointerMask) == c_StateSetIndex;
     }
 
     static void* to_representation(
@@ -219,7 +235,7 @@ protected:
         assert(
             (stateUint & c_StateSetIndexPointerMask) == 0);
 
-        auto stateUintWithSetNumber = stateUint | StateSetIndex;
+        auto stateUintWithSetNumber = stateUint | c_StateSetIndex;
 
         // Internal error, too few bits in StateSetIndexPointerMask.
         assert(
@@ -292,7 +308,7 @@ template<
     typename SingletonStateTypesTuple = typename filter_tuple_types<IsSingletonStateFilter, StateTypesTuple>::tuple_type,
     typename StateSetTypesTuple = typename filter_tuple_types<IsStateSetFilter, StateTypesTuple>::tuple_type,
     typename StateSetTypesIndexSequence = std::make_index_sequence<std::tuple_size_v<StateSetTypesTuple>>,
-    uintptr_t RepresentationPointerMask = (1 << std::bit_width(std::tuple_size_v<StateSetTypesTuple>)) - 1
+uintptr_t RepresentationPointerMask = (1 << std::bit_width(std::tuple_size_v<StateSetTypesTuple>) - 1) - 1
 >
 class BasicAtomicStateHandlers;
 
@@ -313,17 +329,17 @@ class BasicAtomicStateHandlers<
     RepresentationPointerMask
 >
     :
-public SingletonStateHandler<
+    public SingletonStateHandler<
     TRepresentation,
     SingletonStateTypes
->...,
+    >...,
 
-public StateSetHandler<
+    public StateSetHandler<
     TRepresentation,
     StateSetTypes,
     StateSetIndices,
     RepresentationPointerMask
->...
+    >...
 {
 protected:
     typedef std::tuple<
@@ -337,7 +353,31 @@ protected:
     using SingletonStateHandler<
         TRepresentation,
         SingletonStateTypes
+    >::is_state...;
+
+    using SingletonStateHandler<
+        TRepresentation,
+        SingletonStateTypes
+    >::is_singleton...;
+
+    using SingletonStateHandler<
+        TRepresentation,
+        SingletonStateTypes
     >::to_representation...;
+
+    using StateSetHandler<
+        TRepresentation,
+        StateSetTypes,
+        StateSetIndices,
+        RepresentationPointerMask
+    >::is_singleton...;
+
+    using StateSetHandler<
+        TRepresentation,
+        StateSetTypes,
+        StateSetIndices,
+        RepresentationPointerMask
+    >::is_state...;
 
     using StateSetHandler<
         TRepresentation,
@@ -353,12 +393,36 @@ protected:
         RepresentationPointerMask
     >::to_representation...;
 
-    static bool is_singleton(
+    static constexpr bool is_singleton(
         TRepresentation representation)
     {
         return (SingletonStateHandler<TRepresentation, SingletonStateTypes>::is_state(
             representation,
-            atomic_state_handler_tag<SingletonStateTypes>()) || ...);
+            atomic_state_handler_tag<typename SingletonStateTypes::Label>()) || ...);
+    }
+
+    template<
+        typename TLabel
+    > static constexpr bool is(
+        TRepresentation representation
+    )
+    {
+        if constexpr (is_singleton(atomic_state_handler_tag<TLabel>()))
+        {
+            return is_state(
+                representation,
+                atomic_state_handler_tag<TLabel>()
+            );
+        }
+        else
+        {
+            return !is_singleton(
+                representation
+            ) && is_state(
+                representation,
+                atomic_state_handler_tag<TLabel>()
+            );
+        }
     }
 };
 
@@ -505,6 +569,14 @@ public:
     constexpr bool is_singleton() const
     {
         return atomic_state::is_singleton(
+            m_value);
+    }
+
+    template<
+        typename TLabel
+    > constexpr bool is() const
+    {
+        return atomic_state::template is<TLabel>(
             m_value);
     }
 };
