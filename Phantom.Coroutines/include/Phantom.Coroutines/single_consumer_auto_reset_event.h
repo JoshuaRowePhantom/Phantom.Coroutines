@@ -10,19 +10,24 @@ namespace detail
 {
 class single_consumer_auto_reset_event
 {
-    struct NotSignalledState;
-    struct SignalledState;
+    struct NotSignalledState {};
+    struct SignalledState {};
 
-    //StateHolder<
-    //    coroutine_handle<>,
-    //    NotSignalledState,
-    //    SignalledState
-    //> m_state;
+    typedef atomic_state<
+        SingletonState<NotSignalledState>,
+        SingletonState<SignalledState>,
+        StateSet<coroutine_handle<>>
+    > state_type;
+
+    state_type m_state;
 
 public:
     single_consumer_auto_reset_event(
         bool initiallySignalled = false
-    );
+    ) : m_state(
+        initiallySignalled ? state<state_type>(SingletonState<SignalledState>()) : NotSignalledState()
+    )
+    {}
 
     void set();
 

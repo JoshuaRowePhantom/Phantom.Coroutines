@@ -441,8 +441,7 @@ protected:
 
 
 template<
-    typename TAtomicState,
-    typename TStateType = void
+    typename TAtomicState
 > class state;
 
 template<
@@ -456,16 +455,13 @@ BasicAtomicStateHandlers<
 >
 {
     template<
-        typename TAtomicState,
-        typename TStateType
+        typename TAtomicState
     > friend class state;
 
     std::atomic<TRepresentation> m_state;
 
 public:
-    template<
-        typename TStateType = void
-    > using state_type = state<basic_atomic_state, TStateType>;
+    typedef state<basic_atomic_state> state_type;
 
     // Allow implicit construction from anything that has
     // a to_representation method.
@@ -484,8 +480,15 @@ public:
             elementType))
     {}
 
+    // Allow implicit construction from a state object.
+    basic_atomic_state(
+        state_type state
+    ) : m_state(
+        state.m_value)
+    {}
+
     void store(
-        state_type<> value,
+        state_type value,
         std::memory_order order = std::memory_order_seq_cst
     )
     {
@@ -494,11 +497,11 @@ public:
             order);
     }
 
-    state_type<> load(
+    state_type load(
         std::memory_order order = std::memory_order_seq_cst
     )
     {
-        return state_type<>(m_state.load(order));
+        return state_type(m_state.load(order));
     }
 };
 
@@ -508,13 +511,11 @@ template<
 
 // This represents a concrete generic state.
 // It comparable to other states via implicit conversions to this type.
-// It can be conditionally converted to a concrete non-singleton state.
 template<
     typename TRepresentation,
     typename...TStateTypes
 > class state<
-    basic_atomic_state<TRepresentation, TStateTypes...>,
-    void
+    basic_atomic_state<TRepresentation, TStateTypes...>
 >
 {
     // Allow basic_atomic_state access to private members.
@@ -522,12 +523,6 @@ template<
         typename TRepresentation,
         StateType...TStateTypes
     > friend class basic_atomic_state;
-
-    // Allow other state<> specializations access to private members.
-    template<
-        typename TAtomicState,
-        typename TStateType
-    > friend class state;
 
     typedef basic_atomic_state<TRepresentation, TStateTypes...> atomic_state;
 
