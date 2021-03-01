@@ -12,11 +12,12 @@ class single_consumer_auto_reset_event
 {
     struct NotSignalledState {};
     struct SignalledState {};
+    struct WaitingCoroutineState;
 
     typedef atomic_state<
         SingletonState<NotSignalledState>,
         SingletonState<SignalledState>,
-        StateSet<coroutine_handle<>>
+        StateSet<WaitingCoroutineState, coroutine_handle<>>
     > state_type;
 
     state_type m_state;
@@ -38,7 +39,7 @@ public:
 
         do
         {
-            if (expectedState.is<coroutine_handle<>>())
+            if (expectedState.is<WaitingCoroutineState>())
             {
                 nextState = NotSignalledState();
             }
@@ -49,11 +50,25 @@ public:
             std::memory_order_acq_rel,
             std::memory_order_relaxed));
 
-        if (expectedState.is<coroutine_handle<>>())
+        if (expectedState.is<WaitingCoroutineState>())
         {
-            auto coroutine = expectedState.as<coroutine_handle<>>();
+            auto coroutine = expectedState.as<WaitingCoroutineState>();
             coroutine.resume();
         }
+    }
+
+    void reset()
+    {
+        state<state_type> expectedState = SignalledState();
+
+        // If the state was Signalled, it becomes NotSignalled.
+        // If the state was NotSignalled, it stays that way.
+        // If the state was coroutine_handle<>, it stays that way.
+        m_state.compare_exchange_strong(
+            expectedState,
+            NotSignalledState(),
+            std::memory_order_acq_rel,
+            std::memory_order_acquire);
     }
 
     class awaiter
