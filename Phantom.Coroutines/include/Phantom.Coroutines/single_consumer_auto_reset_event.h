@@ -29,7 +29,32 @@ public:
     )
     {}
 
-    void set();
+    void set()
+    {
+        state<state_type> expectedState = m_state.load(
+            std::memory_order_relaxed);
+        
+        state<state_type> nextState = SignalledState();
+
+        do
+        {
+            if (expectedState.is<coroutine_handle<>>())
+            {
+                nextState = NotSignalledState();
+            }
+
+        } while (!m_state.compare_exchange_weak(
+            expectedState,
+            nextState,
+            std::memory_order_acq_rel,
+            std::memory_order_relaxed));
+
+        if (expectedState.is<coroutine_handle<>>())
+        {
+            auto coroutine = expectedState.as<coroutine_handle<>>();
+            coroutine.resume();
+        }
+    }
 
     class awaiter
     {
