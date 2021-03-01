@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <assert.h>
 #include <bit>
 #include <optional>
