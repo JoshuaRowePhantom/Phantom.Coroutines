@@ -13,11 +13,14 @@ namespace detail
 
 template<
     typename TLabel
-> struct SingletonState 
+> class SingletonState
 {
+public:
+    typedef TLabel Label;
+
     SingletonState(
         TLabel label = TLabel()
-    ) requires Label<TLabel> {}
+    ) {}
 };
 
 template<
@@ -35,7 +38,35 @@ template<
         typename TStateSetType, 
         typename TRepresentation
     > typename TStateSetTraits = StateSetTraits
-> struct StateSet;
+> class StateSet
+{
+public:
+    typedef TLabel Label;
+    typedef TStateSetType element_type;
+    
+    // This object is not constructible.
+    StateSet() = delete; 
+};
+
+template<
+    typename TLabel,
+    typename TStateSetType
+> class StateSetElement
+{
+    TStateSetType m_element;
+
+public:
+    StateSetElement(
+        TStateSetType element
+    ) : m_element(
+        element)
+    {}
+
+    operator TStateSetType() const
+    {
+        return m_element;
+    }
+};
 
 // This StateSetTraits allows an arbitrary type TPointerToValue to be
 // represented as a void* in an AtomicState.
@@ -110,7 +141,7 @@ template<
 protected:
     static bool is_state(
         void* representation,
-        atomic_state_handler_tag<TLabel>)
+        atomic_state_handler_tag<SingletonState<TLabel>>)
     {
         return representation == &g_objectWithUniqueAddressValue;
     }
@@ -147,8 +178,10 @@ template<
     StateSetIndexPointerMask
 >
 {
+    static const uintptr_t c_StateSetIndexPointerMask = StateSetIndexPointerMask;
+
     static_assert(
-        StateSetIndexPointerMask < alignof(TStateSetType),
+        c_StateSetIndexPointerMask < alignof(TStateSetType),
         "The alignment of the TStateSetType is too small to allow storing in the low order bits of a pointer.");
 
     typedef TStateSetTraits<TStateSetType, void*> state_set_traits;
@@ -159,6 +192,16 @@ protected:
         atomic_state_handler_tag<TLabel>)
     {
         return reinterpret_cast<uintptr_t>(representation) & StateSetIndexPointerMask == StateSetIndex;
+    }
+
+    static void* to_representation(
+        StateSetElement<TLabel, TStateSetType> element
+    )
+    {
+        return to_representation(
+            element,
+            atomic_state_handler_tag<TLabel>()
+        );
     }
 
     static void* to_representation(
@@ -174,13 +217,13 @@ protected:
         
         // Can only pass aligned pointers to StateSetHandle!
         assert(
-            stateUint & StateSetIndexPointerMask == 0);
+            (stateUint & c_StateSetIndexPointerMask) == 0);
 
         auto stateUintWithSetNumber = stateUint | StateSetIndex;
 
         // Internal error, too few bits in StateSetIndexPointerMask.
         assert(
-            stateUintWithSetNumber & StateSetIndexPointerMask == stateUint);
+            (stateUintWithSetNumber & ~c_StateSetIndexPointerMask) == stateUint);
 
         return reinterpret_cast<void*>(
             stateUintWithSetNumber);
@@ -249,7 +292,7 @@ template<
     typename SingletonStateTypesTuple = typename filter_tuple_types<IsSingletonStateFilter, StateTypesTuple>::tuple_type,
     typename StateSetTypesTuple = typename filter_tuple_types<IsStateSetFilter, StateTypesTuple>::tuple_type,
     typename StateSetTypesIndexSequence = std::make_index_sequence<std::tuple_size_v<StateSetTypesTuple>>,
-    uintptr_t RepresentationPointerMask = (1 << std::bit_width(std::tuple_size_v<StateSetTypesTuple>))
+    uintptr_t RepresentationPointerMask = (1 << std::bit_width(std::tuple_size_v<StateSetTypesTuple>)) - 1
 >
 class BasicAtomicStateHandlers;
 
@@ -283,6 +326,14 @@ public StateSetHandler<
 >...
 {
 protected:
+    typedef std::tuple<
+        typename StateSetTypes::Label...
+    > StateSetTypeLabelsTuple;
+
+    typedef std::tuple<
+        typename StateSetTypes::element_type...
+    > StateSetElementTypesTuple;
+
     using SingletonStateHandler<
         TRepresentation,
         SingletonStateTypes
@@ -301,6 +352,14 @@ protected:
         StateSetIndices,
         RepresentationPointerMask
     >::to_representation...;
+
+    static bool is_singleton(
+        TRepresentation representation)
+    {
+        return (SingletonStateHandler<TRepresentation, SingletonStateTypes>::is_state(
+            representation,
+            atomic_state_handler_tag<SingletonStateTypes>()) || ...);
+    }
 };
 
 
@@ -316,7 +375,7 @@ template<
     :
 BasicAtomicStateHandlers<
     TRepresentation,
-    std::tuple<TStateTypes>...
+    std::tuple<TStateTypes...>
 >
 {
     template<
@@ -358,7 +417,7 @@ public:
 
     void store(
         state_type<> value,
-        std::memory_order order
+        std::memory_order order = std::memory_order_seq_cst
     )
     {
         m_state.store(
@@ -367,11 +426,10 @@ public:
     }
 
     state_type<> load(
-        std::memory_order order
+        std::memory_order order = std::memory_order_seq_cst
     )
     {
-        return to_state(
-            m_state.load(order));
+        return state_type<>(m_state.load(order));
     }
 };
 
@@ -406,27 +464,48 @@ template<
 
     TRepresentation m_value;
 
-    state(
+    explicit state(
         TRepresentation value
     ) : m_value(
         value)
     {}
 
 public:
-    // Allow implicit construction from a singleton state.
+    // Allow implicit construction from anything that has
+    // a to_representation method.
     template<
-        typename TLabel
-    > state(
-        SingletonState<TLabel> singletonState
+        typename ElementType
+    > requires requires(ElementType element)
+    {
+        { atomic_state::to_representation(
+            element
+        ) } -> std::convertible_to<TRepresentation>;
+    }
+    state(
+        ElementType elementType
     ) : m_value(
         atomic_state::to_representation(
-            singletonState))
+            elementType))
     {}
 
     constexpr bool operator==(
-        const state other)
+        const state& other
+        ) const
     {
         return m_value == other.m_value;
+    }
+
+    constexpr bool operator!=(
+        const state& other
+        ) const
+    {
+        return m_value != other.m_value;
+    }
+
+    constexpr bool is_singleton() const
+    {
+        return atomic_state::is_singleton(
+            m_value);
     }
 };
 

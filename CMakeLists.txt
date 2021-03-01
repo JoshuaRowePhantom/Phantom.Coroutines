@@ -5,7 +5,10 @@ find_package(GTest REQUIRED)
 
 if (MSVC)
 	add_compile_options("/std:c++latest")
+	add_compile_options("/Fa")
 endif()
 
 add_subdirectory(Phantom.Coroutines)
 add_subdirectory(Phantom.Coroutines.Test)
+
+enable_testing()

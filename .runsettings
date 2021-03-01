@@ -1,0 +1,7 @@
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <GTEST_BREAK_ON_FAILURE>1</GTEST_BREAK_ON_FAILURE>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>
