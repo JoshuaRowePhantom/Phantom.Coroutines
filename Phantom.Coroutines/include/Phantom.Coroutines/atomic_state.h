@@ -92,7 +92,7 @@ template<
     static constexpr TPointedToValue* from_representation(
         void* representation)
     {
-        return static_cast<TPointedToValue>(
+        return static_cast<TPointedToValue*>(
             representation);
     }
 };
@@ -255,9 +255,9 @@ protected:
 
         // Can't convert wrong representation type to value!
         assert(
-            stateUintWithSetNumber & StateSetIndexPointerMask == StateSetIndex);
+            (stateUintWithSetNumber & c_StateSetIndexPointerMask) == StateSetIndex);
 
-        auto stateUint = stateUintWithSetNumber & StateSetIndexPointerMask;
+        auto stateUint = stateUintWithSetNumber & c_StateSetIndexPointerMask;
 
         auto statePointer = reinterpret_cast<void*>(
             stateUintWithSetNumber);
@@ -424,6 +424,19 @@ protected:
             );
         }
     }
+
+    template<
+        typename TLabel
+    > constexpr static auto as(
+        TRepresentation representation
+    )
+    {
+        assert(is<TLabel>(representation));
+
+        return from_representation(
+            representation,
+            atomic_state_handler_tag<TLabel>());
+    }
 };
 
 
@@ -454,29 +467,21 @@ public:
         typename TStateType = void
     > using state_type = state<basic_atomic_state, TStateType>;
 
-    // Allow initialization from a state type
+    // Allow implicit construction from anything that has
+    // a to_representation method.
+    template<
+        typename ElementType
+    > requires requires(ElementType element)
+    {
+        { basic_atomic_state::BasicAtomicStateHandlers::to_representation(
+            element
+        ) } -> std::convertible_to<TRepresentation>;
+    }
     basic_atomic_state(
-        state_type<> value
+        ElementType elementType
     ) : m_state(
-        value.m_value
-    ){}
-
-    // Allow initialization from a SingletonState directly.
-    template<
-        typename TLabel
-    > basic_atomic_state(
-        SingletonState<TLabel> state
-    ) : basic_atomic_state(
-        state_type<>(state))
-    {}
-
-    // Allow initialization from a label directly.
-    template<
-        Label TLabel
-    > basic_atomic_state(
-        TLabel state
-    ) : basic_atomic_state(
-        SingletonState<TLabel>())
+        basic_atomic_state::BasicAtomicStateHandlers::to_representation(
+            elementType))
     {}
 
     void store(
@@ -579,91 +584,15 @@ public:
         return atomic_state::template is<TLabel>(
             m_value);
     }
-};
 
-// This represents a concrete singleton state.
-// It is constructible and convertible to the generic state.
-template<
-    typename TRepresentation,
-    typename...TStateTypes,
-    typename TLabel
->
-requires is_in_types<SingletonState<TLabel>, TStateTypes...>
-class state<
-    basic_atomic_state<TRepresentation, TStateTypes...>,
-    SingletonState<TLabel>
->
-{
-    typedef basic_atomic_state<TRepresentation, TStateTypes...> atomic_state;
-    typedef state<atomic_state> VoidState;
-
-public:
-    state()
-    {}
-
-    // Allow implicit conversion to State<AtomicState>.
-    operator VoidState() const
+    template<
+        typename TLabel
+    > constexpr auto as() const
     {
-        return VoidState(
-            atomic_state::to_representation(*this));
+        return atomic_state::template as<TLabel>(
+            m_value);
     }
 };
-
-// This represents a concrete element from a state set.
-// It is constructible and convertible to the generic state.
-template<
-    typename...TStateTypes,
-    typename TRepresentation,
-    typename TLabel,
-    typename TStateSetType,
-    template<typename, typename> typename TStateSetTraitsType
-> 
-requires is_in_types<
-    StateSet<
-        TLabel,
-        TStateSetType,
-        TStateSetTraitsType
-    >,
-    TStateTypes...
->
-class state<
-    basic_atomic_state<TRepresentation, TStateTypes...>,
-    StateSet<
-        TLabel,
-        TStateSetType,
-        TStateSetTraitsType
-    >
->
-{
-    typedef basic_atomic_state<void*, TStateTypes...> atomic_state;
-    typedef state<atomic_state> VoidState;
-
-    TRepresentation m_value;
-
-public:
-    state(
-        TStateSetType value)
-    : m_value(
-        atomic_state::to_representation(
-            value,
-            atomic_state_handler_tag<TLabel>()))
-    {}
-
-    // Allow implicit conversion to State<AtomicState>.
-    operator VoidState() const
-    {
-        return VoidState(m_value);
-    }
-
-    operator TStateSetType () const
-    {
-        return atomic_state::from_representation(
-            m_value,
-            atomic_state_handler_tag<TLabel>()
-        );
-    }
-};
-
 }
 
 using detail::SingletonState;

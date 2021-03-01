@@ -209,4 +209,17 @@ TEST(atomic_state_test, Can_store_pointer_values_into_state_with_two_sets)
     ASSERT_TRUE(value.is<PointedToValue2*>());
 }
 
+
+TEST(atomic_state_test, Can_retrieve_pointer_value_from_set)
+{
+    PointedToValue value1;
+
+    test_atomic_state_with_pointer_set state
+    {
+        &value1
+    };
+
+    ASSERT_TRUE(state.load().as<PointedToValue*>() == &value1);
+}
+
 }
