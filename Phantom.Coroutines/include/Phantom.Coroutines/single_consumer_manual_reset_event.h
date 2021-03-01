@@ -8,7 +8,7 @@ namespace Phantom::Coroutines
 {
 namespace detail
 {
-class single_consumer_auto_reset_event
+class single_consumer_manual_reset_event
 {
     struct NotSignalledState {};
     struct SignalledState {};
@@ -26,11 +26,7 @@ public:
     single_consumer_auto_reset_event(
         bool initiallySignalled = false
     ) : m_state(
-        initiallySignalled 
-        ? 
-        state<state_type>(SingletonState<SignalledState>()) 
-        : 
-        NotSignalledState()
+        initiallySignalled ? state<state_type>(SingletonState<SignalledState>()) : NotSignalledState()
     )
     {}
 
