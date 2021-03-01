@@ -8,10 +8,9 @@ namespace
 struct Label1 {};
 struct Label2 {};
 
-struct PointedToValue {};
-
-struct PointedToValue1 {};
-struct PointedToValue2 {};
+struct alignas(2) PointedToValue {};
+struct alignas(2) PointedToValue1 {};
+struct alignas(2) PointedToValue2 {};
 
 typedef atomic_state<
     SingletonState<struct Label1>,

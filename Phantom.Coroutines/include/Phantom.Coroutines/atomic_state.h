@@ -103,19 +103,19 @@ template<
     typename TPromise
 > struct StateSetTraits<coroutine_handle<TPromise>, void*>
 {
-    constexpr size_t align_of()
+    static constexpr size_t align_of()
     {
         return alignof(coroutine_handle<TPromise>);
     }
 
-    constexpr void* to_representation(
+    static constexpr void* to_representation(
         coroutine_handle<TPromise> value
     )
     {
         return value.address();
     }
 
-    constexpr coroutine_handle<TPromise> from_representation(
+    static constexpr coroutine_handle<TPromise> from_representation(
         void* representation)
     {
         return coroutine_handle<TPromise>::from_address(
@@ -189,12 +189,11 @@ template<
 {
     static const uintptr_t c_StateSetIndex = StateSetIndex;
     static const uintptr_t c_StateSetIndexPointerMask = StateSetIndexPointerMask;
+    typedef TStateSetTraits<TStateSetType, void*> state_set_traits;
 
     static_assert(
-        c_StateSetIndexPointerMask < alignof(TStateSetType),
+        c_StateSetIndexPointerMask < state_set_traits::align_of(),
         "The alignment of the TStateSetType is too small to allow storing in the low order bits of a pointer.");
-
-    typedef TStateSetTraits<TStateSetType, void*> state_set_traits;
 
 protected:
     static constexpr bool is_singleton(
@@ -475,22 +474,23 @@ public:
     }
     basic_atomic_state(
         ElementType elementType
-    ) : m_state(
-        basic_atomic_state::BasicAtomicStateHandlers::to_representation(
-            elementType))
+    )  noexcept : 
+        m_state(
+            basic_atomic_state::BasicAtomicStateHandlers::to_representation(
+                elementType))
     {}
 
     // Allow implicit construction from a state object.
     basic_atomic_state(
         state_type state
-    ) : m_state(
+    )  noexcept : m_state(
         state.m_value)
     {}
 
     void store(
         state_type value,
         std::memory_order order = std::memory_order_seq_cst
-    )
+    ) noexcept
     {
         m_state.store(
             value.m_value,
@@ -499,9 +499,76 @@ public:
 
     state_type load(
         std::memory_order order = std::memory_order_seq_cst
-    )
+    ) const noexcept
     {
         return state_type(m_state.load(order));
+    }
+
+    state_type exchange(
+        state_type value,
+        std::memory_order order = std::memory_order_seq_cst
+    ) noexcept
+    {
+        return m_state.exchange(
+            value.m_value,
+            order
+        );
+    }
+
+    bool compare_exchange_strong(
+        state_type& expected,
+        state_type value,
+        std::memory_order order = std::memory_order_seq_cst
+    ) noexcept
+    {
+        return m_state.compare_exchange_strong(
+            expected.m_value,
+            value.m_value,
+            order
+        );
+    }
+
+    bool compare_exchange_strong(
+        state_type& expected,
+        state_type value,
+        std::memory_order success,
+        std::memory_order failure
+    ) noexcept
+    {
+        return m_state.compare_exchange_strong(
+            expected.m_value,
+            value.m_value,
+            success,
+            failure
+        );
+    }
+
+    bool compare_exchange_weak(
+        state_type& expected,
+        state_type value,
+        std::memory_order order = std::memory_order_seq_cst
+    ) noexcept
+    {
+        return m_state.compare_exchange_weak(
+            expected.m_value,
+            value.m_value,
+            order
+        );
+    }
+
+    bool compare_exchange_weak(
+        state_type& expected,
+        state_type value,
+        std::memory_order success,
+        std::memory_order failure
+    ) noexcept
+    {
+        return m_state.compare_exchange_weak(
+            expected.m_value,
+            value.m_value,
+            success,
+            failure
+        );
     }
 };
 
