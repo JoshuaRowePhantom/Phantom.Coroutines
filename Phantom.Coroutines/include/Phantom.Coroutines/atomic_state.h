@@ -106,7 +106,7 @@ template<
 {
     static constexpr size_t align_of()
     {
-        return alignof(coroutine_handle<TPromise>);
+        return alignof(std::uintptr_t);
     }
 
     static constexpr void* to_representation(
