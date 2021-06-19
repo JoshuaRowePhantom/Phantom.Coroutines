@@ -18,7 +18,7 @@ template<
 {
 public:
     typedef TLabel Label;
-    const bool is_singleton = true;
+    static constexpr bool is_singleton = true;
 
     SingletonState(
         TLabel label = TLabel()
@@ -446,12 +446,12 @@ template<
 
 template<
     typename TRepresentation,
-    StateType...TStateTypes
+    StateType...TStates
 > class basic_atomic_state
     :
 BasicAtomicStateHandlers<
     TRepresentation,
-    std::tuple<TStateTypes...>
+    std::tuple<TStates...>
 >
 {
     template<
@@ -574,25 +574,25 @@ public:
 };
 
 template<
-    typename...TStateTypes
-> using atomic_state = basic_atomic_state<void*, TStateTypes...>;
+    typename...TStates
+> using atomic_state = basic_atomic_state<void*, TStates...>;
 
 // This represents a concrete generic state.
 // It comparable to other states via implicit conversions to this type.
 template<
     typename TRepresentation,
-    typename...TStateTypes
+    typename...TStates
 > class state<
-    basic_atomic_state<TRepresentation, TStateTypes...>
+    basic_atomic_state<TRepresentation, TStates...>
 >
 {
     // Allow basic_atomic_state access to private members.
     template<
         typename TRepresentation,
-        StateType...TStateTypes
+        StateType...TStates
     > friend class basic_atomic_state;
 
-    typedef basic_atomic_state<TRepresentation, TStateTypes...> atomic_state;
+    typedef basic_atomic_state<TRepresentation, TStates...> atomic_state;
 
     TRepresentation m_value;
 
