@@ -106,7 +106,7 @@ template<
 {
     static constexpr size_t align_of()
     {
-        return 1;
+        return sizeof(uintptr_t);
     }
 
     static constexpr void* to_representation(
