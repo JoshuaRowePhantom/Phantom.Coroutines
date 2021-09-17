@@ -34,6 +34,11 @@ public:
     )
     {}
 
+    bool is_set() const
+    {
+        return m_state.load(std::memory_order_acquire).is<SignalledState>();
+    }
+
     void set()
     {
         state_type expectedState = m_state.load(
