@@ -106,7 +106,7 @@ template<
 {
     static constexpr size_t align_of()
     {
-        return alignof(std::uintptr_t);
+        return 1;
     }
 
     static constexpr void* to_representation(
@@ -168,7 +168,7 @@ template<
     typename TRepresentation,
     typename TStateSet,
     size_t StateSetIndex,
-    uintptr_t RepresentationPointerMask
+    size_t StateSetSize
 > class StateSetHandler;
 
 template<
@@ -176,7 +176,7 @@ template<
     typename TStateSetType,
     template <typename, typename> typename TStateSetTraits,
     size_t StateSetIndex,
-    uintptr_t StateSetIndexPointerMask
+    size_t StateSetSize
 > class StateSetHandler<
     void*,
     StateSet<
@@ -185,11 +185,11 @@ template<
         TStateSetTraits
     >, 
     StateSetIndex,
-    StateSetIndexPointerMask
+    StateSetSize
 >
 {
     static const uintptr_t c_StateSetIndex = StateSetIndex;
-    static const uintptr_t c_StateSetIndexPointerMask = StateSetIndexPointerMask;
+    static const uintptr_t c_StateSetIndexPointerMask = (1 << std::bit_width(StateSetSize) - 1) - 1;
     typedef TStateSetTraits<TStateSetType, void*> state_set_traits;
 
     static_assert(
@@ -307,8 +307,7 @@ template<
     typename StateTypesTuple,
     typename SingletonStateTypesTuple = typename filter_tuple_types<IsSingletonStateFilter, StateTypesTuple>::tuple_type,
     typename StateSetTypesTuple = typename filter_tuple_types<IsStateSetFilter, StateTypesTuple>::tuple_type,
-    typename StateSetTypesIndexSequence = std::make_index_sequence<std::tuple_size_v<StateSetTypesTuple>>,
-uintptr_t RepresentationPointerMask = (1 << std::bit_width(std::tuple_size_v<StateSetTypesTuple>) - 1) - 1
+    typename StateSetTypesIndexSequence = std::make_index_sequence<std::tuple_size_v<StateSetTypesTuple>>
 >
 class BasicAtomicStateHandlers;
 
@@ -317,31 +316,29 @@ template<
     typename... StateTypes,
     typename... SingletonStateTypes,
     typename... StateSetTypes,
-    size_t... StateSetIndices,
-    uintptr_t RepresentationPointerMask
+    size_t... StateSetIndices
 >
 class BasicAtomicStateHandlers<
     TRepresentation,
     std::tuple<StateTypes...>,
     std::tuple<SingletonStateTypes...>,
     std::tuple<StateSetTypes...>,
-    std::integer_sequence<size_t, StateSetIndices...>,
-    RepresentationPointerMask
+    std::integer_sequence<size_t, StateSetIndices...>
 >
     :
     public SingletonStateHandler<
-    TRepresentation,
-    SingletonStateTypes
+        TRepresentation,
+        SingletonStateTypes
     >...,
 
     public StateSetHandler<
-    TRepresentation,
-    StateSetTypes,
-    StateSetIndices,
-    RepresentationPointerMask
+        TRepresentation,
+        StateSetTypes,
+        StateSetIndices,
+        sizeof...(StateSetIndices)
     >...
 {
-protected:
+public:
     typedef std::tuple<
         typename StateSetTypes::Label...
     > StateSetTypeLabelsTuple;
@@ -369,28 +366,28 @@ protected:
         TRepresentation,
         StateSetTypes,
         StateSetIndices,
-        RepresentationPointerMask
+        sizeof...(StateSetIndices)
     >::is_singleton...;
 
     using StateSetHandler<
         TRepresentation,
         StateSetTypes,
         StateSetIndices,
-        RepresentationPointerMask
+        sizeof...(StateSetIndices)
     >::is_state...;
 
     using StateSetHandler<
         TRepresentation,
         StateSetTypes,
         StateSetIndices,
-        RepresentationPointerMask
+        sizeof...(StateSetIndices)
     >::from_representation...;
 
     using StateSetHandler<
         TRepresentation,
         StateSetTypes,
         StateSetIndices,
-        RepresentationPointerMask
+        sizeof...(StateSetIndices)
     >::to_representation...;
 
     static constexpr bool is_singleton(
@@ -439,7 +436,6 @@ protected:
     }
 };
 
-
 template<
     typename TAtomicState
 > class state;
@@ -462,19 +458,15 @@ BasicAtomicStateHandlers<
 
 public:
     typedef state<basic_atomic_state> state_type;
+    typedef TRepresentation representation_type;
 
     // Allow implicit construction from anything that has
     // a to_representation method.
     template<
-        typename ElementType
-    > requires requires(ElementType element)
-    {
-        { basic_atomic_state::BasicAtomicStateHandlers::to_representation(
-            element
-        ) } -> std::convertible_to<TRepresentation>;
-    }
+        typename TElementType
+    >
     basic_atomic_state(
-        ElementType elementType
+        TElementType elementType
     )  noexcept : 
         m_state(
             basic_atomic_state::BasicAtomicStateHandlers::to_representation(
@@ -606,33 +598,18 @@ public:
     // Allow implicit construction from anything that has
     // a to_representation method.
     template<
-        typename ElementType
-    > requires requires(ElementType element)
-    {
-        { atomic_state::to_representation(
-            element
-        ) } -> std::convertible_to<TRepresentation>;
-    }
+        typename TElementType
+    >
     state(
-        ElementType elementType
+        TElementType elementType
     ) : m_value(
         atomic_state::to_representation(
             elementType))
     {}
 
-    constexpr bool operator==(
-        const state& other
-        ) const
-    {
-        return m_value == other.m_value;
-    }
-
-    constexpr bool operator!=(
-        const state& other
-        ) const
-    {
-        return m_value != other.m_value;
-    }
+    constexpr std::strong_ordering operator<=>(
+        const state&
+        ) const = default;
 
     constexpr bool is_singleton() const
     {

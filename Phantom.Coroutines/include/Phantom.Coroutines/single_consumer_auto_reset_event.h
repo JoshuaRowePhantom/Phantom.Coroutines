@@ -18,34 +18,34 @@ class single_consumer_auto_reset_event
         SingletonState<NotSignalledState>,
         SingletonState<SignalledState>,
         StateSet<WaitingCoroutineState, coroutine_handle<>>
-    > state_type;
+    > atomic_state_type;
 
-    state_type m_state;
-
+    atomic_state_type m_state;
+    typedef state<atomic_state_type> state_type;
 public:
     single_consumer_auto_reset_event(
         bool initiallySignalled = false
     ) : m_state(
         initiallySignalled 
         ? 
-        state<state_type>(SingletonState<SignalledState>()) 
+        state_type{ SignalledState{} }
         : 
-        NotSignalledState()
+        state_type{ NotSignalledState{} }
     )
     {}
 
     void set()
     {
-        state<state_type> expectedState = m_state.load(
+        state_type expectedState = m_state.load(
             std::memory_order_relaxed);
         
-        state<state_type> nextState = SignalledState();
+        state_type nextState = SignalledState{};
 
         do
         {
             if (expectedState.is<WaitingCoroutineState>())
             {
-                nextState = NotSignalledState();
+                nextState = NotSignalledState{};
             }
 
         } while (!m_state.compare_exchange_weak(
@@ -63,14 +63,14 @@ public:
 
     void reset()
     {
-        state<state_type> expectedState = SignalledState();
+        state_type expectedState = SignalledState{};
 
         // If the state was Signalled, it becomes NotSignalled.
         // If the state was NotSignalled, it stays that way.
         // If the state was WaitingCoroutine, it stays that way.
         m_state.compare_exchange_strong(
             expectedState,
-            NotSignalledState(),
+            NotSignalledState{},
             std::memory_order_acq_rel,
             std::memory_order_acquire);
     }

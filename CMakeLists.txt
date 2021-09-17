@@ -4,7 +4,7 @@ project(Phantom.Coroutines)
 find_package(GTest REQUIRED)
 
 if (MSVC)
-	add_compile_options("/std:c++latest")
+	add_compile_options("/std:c++20")
 	add_compile_options("/Fa")
 endif()
 
