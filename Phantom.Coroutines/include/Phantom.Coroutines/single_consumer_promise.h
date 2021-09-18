@@ -116,7 +116,7 @@ public:
 
         assert(!previousState.is<WaitingCoroutineState>());
 
-        return previousState == IncompleteState{};
+        return previousState == CompleteState{};
     }
 
     TValue& await_ready()
