@@ -1,3 +1,5 @@
+#include <type_traits>
+
 namespace Phantom::Coroutines::detail
 {
 
@@ -21,8 +23,8 @@ protected:
     typedef TDiscriminant discriminant_type;
 
     static constexpr bool is_same_as(
-        Discriminant discriminant
-    ) const
+        TDiscriminant discriminant
+    )
     {
         return discriminant == Discriminant;
     }
@@ -30,18 +32,19 @@ protected:
     template<
         typename ... TArgs
     >
-        static void create(
-            discriminant_tag,
-            void* value,
-            TArgs&& ... args
-        )
+    static void create(
+        discriminant_tag,
+        void* value,
+        TArgs&& ... args
+    )
     {
-        new[value] TValue(
+        new(value) TValue(
             std::forward<TArgs>(args)...
         );
     }
 
     static bool destroy(
+        discriminant_tag,
         TDiscriminant discriminant,
         void* value
     )
@@ -57,37 +60,32 @@ protected:
 
 template<
     typename TDiscriminant,
-    TDiscriminant Discriminant
-> struct discriminant_tag {};
-
-constexpr get_variant_holder_type(
-    std::tuple<>
-)
-{
-
-}
-
-template<
     typename ... TVariants
-> class variant_holder;
-
-template<
-> class variant_holder<
->
+> class variant_holder
 {
-protected:
-    typedef variant_holder<TVariants...>::holder_type holder_type;
+    typedef std::aligned_union_t<1, typename TVariants::storage_type...> aligned_union;
+    aligned_union m_value;
+
+    template<
+        typename TDiscriminantTag,
+        typename ... TArgs
+    > void create(
+        TDiscriminantTag discriminantTag,
+        TArgs... && args
+    )
+    {
+
+    }
+
+    template<
+        typename ... TArgs
+    > void destroy(
+        TDiscriminant discriminant
+    )
+    {
+        (TVariants::destroy())
+    }
 };
 
-template<
-    typename ... TVariants
-> class variant_holder<
-    void,
-    TVariants...
->
-{
-protected:
-    typedef variant_holder<TVariants...>::holder_type holder_type;
-};
 
 }

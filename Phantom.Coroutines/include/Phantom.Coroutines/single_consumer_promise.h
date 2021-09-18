@@ -11,15 +11,7 @@ namespace detail
 template<
     typename TValue
 > 
-class promise;
-
-template<
-    size_t Index
-> struct promise_variant_state_label
-{};
-
-struct promise_variant_empty_label
-{};
+class single_consumer_promise;
 
 template<
     typename ValuesTuple,
