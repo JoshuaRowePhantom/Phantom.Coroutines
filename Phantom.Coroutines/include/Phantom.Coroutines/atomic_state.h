@@ -454,7 +454,7 @@ BasicAtomicStateHandlers<
         typename TAtomicState
     > friend class state;
 
-    std::atomic<TRepresentation> m_state;
+    std::atomic<TRepresentation> m_atomicRepresentation;
 
 public:
     typedef state<basic_atomic_state> state_type;
@@ -468,7 +468,7 @@ public:
     basic_atomic_state(
         TElementType elementType
     )  noexcept : 
-        m_state(
+        m_atomicRepresentation(
             basic_atomic_state::BasicAtomicStateHandlers::to_representation(
                 elementType))
     {}
@@ -476,7 +476,7 @@ public:
     // Allow implicit construction from a state object.
     basic_atomic_state(
         state_type state
-    )  noexcept : m_state(
+    )  noexcept : m_atomicRepresentation(
         state.m_value)
     {}
 
@@ -485,7 +485,7 @@ public:
         std::memory_order order = std::memory_order_seq_cst
     ) noexcept
     {
-        m_state.store(
+        m_atomicRepresentation.store(
             value.m_value,
             order);
     }
@@ -494,7 +494,7 @@ public:
         std::memory_order order = std::memory_order_seq_cst
     ) const noexcept
     {
-        return state_type(m_state.load(order));
+        return state_type(m_atomicRepresentation.load(order));
     }
 
     state_type exchange(
@@ -502,7 +502,7 @@ public:
         std::memory_order order = std::memory_order_seq_cst
     ) noexcept
     {
-        return m_state.exchange(
+        return m_atomicRepresentation.exchange(
             value.m_value,
             order
         );
@@ -514,7 +514,7 @@ public:
         std::memory_order order = std::memory_order_seq_cst
     ) noexcept
     {
-        return m_state.compare_exchange_strong(
+        return m_atomicRepresentation.compare_exchange_strong(
             expected.m_value,
             value.m_value,
             order
@@ -528,7 +528,7 @@ public:
         std::memory_order failure
     ) noexcept
     {
-        return m_state.compare_exchange_strong(
+        return m_atomicRepresentation.compare_exchange_strong(
             expected.m_value,
             value.m_value,
             success,
@@ -542,7 +542,7 @@ public:
         std::memory_order order = std::memory_order_seq_cst
     ) noexcept
     {
-        return m_state.compare_exchange_weak(
+        return m_atomicRepresentation.compare_exchange_weak(
             expected.m_value,
             value.m_value,
             order
@@ -556,7 +556,7 @@ public:
         std::memory_order failure
     ) noexcept
     {
-        return m_state.compare_exchange_weak(
+        return m_atomicRepresentation.compare_exchange_weak(
             expected.m_value,
             value.m_value,
             success,
