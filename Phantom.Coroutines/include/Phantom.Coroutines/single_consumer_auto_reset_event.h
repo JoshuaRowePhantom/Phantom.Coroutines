@@ -22,6 +22,7 @@ class single_consumer_auto_reset_event
 
     atomic_state_type m_atomicState;
     typedef state<atomic_state_type> state_type;
+
 public:
     single_consumer_auto_reset_event(
         bool initiallySignalled = false
