@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "Phantom.Coroutines/atomic_state.h"
+#include "Phantom.Coroutines/detail/atomic_state.h"
 
 namespace Phantom::Coroutines
 {

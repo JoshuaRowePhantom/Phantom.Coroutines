@@ -1,7 +1,7 @@
 #pragma once
 
 #include <atomic>
-#include "atomic_state.h"
+#include "detail/atomic_state.h"
 #include "detail/coroutine.h"
 
 namespace Phantom::Coroutines

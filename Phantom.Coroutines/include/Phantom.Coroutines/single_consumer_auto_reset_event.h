@@ -1,7 +1,7 @@
 #pragma once
 
 #include <atomic>
-#include "atomic_state.h"
+#include "detail/atomic_state.h"
 #include "detail/coroutine.h"
 
 namespace Phantom::Coroutines
@@ -58,7 +58,8 @@ public:
 
         auto previousState = compare_exchange_weak_loop(
             m_atomicState,
-            nextStateLambda
+            nextStateLambda,
+            std::memory_order_relaxed
         );
 
         if (previousState.is<WaitingCoroutineState>())
@@ -102,7 +103,8 @@ public:
 
         auto previousState = compare_exchange_weak_loop(
             m_atomicState,
-            nextStateLambda
+            nextStateLambda,
+            std::memory_order_relaxed
         );
 
         if (previousState == SignalledState{})

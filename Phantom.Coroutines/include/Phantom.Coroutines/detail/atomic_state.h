@@ -4,8 +4,8 @@
 #include <bit>
 #include <optional>
 #include <type_traits>
-#include "detail/coroutine.h"
-#include "detail/type_traits.h"
+#include "coroutine.h"
+#include "type_traits.h"
 
 namespace Phantom::Coroutines
 {
@@ -644,11 +644,14 @@ template <
 >
 auto compare_exchange_weak_loop(
     TAtomicState& atomicState,
-    TNextStateLambda nextStateLambda
+    TNextStateLambda nextStateLambda,
+    std::memory_order loadMemoryOrder = std::memory_order_acquire,
+    std::memory_order successMemoryOrder = std::memory_order_acq_rel,
+    std::memory_order failureMemoryOrder = std::memory_order_acquire
 ) noexcept
 {
     auto previousState = atomicState.load(
-        std::memory_order_relaxed
+        loadMemoryOrder
     );
 
     while (true)
@@ -660,8 +663,8 @@ auto compare_exchange_weak_loop(
         if (atomicState.compare_exchange_weak(
             previousState,
             nextState,
-            std::memory_order_acq_rel,
-            std::memory_order_acquire
+            successMemoryOrder,
+            failureMemoryOrder
         ))
         {
             break;
