@@ -18,76 +18,102 @@ class single_consumer_manual_reset_event
         SingletonState<NotSignalledState>,
         SingletonState<SignalledState>,
         StateSet<WaitingCoroutineState, coroutine_handle<>>
-    > state_type;
+    > atomic_state_type;
 
-    state_type m_state;
-
+    atomic_state_type m_atomicState;
+    typedef state<atomic_state_type> state_type;
 public:
-    single_consumer_auto_reset_event(
+    single_consumer_manual_reset_event(
         bool initiallySignalled = false
-    ) : m_state(
-        initiallySignalled ? state<state_type>(SingletonState<SignalledState>()) : NotSignalledState()
+    ) : m_atomicState(
+        initiallySignalled
+        ?
+        state_type{ SignalledState{} }
+        :
+        state_type{ NotSignalledState{} }
     )
     {}
 
+    ~single_consumer_manual_reset_event()
+    {
+        assert(!m_atomicState.load(std::memory_order_acquire).is<WaitingCoroutineState>());
+    }
+
+    bool is_set() const
+    {
+        return m_atomicState.load(std::memory_order_acquire).is<SignalledState>();
+    }
+
     void set()
     {
-        state<state_type> expectedState = m_state.load(
-            std::memory_order_relaxed);
-        
-        state<state_type> nextState = SignalledState();
+        auto previousState = m_atomicState.exchange(
+            state_type{ SignalledState{} },
+            std::memory_order_acq_rel
+        );
 
-        do
+        if (previousState.is<WaitingCoroutineState>())
         {
-            if (expectedState.is<WaitingCoroutineState>())
-            {
-                nextState = NotSignalledState();
-            }
-
-        } while (!m_state.compare_exchange_weak(
-            expectedState,
-            nextState,
-            std::memory_order_acq_rel,
-            std::memory_order_relaxed));
-
-        if (expectedState.is<WaitingCoroutineState>())
-        {
-            auto coroutine = expectedState.as<WaitingCoroutineState>();
+            auto coroutine = previousState.as<WaitingCoroutineState>();
             coroutine.resume();
         }
     }
 
     void reset()
     {
-        state<state_type> expectedState = SignalledState();
+        state_type expectedState = SignalledState{};
 
         // If the state was Signalled, it becomes NotSignalled.
         // If the state was NotSignalled, it stays that way.
         // If the state was WaitingCoroutine, it stays that way.
-        m_state.compare_exchange_strong(
+        m_atomicState.compare_exchange_strong(
             expectedState,
-            NotSignalledState(),
+            NotSignalledState{},
             std::memory_order_acq_rel,
             std::memory_order_acquire);
     }
 
-    class awaiter
+    bool await_ready() noexcept
     {
-        friend class single_consumer_auto_reset_event;
+        return m_atomicState.load(std::memory_order_acquire) == SignalledState{};
+    }
 
-        awaiter(
-            single_consumer_auto_reset_event& event
+    bool await_suspend(
+        coroutine_handle<> coroutine
+    ) noexcept
+    {
+        auto nextStateLambda = [&](auto previousState) -> state_type
+        {
+            if (previousState == NotSignalledState{})
+            {
+                return coroutine;
+            }
+            return SignalledState{};
+        };
+
+        auto previousState = compare_exchange_weak_loop(
+            m_atomicState,
+            nextStateLambda
         );
 
-    public:
-        bool await_ready() noexcept;
-        coroutine_handle<> await_suspend(coroutine_handle<>) noexcept;
-        void await_resume() noexcept;
+        if (previousState == SignalledState{})
+        {
+            return false;
+        }
+
+        // If there is another coroutine handle,
+        // then this object isn't being used as expected;
+        // there's only supposed to be a single consumer ever doing
+        // co_await operations.
+        assert(previousState == NotSignalledState{});
+
+        return true;
     };
 
-    awaiter operator co_await();
+    void await_resume() noexcept
+    {
+    }
 };
 
 }
-using detail::single_consumer_auto_reset_event;
+using detail::single_consumer_manual_reset_event;
 }

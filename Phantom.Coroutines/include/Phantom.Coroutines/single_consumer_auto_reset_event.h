@@ -36,9 +36,7 @@ public:
 
     ~single_consumer_auto_reset_event()
     {
-        assert(
-            m_atomicState.load(std::memory_order_acquire) == SignalledState{}
-            || m_atomicState.load(std::memory_order_acquire) == NotSignalledState{});
+        assert(!m_atomicState.load(std::memory_order_acquire).is<WaitingCoroutineState>());
     }
 
     bool is_set() const
