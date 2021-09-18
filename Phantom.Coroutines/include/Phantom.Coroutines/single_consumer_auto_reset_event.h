@@ -20,12 +20,12 @@ class single_consumer_auto_reset_event
         StateSet<WaitingCoroutineState, coroutine_handle<>>
     > atomic_state_type;
 
-    atomic_state_type m_state;
+    atomic_state_type m_atomicState;
     typedef state<atomic_state_type> state_type;
 public:
     single_consumer_auto_reset_event(
         bool initiallySignalled = false
-    ) : m_state(
+    ) : m_atomicState(
         initiallySignalled 
         ? 
         state_type{ SignalledState{} }
@@ -37,13 +37,13 @@ public:
     ~single_consumer_auto_reset_event()
     {
         assert(
-            m_state.load() == SignalledState{}
-            || m_state.load() == NotSignalledState{});
+            m_atomicState.load(std::memory_order_acquire) == SignalledState{}
+            || m_atomicState.load(std::memory_order_acquire) == NotSignalledState{});
     }
 
     bool is_set() const
     {
-        return m_state.load(std::memory_order_acquire).is<SignalledState>();
+        return m_atomicState.load(std::memory_order_acquire).is<SignalledState>();
     }
 
     void set()
@@ -58,7 +58,7 @@ public:
         };
 
         auto previousState = compare_exchange_weak_loop(
-            m_state,
+            m_atomicState,
             nextStateLambda
         );
 
@@ -76,7 +76,7 @@ public:
         // If the state was Signalled, it becomes NotSignalled.
         // If the state was NotSignalled, it stays that way.
         // If the state was WaitingCoroutine, it stays that way.
-        m_state.compare_exchange_strong(
+        m_atomicState.compare_exchange_strong(
             expectedState,
             NotSignalledState{},
             std::memory_order_acq_rel,
@@ -85,7 +85,7 @@ public:
 
     bool await_ready() noexcept
     {
-        return m_state.load(std::memory_order_acquire) == SignalledState{};
+        return m_atomicState.load(std::memory_order_acquire) == SignalledState{};
     }
 
     bool await_suspend(
@@ -102,7 +102,7 @@ public:
         };
 
         auto previousState = compare_exchange_weak_loop(
-            m_state,
+            m_atomicState,
             nextStateLambda
         );
 
