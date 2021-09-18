@@ -34,6 +34,13 @@ public:
     )
     {}
 
+    ~single_consumer_auto_reset_event()
+    {
+        assert(
+            m_state.load() == SignalledState{}
+            || m_state.load() == NotSignalledState{});
+    }
+
     bool is_set() const
     {
         return m_state.load(std::memory_order_acquire).is<SignalledState>();
@@ -80,21 +87,56 @@ public:
             std::memory_order_acquire);
     }
 
-    class awaiter
+    bool await_ready() noexcept
     {
-        friend class single_consumer_auto_reset_event;
+        return m_state.load(std::memory_order_acquire) == SignalledState{};
+    }
 
-        awaiter(
-            single_consumer_auto_reset_event& event
+    bool await_suspend(
+        coroutine_handle<> coroutine
+    ) noexcept
+    {
+        state_type previousState = m_state.load(
+            std::memory_order_acquire
         );
 
-    public:
-        bool await_ready() noexcept;
-        coroutine_handle<> await_suspend(coroutine_handle<>) noexcept;
-        void await_resume() noexcept;
+        state_type newState = coroutine;
+
+        do
+        {
+            if (previousState == SignalledState{})
+            {
+                newState = NotSignalledState{};
+            }
+            else
+            {
+                newState = coroutine;
+            }
+        }
+        while (!m_state.compare_exchange_strong(
+            previousState,
+            coroutine,
+            std::memory_order_acq_rel,
+            std::memory_order_acquire
+        ));
+
+        if (previousState == SignalledState{})
+        {
+            return false;
+        }
+
+        // If there is another coroutine handle,
+        // then this object isn't being used as expected;
+        // there's only supposed to be a single consumer ever doing
+        // co_await operations.
+        assert(previousState == NotSignalledState{});
+
+        return true;
     };
 
-    awaiter operator co_await();
+    void await_resume() noexcept
+    {
+    }
 };
 
 }
