@@ -121,6 +121,7 @@ public:
 
     TValue& await_ready()
     {
+        assert(m_atomicState.load(std::memory_order_acquire) == CompleteState{});
         return *getValue();
     }
 };
