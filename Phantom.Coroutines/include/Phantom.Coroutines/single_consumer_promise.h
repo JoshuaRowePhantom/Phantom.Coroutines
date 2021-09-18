@@ -119,7 +119,7 @@ public:
         return previousState == CompleteState{};
     }
 
-    TValue& await_ready()
+    TValue& await_resume()
     {
         assert(m_atomicState.load(std::memory_order_acquire) == CompleteState{});
         return *getValue();
