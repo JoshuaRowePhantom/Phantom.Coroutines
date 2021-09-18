@@ -633,6 +633,41 @@ public:
             m_value);
     }
 };
+
+
+template <
+    typename TAtomicState,
+    typename TNextStateLambda
+>
+auto compare_exchange_weak_loop(
+    TAtomicState& atomicState,
+    TNextStateLambda nextStateLambda
+) noexcept
+{
+    auto previousState = atomicState.load(
+        std::memory_order_relaxed
+    );
+
+    while (true)
+    {
+        auto nextState = nextStateLambda(
+            previousState
+        );
+
+        if (atomicState.compare_exchange_weak(
+            previousState,
+            nextState,
+            std::memory_order_acq_rel,
+            std::memory_order_acquire
+        ))
+        {
+            break;
+        }
+    }
+
+    return previousState;
+}
+
 }
 
 using detail::SingletonState;

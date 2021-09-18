@@ -48,26 +48,19 @@ public:
 
     void set()
     {
-        state_type previousState = m_state.load(
-            std::memory_order_relaxed);
-        
-        while (true)
+        auto nextStateLambda = [&](auto previousState) -> state_type
         {
-            state_type nextState = SignalledState{};
             if (previousState.is<WaitingCoroutineState>())
             {
-                nextState = NotSignalledState{};
+                return NotSignalledState{};
             }
+            return SignalledState{};
+        };
 
-            if (m_state.compare_exchange_weak(
-                previousState,
-                nextState,
-                std::memory_order_acq_rel,
-                std::memory_order_relaxed))
-            {
-                break;
-            }
-        }
+        auto previousState = compare_exchange_weak_loop(
+            m_state,
+            nextStateLambda
+        );
 
         if (previousState.is<WaitingCoroutineState>())
         {
@@ -99,27 +92,19 @@ public:
         coroutine_handle<> coroutine
     ) noexcept
     {
-        state_type previousState = m_state.load(
-            std::memory_order_acquire
-        );
-
-        while (true)
+        auto nextStateLambda = [&](auto previousState) -> state_type
         {
-            state_type nextState = coroutine;
             if (previousState == SignalledState{})
             {
-                nextState = SignalledState{};
+                return NotSignalledState{};
             }
+            return coroutine;
+        };
 
-            if (m_state.compare_exchange_weak(
-                previousState,
-                nextState,
-                std::memory_order_acq_rel,
-                std::memory_order_relaxed))
-            {
-                break;
-            }
-        }
+        auto previousState = compare_exchange_weak_loop(
+            m_state,
+            nextStateLambda
+        );
 
         if (previousState == SignalledState{})
         {
