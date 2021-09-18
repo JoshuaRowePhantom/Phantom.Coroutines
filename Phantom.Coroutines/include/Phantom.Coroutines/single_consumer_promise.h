@@ -1,7 +1,8 @@
 #pragma once
 
-#include "atomic_state_variant.h"
+#include "detail/atomic_state.h"
 #include "detail/coroutine.h"
+#include "detail/storage_for.h"
 
 namespace Phantom::Coroutines
 {
@@ -10,75 +11,121 @@ namespace detail
 
 template<
     typename TValue
-> 
-class single_consumer_promise;
-
-template<
-    typename ValuesTuple,
-    typename ValuesIndexSequence = std::make_index_sequence<std::tuple_size_v<ValuesTuple>>
 >
-class promise_variant_implementation;
-
-template<
-    typename... Values,
-    size_t... ValueIndexes
->
-class promise_variant_implementation<
-    std::tuple<Values...>,
-    std::index_sequence<size_t, ValueIndexes...>
->
+class single_consumer_promise
+    :
+storage_for<TValue>
 {
-    typedef atomic_state_variant<
-        SingletonStateVariant<
-            promise_variant_state_label<ValueIndexes>,
-            Values
-        >...,
-        StateSet<coroutine_handle>,
-        State<promise_variant_empty_label>
-    > atomic_state_variant_type;
+    using storage_for<TValue>::m_storage;
 
-    atomic_state_variant_type m_state;
-};
+    struct IncompleteState {};
+    struct CompleteState {};
+    struct WaitingCoroutineState;
 
-template<
-    typename... TValues
->
-class promise<
-    std::variant<TValues...>
->
-{
-    typedef atomic_state_variant<
-        SingletonStateVariant<
+    typedef atomic_state<
+        SingletonState<IncompleteState>,
+        SingletonState<CompleteState>,
+        StateSet<WaitingCoroutineState, coroutine_handle<>>
+    > atomic_state_type;
+
+    atomic_state_type m_atomicState;
+    typedef state<atomic_state_type> state_type;
+
+    TValue* getValue() { return reinterpret_cast<TValue*>(&m_storage); }
+
 public:
+    single_consumer_promise()
+        :
+        m_atomicState(IncompleteState{})
+    {}
+
+    template<
+        typename TValue
+    >
+    explicit single_consumer_promise(
+        TValue&& value
+    )
+        :
+        m_atomicState(CompleteState{})
+    {
+        new (&m_storage) TValue(
+            std::forward<TValue>(value)...
+        );
+    }
+
+    ~single_consumer_promise()
+    {
+        auto state = m_atomicState.load(
+            std::memory_order_acquire
+        );
+
+        if (state == CompleteState{})
+        {
+            getValue()->~TValue();
+        }
+
+        assert(!state.is<WaitingCoroutineState>());
+    }
+
     template<
         typename ... TArguments
-    > promise& emplace(
-        TArguments...&& arguments
+    > single_consumer_promise& emplace(
+        TArguments&&... arguments
     )
     {
+        new (&m_storage) TValue(
+            std::forward<TArguments>(arguments)...
+        );
+
+        auto previousState = m_atomicState.exchange(
+            CompleteState{},
+            std::memory_order_acq_rel
+        );
+
+        if (previousState.is<WaitingCoroutineState>())
+        {
+            previousState.as<WaitingCoroutineState>().resume();
+        }
+
         return *this;
     }
-};
 
-template<
-    typename TValue
->
-class promise
-    :
-private promise<std::variant<TValue>>
-{
-public:
-    template<
-        typename ... TArguments
-    > promise& emplace(
-        TArguments...&& arguments
+    bool await_ready()
+    {
+        return m_atomicState.load(std::memory_order_acquire) == CompleteState{};
+    }
+
+    bool await_suspend(
+        coroutine_handle<> coroutine
     )
     {
-        return *this;
+        auto nextStateLambda = [&](state_type previousState) -> state_type
+        {
+            if (previousState == CompleteState{})
+            {
+                return CompleteState{};
+            }
+            return coroutine;
+        };
+
+        auto previousState = compare_exchange_weak_loop(
+            m_atomicState,
+            nextStateLambda,
+            std::memory_order_relaxed
+        );
+
+        assert(!previousState.is<WaitingCoroutineState>());
+
+        return previousState == IncompleteState{};
+    }
+
+    TValue& await_ready()
+    {
+        return *getValue();
     }
 };
 
 }
 
-using detail::promise;
+using detail::single_consumer_promise;
 }
