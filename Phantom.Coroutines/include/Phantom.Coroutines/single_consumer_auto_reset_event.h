@@ -48,27 +48,30 @@ public:
 
     void set()
     {
-        state_type expectedState = m_state.load(
+        state_type previousState = m_state.load(
             std::memory_order_relaxed);
         
-        state_type nextState = SignalledState{};
-
-        do
+        while (true)
         {
-            if (expectedState.is<WaitingCoroutineState>())
+            state_type nextState = SignalledState{};
+            if (previousState.is<WaitingCoroutineState>())
             {
                 nextState = NotSignalledState{};
             }
 
-        } while (!m_state.compare_exchange_weak(
-            expectedState,
-            nextState,
-            std::memory_order_acq_rel,
-            std::memory_order_relaxed));
+            if (m_state.compare_exchange_weak(
+                previousState,
+                nextState,
+                std::memory_order_acq_rel,
+                std::memory_order_relaxed))
+            {
+                break;
+            }
+        }
 
-        if (expectedState.is<WaitingCoroutineState>())
+        if (previousState.is<WaitingCoroutineState>())
         {
-            auto coroutine = expectedState.as<WaitingCoroutineState>();
+            auto coroutine = previousState.as<WaitingCoroutineState>();
             coroutine.resume();
         }
     }
@@ -100,25 +103,23 @@ public:
             std::memory_order_acquire
         );
 
-        state_type newState = coroutine;
-
-        do
+        while (true)
         {
+            state_type nextState = coroutine;
             if (previousState == SignalledState{})
             {
-                newState = NotSignalledState{};
+                nextState = SignalledState{};
             }
-            else
+
+            if (m_state.compare_exchange_weak(
+                previousState,
+                nextState,
+                std::memory_order_acq_rel,
+                std::memory_order_relaxed))
             {
-                newState = coroutine;
+                break;
             }
         }
-        while (!m_state.compare_exchange_strong(
-            previousState,
-            coroutine,
-            std::memory_order_acq_rel,
-            std::memory_order_acquire
-        ));
 
         if (previousState == SignalledState{})
         {
