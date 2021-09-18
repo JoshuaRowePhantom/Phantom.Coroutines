@@ -502,10 +502,13 @@ public:
         std::memory_order order = std::memory_order_seq_cst
     ) noexcept
     {
-        return m_atomicRepresentation.exchange(
-            value.m_value,
-            order
-        );
+        return state_type
+        {
+            m_atomicRepresentation.exchange(
+                value.m_value,
+                order
+            )
+        };
     }
 
     bool compare_exchange_strong(
