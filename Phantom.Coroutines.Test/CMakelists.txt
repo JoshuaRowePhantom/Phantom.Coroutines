@@ -9,6 +9,7 @@ add_executable(
 	single_consumer_auto_reset_event_test.cpp
 	single_consumer_manual_reset_event_test.cpp
 	single_consumer_promise_test.cpp
+	sync_wait_test.cpp
 	task_test.cpp
 	type_traits_test.cpp
 	)
