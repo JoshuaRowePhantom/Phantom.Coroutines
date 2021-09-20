@@ -1,4 +1,5 @@
 #include "detail/coroutine.h"
+#include "detail/type_traits.h"
 #include <exception>
 #include <future>
 
@@ -9,13 +10,13 @@ namespace detail
 
 
 template<
-    typename TAwaitable,
+    is_awaitable TAwaitable,
     typename TResult
 >
 struct as_future_promise;
 
 template<
-    typename TAwaitable,
+    is_awaitable TAwaitable,
     typename TResult
 >
 struct as_future_awaitable
@@ -24,7 +25,7 @@ struct as_future_awaitable
 };
 
 template<
-    typename TAwaitable,
+    is_awaitable TAwaitable,
     typename TResult
 >
 struct as_future_promise_base
@@ -71,7 +72,7 @@ struct as_future_promise_base
 };
 
 template<
-    typename TAwaitable,
+    is_awaitable TAwaitable,
     typename TResult
 >
 struct as_future_promise
@@ -95,7 +96,7 @@ public as_future_promise_base<
 };
 
 template<
-    typename TAwaitable
+    is_awaitable TAwaitable
 >
 struct as_future_promise<
     TAwaitable,
@@ -115,7 +116,7 @@ public as_future_promise_base<
 };
 
 template<
-    typename TAwaitable,
+    is_awaitable TAwaitable,
     typename TResult
 >
 as_future_awaitable<
@@ -138,7 +139,7 @@ as_future_implementation(
 }
 
 template<
-    typename TAwaitable
+    is_awaitable TAwaitable
 > auto as_future(
     TAwaitable&& awaitable
 )
@@ -156,7 +157,7 @@ template<
 }
 
 template<
-    typename TAwaitable
+    is_awaitable TAwaitable
 > auto sync_wait(
     TAwaitable&& awaitable
 )

@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.17)
 
 add_executable(
 	Phantom.Coroutines.Test
+	detail/type_traits_test.cpp
 	detail/variant_member_test.cpp
 	auto_reset_event_test.cpp
 	atomic_state_test.cpp
@@ -11,7 +12,6 @@ add_executable(
 	single_consumer_promise_test.cpp
 	sync_wait_test.cpp
 	task_test.cpp
-	type_traits_test.cpp
 	)
 
 target_link_libraries(

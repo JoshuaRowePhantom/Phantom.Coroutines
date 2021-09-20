@@ -2,6 +2,7 @@
 
 #include <tuple>
 #include <type_traits>
+#include "coroutine.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -171,22 +172,65 @@ template<
     typename Tuple
 > constexpr size_t tuple_element_index_v = tuple_element_index<Type, Tuple>::value;
 
-template<
-    typename TAwaitable,
-    typename = void
-> constexpr bool has_co_await = false;
 
 template<
-    typename TAwaitable
-> constexpr bool has_co_await<
-    TAwaitable,
-    std::void_t<decltype(std::declval<TAwaitable>().operator co_await())>
-> = true;
-
-template<
-    typename TAwaitable
+    typename TAwaiter
 >
-auto get_awaitable_result(
+concept is_awaiter = 
+requires (
+    TAwaiter awaiter)
+{
+    { awaiter.await_ready() } -> std::same_as<bool>;
+    { awaiter.await_resume() };
+}
+&&
+(
+    requires (
+        TAwaiter awaiter,
+        coroutine_handle<> continuation
+        )
+{
+    { awaiter.await_suspend(continuation) } -> std::same_as<void>;
+}
+||
+requires (
+    TAwaiter awaiter,
+    coroutine_handle<> continuation
+    )
+{
+    { awaiter.await_suspend(continuation) } -> std::same_as<bool>;
+}
+||
+requires (
+    TAwaiter awaiter,
+    coroutine_handle<> continuation
+    )
+{
+    { awaiter.await_suspend(continuation) } -> std::convertible_to<coroutine_handle<>>;
+}
+)
+;
+
+template<
+    typename TAwaitable
+> concept has_co_await = requires(
+    TAwaitable awaitable
+    )
+{
+    requires is_awaiter<decltype(awaitable.operator co_await())>;
+};
+
+template<
+    typename TAwaitable
+> concept is_awaitable =
+has_co_await<TAwaitable>
+||
+is_awaiter<TAwaitable>;
+
+template<
+    is_awaitable TAwaitable
+>
+decltype(auto) get_awaitable_result(
     TAwaitable&& awaitable
 )
 {
@@ -201,7 +245,7 @@ auto get_awaitable_result(
 }
 
 template<
-    typename TAwaitable
+    is_awaitable TAwaitable
 >
 struct awaitable_result_type
 {
@@ -209,7 +253,7 @@ struct awaitable_result_type
 };
 
 template<
-    typename TAwaitable
+    is_awaitable TAwaitable
 >
 using awaitable_result_type_t = typename awaitable_result_type<TAwaitable>::type;
 
