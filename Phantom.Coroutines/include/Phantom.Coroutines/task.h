@@ -105,7 +105,11 @@ private:
     typedef std::conditional_t<
         std::is_same_v<void, TResult>,
         std::monostate,
-        TResult
+        std::conditional_t<
+            std::is_reference_v<TResult>,
+            std::reference_wrapper<std::remove_reference_t<TResult>>,
+            TResult
+        >
     > result_variant_member_type;
 
     typedef std::variant<
@@ -169,7 +173,7 @@ private:
             return coroutine_handle<task_promise<TResult>>::from_promise(*m_task.m_promise);
         }
 
-        auto await_resume()
+        TResult await_resume()
         {
             if (m_task.m_result.index() == exception_index)
             {
@@ -183,10 +187,11 @@ private:
             }
             else
             {
-                return (std::get<value_index>(m_task.m_result));
+                return static_cast<TResult>((std::get<value_index>(m_task.m_result)));
             }
         }
     };
+
 public:
     awaiter operator co_await()
     {

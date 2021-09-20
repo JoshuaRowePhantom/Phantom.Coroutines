@@ -1,9 +1,20 @@
 #include <string>
 #include <gtest/gtest.h>
+#include "Phantom.Coroutines/detail/type_traits.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/sync_wait.h"
 
 using namespace Phantom::Coroutines;
+
+static_assert(detail::is_awaitable<task<>>);
+static_assert(detail::is_awaitable<task<int>>);
+static_assert(detail::is_awaitable<task<int&>>);
+static_assert(detail::is_awaitable<task<int&&>>);
+
+static_assert(std::same_as<detail::awaitable_result_type_t<task<>>, void>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int>>, int>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int&>>, int&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
 
 TEST(task_test, Can_await_void_task)
 {
@@ -14,7 +25,6 @@ TEST(task_test, Can_await_void_task)
     }()
     );
 }
-
 
 TEST(task_test, Can_await_string_task)
 {
