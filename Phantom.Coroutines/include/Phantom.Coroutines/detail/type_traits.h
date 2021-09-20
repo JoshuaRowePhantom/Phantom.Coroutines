@@ -171,5 +171,47 @@ template<
     typename Tuple
 > constexpr size_t tuple_element_index_v = tuple_element_index<Type, Tuple>::value;
 
+template<
+    typename TAwaitable,
+    typename = void
+> constexpr bool has_co_await = false;
+
+template<
+    typename TAwaitable
+> constexpr bool has_co_await<
+    TAwaitable,
+    std::void_t<decltype(std::declval<TAwaitable>().operator co_await())>
+> = true;
+
+template<
+    typename TAwaitable
+>
+auto get_awaitable_result(
+    TAwaitable&& awaitable
+)
+{
+    if constexpr (has_co_await<TAwaitable>)
+    {
+        return (awaitable.operator co_await().await_resume());
+    }
+    else
+    {
+        return (awaitable.await_resume());
+    }
+}
+
+template<
+    typename TAwaitable
+>
+struct awaitable_result_type
+{
+    typedef decltype((get_awaitable_result(std::declval<TAwaitable>()))) type;
+};
+
+template<
+    typename TAwaitable
+>
+using awaitable_result_type_t = typename awaitable_result_type<TAwaitable>::type;
+
 } // namespace detail
 

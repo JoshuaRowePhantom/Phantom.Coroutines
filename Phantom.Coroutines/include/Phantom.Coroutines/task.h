@@ -65,7 +65,7 @@ public:
         TValue&& result
     )
     {
-        m_task->m_result.emplace<task::value_index>(
+        m_task->m_result.emplace<task<TResult>::value_index>(
             std::forward<TValue>(result)
             );
     }

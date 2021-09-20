@@ -143,7 +143,7 @@ template<
     TAwaitable&& awaitable
 )
 {
-    typedef void result_type;
+    typedef awaitable_result_type_t<TAwaitable> result_type;
 
     std::promise<result_type> promise;
     auto future = promise.get_future();
