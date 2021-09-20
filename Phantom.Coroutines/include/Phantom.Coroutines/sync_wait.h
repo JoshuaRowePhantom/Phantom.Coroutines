@@ -12,54 +12,130 @@ template<
     typename TAwaitable,
     typename TResult
 >
+struct as_future_promise;
+
+template<
+    typename TAwaitable,
+    typename TResult
+>
 struct as_future_awaitable
 {
-    typedef TResult result_type;
-
-    struct promise_type
-    {
-        std::promise<result_type> m_promise;
-
-        promise_type(
-            std::promise<result_type>& promise,
-            TAwaitable&
-        ) :
-            m_promise{ std::move(promise) }
-        {}
-
-        suspend_never initial_suspend() const { return suspend_never{}; }
-
-        suspend_never final_suspend() const
-        {
-            coroutine_handle<promise_type>::from_promise(*this).destroy();
-            return suspend_never();
-        }
-
-        void unhandled_exception() noexcept
-        {
-            m_promise.set_exception(
-                std::current_exception()
-            );
-        }
-
-        void return_void()
-        {
-            m_promise.set_value();
-        }
-
-        template<
-            typename TValue
-        >
-            void return_value(
-                TValue&& value)
-        {
-            m_promise.set_value(
-                std::forward<TValue>(value));
-        }
-    };
-
-
+    typedef as_future_promise<TAwaitable, TResult> promise_type;
 };
+
+template<
+    typename TAwaitable,
+    typename TResult
+>
+struct as_future_promise_base
+{
+    std::promise<TResult>& m_promise;
+    typedef as_future_promise<TAwaitable, TResult> promise_type;
+
+    auto get_coroutine_handle()
+    {
+        return coroutine_handle<promise_type>::from_promise(
+            static_cast<promise_type&>(*this));
+    }
+
+    as_future_promise_base(
+        std::promise<TResult>& promise,
+        TAwaitable&
+    ) :
+        m_promise{ promise }
+    {
+    }
+
+    ~as_future_promise_base()
+    {
+
+    }
+    constexpr suspend_never initial_suspend() const noexcept { return suspend_never{}; }
+
+    suspend_never final_suspend() noexcept
+    {
+        return suspend_never();
+    }
+
+    void unhandled_exception() noexcept
+    {
+        m_promise.set_exception(
+            std::current_exception()
+        );
+    }
+
+    as_future_awaitable<TAwaitable, TResult> get_return_object() noexcept
+    {
+        return as_future_awaitable<TAwaitable, TResult>{};
+    }
+};
+
+template<
+    typename TAwaitable,
+    typename TResult
+>
+struct as_future_promise
+    :
+public as_future_promise_base<
+    TAwaitable,
+    TResult
+>
+{
+    using as_future_promise::as_future_promise_base::as_future_promise_base;
+
+    template<
+        typename TValue
+    >
+    void return_value(
+        TValue&& value)
+    {
+        as_future_promise::as_future_promise_base::m_promise.set_value(
+            std::forward<TValue>(value));
+    }
+};
+
+template<
+    typename TAwaitable
+>
+struct as_future_promise<
+    TAwaitable,
+    void
+> :
+public as_future_promise_base<
+    TAwaitable,
+    void
+>
+{
+    using as_future_promise::as_future_promise_base::as_future_promise_base;
+    
+    void return_void()
+    {
+        as_future_promise::as_future_promise_base::m_promise.set_value();
+    }
+};
+
+template<
+    typename TAwaitable,
+    typename TResult
+>
+as_future_awaitable<
+    TAwaitable,
+    TResult
+>
+as_future_implementation(
+    std::promise<TResult>& promise,
+    TAwaitable&& awaitable
+)
+{
+    if constexpr (std::is_same_v<TResult, void>)
+    {
+        co_await awaitable;
+    }
+    else
+    {
+        co_return co_await awaitable;
+    }
+}
 
 template<
     typename TAwaitable
@@ -69,18 +145,10 @@ template<
 {
     typedef void result_type;
 
-    auto lambda = [&](
-        auto promise,
-        TAwaitable&& awaitable
-        ) -> as_future_awaitable<result_type>
-    {
-        co_await awaitable;
-    };
-
     std::promise<result_type> promise;
     auto future = promise.get_future();
 
-    lambda(
+    as_future_implementation(
         promise,
         std::forward<TAwaitable>(awaitable));
 
@@ -93,7 +161,7 @@ template<
     TAwaitable&& awaitable
 )
 {
-    return (as_future(awaitable).get());
+    return (as_future(std::forward<TAwaitable>(awaitable)).get());
 }
 
 }

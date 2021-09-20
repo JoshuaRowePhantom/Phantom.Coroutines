@@ -26,24 +26,34 @@ public:
     constexpr void await_resume() const noexcept {}
 };
 
-template<
-    typename TPromise
->
 class final_suspend_transfer_and_destroy
     :
 public final_suspend_transfer
 {
 public:
     final_suspend_transfer_and_destroy(
-        TPromise& promise,
         coroutine_handle<> continuation
-    ) : final_suspend_transfer
-    {
+    ) : final_suspend_transfer(
         continuation
-    }
+    )
     {
-        coroutine_handle<TPromise>::from_promise(promise).destroy();
     }
+
+    coroutine_handle<> await_suspend(
+        coroutine_handle<> coroutine
+    ) const noexcept
+    {
+        auto continuation = final_suspend_transfer::await_suspend(
+            coroutine);
+
+        // Calling destroy will probably destroy the state in this instance,
+        // since it was allocated in the frame of the coroutine we're destroying.
+        // So make sure we do it after we've retrieve the continuation.
+        coroutine.destroy();
+
+        return continuation;
+    }
+
 };
 
 }

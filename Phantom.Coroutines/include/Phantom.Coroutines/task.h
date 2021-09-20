@@ -14,14 +14,98 @@ namespace Phantom::Coroutines
 namespace detail
 {
 template<
-    typename TValue
+    typename TResult = void
+> class task;
+
+template<
+    typename TResult
+>
+class task_promise;
+
+template<
+    typename TResult
+>
+class task_promise_base
+{
+    template<
+        typename TResult
+    > friend class task;
+
+protected:
+    task<TResult>* m_task;
+
+public:
+    ~task_promise_base()
+    {
+
+    }
+    suspend_always initial_suspend() const noexcept { return suspend_always{}; }
+    
+    inline final_suspend_transfer_and_destroy final_suspend() noexcept;
+    inline task<TResult> get_return_object();
+    inline void unhandled_exception() noexcept;
+};
+
+template<
+    typename TResult
+>
+class task_promise
+    :
+public task_promise_base<TResult>
+{
+    template<
+        typename TResult
+    > friend class task;
+
+    using task_promise::task_promise_base::m_task;
+public:
+    template<
+        typename TValue
+    > void return_value(
+        TValue&& result
+    )
+    {
+        m_task->m_result.emplace<task::value_index>(
+            std::forward<TValue>(result)
+            );
+    }
+};
+
+template<
+>
+class task_promise<
+    void
+> :
+public task_promise_base<void>
+{
+    template<
+        typename TResult
+    > friend class task;
+
+    using task_promise::task_promise_base::m_task;
+public:
+    inline void return_void();
+};
+
+template<
+    typename TResult
 >
 class task
 {
+    template<
+        typename TResult
+    > friend class task_promise;
+
+    template<
+        typename TResult
+    > friend class task_promise_base;
+public:
+    typedef task_promise<TResult> promise_type;
+private:
     typedef std::conditional_t<
-        std::is_same_v<void, TValue>,
+        std::is_same_v<void, TResult>,
         std::monostate,
-        TValue
+        TResult
     > result_variant_member_type;
 
     typedef std::variant<
@@ -30,52 +114,10 @@ class task
         std::exception_ptr
     > result_variant_type;
 
-    const size_t value_index = 1;
-    const size_t exception_index = 2;
+    const static size_t value_index = 1;
+    const static size_t exception_index = 2;
 
     result_variant_type m_result;
-
-    class promise_type
-    {
-        friend class task;
-
-        task* m_task;
-
-        suspend_always initial_suspend() const { return suspend_always{}; }
-        auto final_suspend() const 
-        {
-            return final_suspend_transfer_and_destroy
-            {
-                *this,
-                m_task->m_continuation
-            };
-        }
-
-        task get_return_object() { return task{ this }; }
-
-        std::enable_if_t<std::same_as<TValue, void>> return_void()
-        {
-        }
-
-        template<
-            typename TResult
-        >
-        std::enable_if_t<!std::same_as<TValue, void>> return_value(
-            TResult&& result
-        )
-        {
-            m_task->m_result.emplace<value_index>(
-                std::forward<TResult>(result)
-            );
-        }
-
-        void unhandled_exception()
-        {
-            m_task->m_result.emplace<exception_index>(
-                std::current_exception()
-            );
-        }
-    };
 
     promise_type* m_promise = nullptr;
     coroutine_handle<> m_continuation;
@@ -118,32 +160,30 @@ class task
     public:
         bool await_ready() { return false; }
 
-        bool await_suspend(
+        coroutine_handle<> await_suspend(
             coroutine_handle<> continuation
         )
         {
             m_task.m_continuation = continuation;
-            m_task.m_promise->m_task = m_task;
-            return true;
+            m_task.m_promise->m_task = &m_task;
+            return coroutine_handle<task_promise<TResult>>::from_promise(*m_task.m_promise);
         }
 
-        std::enable_if<!std::is_same_v<TValue, void>, TValue&> await_resume()
+        auto await_resume()
         {
-            if (m_task.m_result.index() == value_index)
-            {
-                return get<value_index>(m_task.m_result);
-            }
-
-            std::rethrow_exception(
-                get<exception_index>(m_task.m_result));
-        }
-
-        std::enable_if<std::is_same_v<TValue, void>> await_resume()
-        {
-            if (m_task.m_promise->m_result.index() == exception_index)
+            if (m_task.m_result.index() == exception_index)
             {
                 std::rethrow_exception(
                     get<exception_index>(m_task.m_result));
+            }
+
+            if constexpr (std::is_same_v<TResult, void>)
+            {
+                return;
+            }
+            else
+            {
+                return (std::get<value_index>(m_task.m_result));
             }
         }
     };
@@ -153,6 +193,39 @@ public:
         return awaiter{ *this };
     }
 };
+
+template<
+    typename TResult
+> task<TResult>
+task_promise_base<TResult>::get_return_object()
+{
+    return task<TResult>{ static_cast<task_promise<TResult>*>(this) };
+}
+
+template<
+    typename TResult
+> final_suspend_transfer_and_destroy
+task_promise_base<TResult>::final_suspend() noexcept
+{
+    return final_suspend_transfer_and_destroy
+    {
+        m_task->m_continuation
+    };
+}
+
+template<
+    typename TResult
+>
+void task_promise_base<TResult>::unhandled_exception() noexcept
+{
+    m_task->m_result.emplace<task<TResult>::exception_index>(
+        std::current_exception()
+        );
+}
+void task_promise<void>::return_void()
+{
+    m_task->m_result.emplace<task<void>::value_index>(std::monostate{});
+}
 
 }
 using detail::task;
