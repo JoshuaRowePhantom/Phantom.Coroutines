@@ -36,3 +36,16 @@ TEST(task_test, Can_await_string_task)
 
     ASSERT_EQ("hello world", result);
 }
+
+TEST(task_test, Can_return_reference)
+{
+    int value = 1;
+
+    auto& result = sync_wait(
+        [&]() -> task<int&>
+    {
+        co_return value;
+    }());
+
+    ASSERT_EQ(&value, &result);
+}

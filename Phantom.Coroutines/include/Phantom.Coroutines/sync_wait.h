@@ -140,7 +140,7 @@ as_future_implementation(
 
 template<
     is_awaitable TAwaitable
-> auto as_future(
+> decltype(auto) as_future(
     TAwaitable&& awaitable
 )
 {
@@ -158,7 +158,7 @@ template<
 
 template<
     is_awaitable TAwaitable
-> auto sync_wait(
+> decltype(auto) sync_wait(
     TAwaitable&& awaitable
 )
 {
