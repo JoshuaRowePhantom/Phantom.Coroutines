@@ -1,6 +1,7 @@
 #include <string>
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/detail/type_traits.h"
+#include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/sync_wait.h"
 
@@ -48,4 +49,22 @@ TEST(task_test, Can_return_reference)
     }());
 
     ASSERT_EQ(&value, &result);
+}
+
+TEST(task_test, Can_suspend_and_resume)
+{
+    single_consumer_manual_reset_event event;
+    int stage = 0;
+
+    auto future = as_future(
+        [&]() -> task<>
+    {
+        stage = 1;
+        co_await event;
+        stage = 2;
+    }());
+
+    ASSERT_EQ(1, stage);
+    event.set();
+    ASSERT_EQ(2, stage);
 }
