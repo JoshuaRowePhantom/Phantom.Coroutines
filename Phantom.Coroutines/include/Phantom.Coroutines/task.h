@@ -35,10 +35,6 @@ protected:
     task<TResult>* m_task;
 
 public:
-    ~task_promise_base()
-    {
-
-    }
     suspend_always initial_suspend() const noexcept { return suspend_always{}; }
     
     inline final_suspend_transfer_and_destroy final_suspend() noexcept;
