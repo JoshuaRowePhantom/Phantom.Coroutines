@@ -95,8 +95,10 @@ class task
     template<
         typename TResult
     > friend class task_promise_base;
+
 public:
     typedef task_promise<TResult> promise_type;
+
 private:
     typedef std::conditional_t<
         std::is_same_v<void, TResult>,
@@ -164,6 +166,9 @@ private:
             coroutine_handle<> continuation
         )
         {
+            // The task can only be co-awaited once.
+            assert(!m_task.m_continuation);
+
             m_task.m_continuation = continuation;
             m_task.m_promise->m_task = &m_task;
             return coroutine_handle<task_promise<TResult>>::from_promise(*m_task.m_promise);

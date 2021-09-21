@@ -87,5 +87,4 @@ TEST(task_test, Can_loop_without_stackoverflow)
     auto actualSum = sync_wait(
         outerTaskLambda());
     ASSERT_EQ(1000000, actualSum);
-
 }
