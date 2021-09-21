@@ -1,6 +1,7 @@
 #include "Phantom.Coroutines/detail/type_traits.h"
 #include <tuple>
 #include <type_traits>
+#include "awaiters.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -113,30 +114,6 @@ static_assert(1 == tuple_element_index_v<int, std::tuple<char, int, char>>);
 static_assert(2 == tuple_element_index_v<int, std::tuple<char, char, int>>);
 
 // Verify that awaitable_result_type_t produces valid results
-namespace
-{
-template<
-    typename TResumeResult,
-    typename TSuspendResult = void
->
-struct typed_awaiter
-{
-    bool await_ready();
-    TSuspendResult await_suspend(coroutine_handle<>);
-    TResumeResult await_resume();
-};
-
-template<
-    typename TResumeResult,
-    typename TSuspendResult = void
-> struct typed_awaitable
-{
-    typed_awaiter<TResumeResult, TSuspendResult> operator co_await();
-};
-
-struct not_awaitable
-{};
-
 static_assert(is_awaiter<typed_awaiter<void>>);
 static_assert(is_awaiter<typed_awaiter<void, bool>>);
 static_assert(is_awaiter<typed_awaiter<void, void>>);
@@ -160,7 +137,5 @@ static_assert(std::same_as<void, awaitable_result_type_t<typed_awaitable<void>>>
 static_assert(std::same_as<int, awaitable_result_type_t<typed_awaitable<int>>>);
 static_assert(std::same_as<int&, awaitable_result_type_t<typed_awaitable<int&>>>);
 static_assert(std::same_as<int&&, awaitable_result_type_t<typed_awaitable<int&&>>>);
-
-}
 
 }

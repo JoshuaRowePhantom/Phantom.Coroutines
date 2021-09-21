@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.17)
 
 add_executable(
 	Phantom.Coroutines.Test
+	detail/awaiters.h
 	detail/type_traits_test.cpp
 	detail/variant_member_test.cpp
 	auto_reset_event_test.cpp

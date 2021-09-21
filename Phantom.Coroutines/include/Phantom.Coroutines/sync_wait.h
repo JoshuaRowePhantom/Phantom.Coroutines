@@ -13,25 +13,27 @@ template<
     is_awaitable TAwaitable,
     typename TResult
 >
-struct as_future_promise;
+struct as_future_implementation_promise;
 
 template<
     is_awaitable TAwaitable,
     typename TResult
 >
-struct as_future_awaitable
+struct as_future_implementation_awaitable
 {
-    typedef as_future_promise<TAwaitable, TResult> promise_type;
+    typedef as_future_implementation_promise<TAwaitable, TResult> promise_type;
 };
 
 template<
     is_awaitable TAwaitable,
     typename TResult
 >
-struct as_future_promise_base
+struct as_future_implementation_promise_base
 {
     std::promise<TResult>& m_promise;
-    typedef as_future_promise<TAwaitable, TResult> promise_type;
+    std::promise<TResult>& promise() { return m_promise; }
+
+    typedef as_future_implementation_promise<TAwaitable, TResult> promise_type;
 
     auto get_coroutine_handle()
     {
@@ -39,7 +41,7 @@ struct as_future_promise_base
             static_cast<promise_type&>(*this));
     }
 
-    as_future_promise_base(
+    as_future_implementation_promise_base(
         std::promise<TResult>& promise,
         TAwaitable&
     ) :
@@ -47,15 +49,12 @@ struct as_future_promise_base
     {
     }
 
-    ~as_future_promise_base()
-    {
-
-    }
     constexpr suspend_never initial_suspend() const noexcept { return suspend_never{}; }
+    constexpr suspend_never final_suspend() const noexcept { return suspend_never{}; }
 
-    suspend_never final_suspend() noexcept
+    constexpr as_future_implementation_awaitable<TAwaitable, TResult> get_return_object() const noexcept
     {
-        return suspend_never();
+        return as_future_implementation_awaitable<TAwaitable, TResult>{};
     }
 
     void unhandled_exception() noexcept
@@ -64,25 +63,21 @@ struct as_future_promise_base
             std::current_exception()
         );
     }
-
-    as_future_awaitable<TAwaitable, TResult> get_return_object() noexcept
-    {
-        return as_future_awaitable<TAwaitable, TResult>{};
-    }
 };
 
 template<
     is_awaitable TAwaitable,
     typename TResult
 >
-struct as_future_promise
+struct as_future_implementation_promise
     :
-public as_future_promise_base<
+public as_future_implementation_promise_base<
     TAwaitable,
     TResult
 >
 {
-    using as_future_promise::as_future_promise_base::as_future_promise_base;
+    using as_future_implementation_promise::as_future_implementation_promise_base::as_future_implementation_promise_base;
+    using as_future_implementation_promise::as_future_implementation_promise_base::promise;
 
     template<
         typename TValue
@@ -90,7 +85,7 @@ public as_future_promise_base<
     void return_value(
         TValue&& value)
     {
-        as_future_promise::as_future_promise_base::m_promise.set_value(
+        promise().set_value(
             std::forward<TValue>(value));
     }
 };
@@ -98,20 +93,21 @@ public as_future_promise_base<
 template<
     is_awaitable TAwaitable
 >
-struct as_future_promise<
+struct as_future_implementation_promise<
     TAwaitable,
     void
 > :
-public as_future_promise_base<
+public as_future_implementation_promise_base<
     TAwaitable,
     void
 >
 {
-    using as_future_promise::as_future_promise_base::as_future_promise_base;
-    
+    using as_future_implementation_promise::as_future_implementation_promise_base::as_future_implementation_promise_base;
+    using as_future_implementation_promise::as_future_implementation_promise_base::promise;
+
     void return_void()
     {
-        as_future_promise::as_future_promise_base::m_promise.set_value();
+        promise().set_value();
     }
 };
 
@@ -119,7 +115,7 @@ template<
     is_awaitable TAwaitable,
     typename TResult
 >
-as_future_awaitable<
+as_future_implementation_awaitable<
     TAwaitable,
     TResult
 >
@@ -138,6 +134,7 @@ as_future_implementation(
     }
 }
 
+// Given an awaitable object, return an std::future representing it.
 template<
     is_awaitable TAwaitable
 > decltype(auto) as_future(
@@ -156,6 +153,7 @@ template<
     return future;
 }
 
+// Synchronously wait for the result of an awaitable object and return its result.
 template<
     is_awaitable TAwaitable
 > decltype(auto) sync_wait(
