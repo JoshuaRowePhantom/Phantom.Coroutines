@@ -72,47 +72,65 @@ public:
             std::memory_order_acquire);
     }
 
-    bool await_ready() noexcept
+    class awaiter
     {
-        return m_atomicState.load(std::memory_order_acquire) == SignalledState{};
-    }
+        friend class single_consumer_manual_reset_event;
+        single_consumer_manual_reset_event& m_event;
 
-    bool await_suspend(
-        coroutine_handle<> coroutine
-    ) noexcept
-    {
-        auto nextStateLambda = [&](auto previousState) -> state_type
+        awaiter(
+            single_consumer_manual_reset_event& event
+        ) :
+            m_event
         {
-            if (previousState == NotSignalledState{})
-            {
-                return coroutine;
-            }
-            return SignalledState{};
-        };
+            event
+        }
+        {}
 
-        auto previousState = compare_exchange_weak_loop(
-            m_atomicState,
-            nextStateLambda,
-            std::memory_order_relaxed
-        );
-
-        if (previousState == SignalledState{})
+    public:
+        bool await_ready() noexcept
         {
-            return false;
+            return m_event.m_atomicState.load(std::memory_order_acquire) == SignalledState{};
         }
 
-        // If there is another coroutine handle,
-        // then this object isn't being used as expected;
-        // there's only supposed to be a single consumer ever doing
-        // co_await operations.
-        assert(previousState == NotSignalledState{});
+        bool await_suspend(
+            coroutine_handle<> coroutine
+        ) noexcept
+        {
+            auto nextStateLambda = [&](auto previousState) -> state_type
+            {
+                if (previousState == NotSignalledState{})
+                {
+                    return coroutine;
+                }
+                return SignalledState{};
+            };
 
-        return true;
+            auto previousState = compare_exchange_weak_loop(
+                m_event.m_atomicState,
+                nextStateLambda,
+                std::memory_order_relaxed
+            );
+
+            if (previousState == SignalledState{})
+            {
+                return false;
+            }
+
+            // If there is another coroutine handle,
+            // then this object isn't being used as expected;
+            // there's only supposed to be a single consumer ever doing
+            // co_await operations.
+            assert(previousState == NotSignalledState{});
+
+            return true;
+        };
+
+        void await_resume() noexcept
+        {
+        }
     };
 
-    void await_resume() noexcept
-    {
-    }
+    awaiter operator co_await() { return awaiter{ *this }; }
 };
 
 }
