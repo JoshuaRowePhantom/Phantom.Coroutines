@@ -13,6 +13,7 @@ add_executable(
 	single_consumer_promise_test.cpp
 	sync_wait_test.cpp
 	task_test.cpp
+	when_ready_test.cpp
 	)
 
 target_link_libraries(
