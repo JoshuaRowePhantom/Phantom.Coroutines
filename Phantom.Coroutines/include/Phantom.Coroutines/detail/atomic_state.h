@@ -61,6 +61,13 @@ template<
 
 public:
     StateSetElement(
+        TLabel label,
+        TStateSetType element
+    ) : m_element(
+        element)
+    {}
+
+    StateSetElement(
         TStateSetType element
     ) : m_element(
         element)
@@ -637,7 +644,7 @@ public:
     }
 };
 
-
+// TNextStateLambda should return either a state_type or an std::optional<state_type>.
 template <
     typename TAtomicState,
     typename TNextStateLambda
@@ -660,14 +667,31 @@ auto compare_exchange_weak_loop(
             previousState
         );
 
-        if (atomicState.compare_exchange_weak(
-            previousState,
-            nextState,
-            successMemoryOrder,
-            failureMemoryOrder
-        ))
+        if constexpr (std::same_as<std::optional<TAtomicState::state_type>, decltype(nextState)>)
         {
-            break;
+            if (!nextState
+                ||
+                atomicState.compare_exchange_weak(
+                    previousState,
+                    *nextState,
+                    successMemoryOrder,
+                    failureMemoryOrder
+                ))
+            {
+                break;
+            }
+        }
+        else  
+        {
+            if (atomicState.compare_exchange_weak(
+                previousState,
+                nextState,
+                successMemoryOrder,
+                failureMemoryOrder
+            ))
+            {
+                break;
+            }
         }
     }
 
