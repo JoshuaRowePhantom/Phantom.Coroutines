@@ -3,6 +3,31 @@
 #include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
 
+
+namespace Phantom::Coroutines
+{
+
+namespace detail
+{
+
+template<
+    typename TResult
+> class shared_task;
+
+}
+}
+
+namespace std
+{
+template<
+    typename TResult,
+    typename... Args
+> struct coroutine_traits<
+    Phantom::Coroutines::detail::shared_task<TResult>,
+    Args...
+>;
+}
+
 namespace Phantom::Coroutines
 {
 namespace detail
@@ -55,47 +80,42 @@ public:
 
     auto await_resume()
     {
-        if constexpr (!shared_task_promise::is_void)
-        {
-            return m_promise->await_resume();
-        }
-        else
-        {
-            return;
-        }
+        return (m_promise->await_resume(
+            this));
     }
 };
 
 template<
-    typename TResult
->
-class shared_task_promise_base;
-
-template<
-    typename TResult
+    typename Traits
 >
 class shared_task_promise;
 
 template<
-    typename TResult
+    typename Traits
 >
 class shared_task_promise_base
 {
-    template<
-        typename TResult
-    > friend class shared_task;
+public:
+    typedef Traits traits_type;
+    typedef typename traits_type::future_type future_type;
+    typedef typename future_type::result_type result_type;
+    typedef typename traits_type::promise_type promise_type;
+
+private:
 
     template<
-        typename TResult
+        typename Traits
+    > friend class shared_task_base;
+
+    template<
+        typename Traits
     > friend class shared_task_promise;
 
     template<
         typename TResult
     > friend class shared_task_awaiter;
 
-    using shared_task_awaiter = shared_task_awaiter<TResult>;
-    using shared_task = shared_task<TResult>;
-    using shared_task_promise = shared_task_promise<TResult>;
+    using shared_task_awaiter = shared_task_awaiter<result_type>;
 
     struct CompletedState {};
     struct WaitingCoroutineState;
@@ -114,12 +134,12 @@ class shared_task_promise_base
     // 1 for the first shared_task object.
     std::atomic<size_t> m_referenceCount = 2;
 
-    static constexpr bool is_void = std::same_as<void, TResult>;
+    static constexpr bool is_void = std::same_as<void, result_type>;
 
     typedef std::conditional_t<
         is_void,
         std::monostate,
-        TResult
+        result_type
     > result_storage_type;
 
     // While we -could- use extra states in m_atomicState to store
@@ -138,7 +158,7 @@ class shared_task_promise_base
         result_storage_type,
         std::exception_ptr
     > result_variant_type;
-    
+
     const size_t return_value_index = 1;
     const size_t unhandled_exception_index = 2;
 
@@ -155,6 +175,9 @@ class shared_task_promise_base
 #endif
     }
 
+    promise_type& get_promise() { return static_cast<promise_type&>(*this); }
+    auto get_coroutine_handle() { return coroutine_handle<promise_type>::from_promise(get_promise()); }
+
     void increment_reference_count()
     {
         m_referenceCount.fetch_add(1, std::memory_order_relaxed);
@@ -167,8 +190,7 @@ class shared_task_promise_base
             return;
         }
 
-        auto coroutineHandle = coroutine_handle<shared_task_promise>::from_promise(*this);
-        coroutineHandle.destroy();
+        get_coroutine_handle().destroy();
     }
 
     bool is_ready(
@@ -204,14 +226,15 @@ class shared_task_promise_base
         // The first awaiter triggers the coroutine to start execution.
         if (previousState == NotStartedState)
         {
-            auto coroutineHandle = coroutine_handle<shared_task_promise>::from_promise(*this);
-            return coroutineHandle;
+            return get_coroutine_handle();
         }
 
         if (is_ready(previousState))
         {
             return continuation;
         }
+
+        awaiter->m_continuation = continuation;
 
         return noop_coroutine();
     }
@@ -231,23 +254,23 @@ class shared_task_promise_base
     template<
         typename TReturnValue
     > void set_result(
-            TReturnValue&& returnValue
-        )
+        TReturnValue&& returnValue
+    )
     {
         m_result.emplace<return_value_index>(
             std::forward<TReturnValue>(returnValue)
-        );
+            );
     }
 
 public:
     suspend_always initial_suspend() const { return {}; }
-    
-    shared_task get_return_object()
+
+    future_type get_return_object()
     {
-        return shared_task{ this };
+        return future_type{ this };
     }
 
-    final_suspend_transfer final_suspend() 
+    final_suspend_transfer final_suspend()
     {
         auto state = m_atomicState.exchange(
             CompletedState{},
@@ -280,10 +303,10 @@ public:
 };
 
 template<
-    typename TResult
+    typename Traits
 > class shared_task_promise
     :
-    public shared_task_promise_base<TResult>
+    public shared_task_promise_base<Traits>
 {
 public:
     using shared_task_promise::shared_task_promise_base::shared_task_promise_base;
@@ -302,39 +325,42 @@ public:
 };
 
 template<
-> class shared_task_promise<
-    void
+    typename Traits
+> requires
+std::same_as<void, typename Traits::result_type>
+class shared_task_promise<
+    Traits
 >
     :
-    public shared_task_promise_base<void>
+    public shared_task_promise_base<Traits>
 {
 public:
     using shared_task_promise::shared_task_promise_base::shared_task_promise_base;
 
-    template<
-        typename TReturnValue
-    > void return_void()
+    void return_void()
     {
-        set_result(
+        shared_task_promise::shared_task_promise_base::set_result(
             std::monostate{}
         );
     }
 };
 
 template<
-    typename TResult
-> class shared_task
+    typename Traits
+> class shared_task_base
 {
 public:
-    using promise_type = shared_task_promise<TResult>;
+    using promise_type = Traits::promise_type;
+    using future_type = Traits::future_type;
+    using result_type = Traits::result_type;
 
 private:
     promise_type* m_promise;
 
-    shared_task(
+    shared_task_base(
         promise_type* promise
     ) :
-        m_promise { promise }
+        m_promise{ promise }
     {
         // Do not acquire here.
         // The promise is constructed with a reference count that
@@ -357,56 +383,83 @@ private:
         }
     }
 
+protected:
+
+    shared_task_base(
+        const shared_task_base& other
+    ) :
+        m_promise{ other.m_promise }
+    {
+        acquire_reference();
+    }
+
+    shared_task_base(
+        shared_task_base&& other
+    ) :
+        m_promise{ other.m_promise }
+    {
+        other.m_promise = nullptr;
+    }
+
+    shared_task_base& operator = (
+        const shared_task_base& other
+        )
+    {
+        release_reference();
+        m_promise = other.m_promise;
+        acquire_reference();
+        return *this;
+    }
+
+    shared_task_base& operator = (
+        shared_task_base&& other
+        )
+    {
+        release_reference();
+        m_promise = other.m_promise;
+        other.m_promise = nullptr;
+        return *this;
+    }
+
+    ~shared_task_base()
+    {
+        release_reference();
+    }
+
+    shared_task_base()
+        : m_promise{ nullptr }
+    {}
+
 public:
-
-    shared_task(
-        const shared_task& other
-    ) :
-        m_promise{ other.m_promise }
-    {
-        acquire_reference();
-    }
-
-    shared_task(
-        shared_task&& other
-    ) :
-        m_promise{ other.m_promise }
-    {
-        other.m_promise = nullptr;
-    }
-
-    ~shared_task()
-    {
-        release_reference();
-    }
-
-    shared_task& operator = (
-        const shared_task& other
-        )
-    {
-        release_reference();
-        m_promise = other.m_promise;
-        acquire_reference();
-        return *this;
-    }
-
-    shared_task& operator = (
-        shared_task&& other
-        )
-    {
-        release_reference();
-        m_promise = other.m_promise;
-        other.m_promise = nullptr;
-        return *this;
-    }
-
-    shared_task_awaiter<TResult> operator co_await()
+    shared_task_awaiter<result_type> operator co_await()
     {
         return shared_task_awaiter{ m_promise };
     }
 };
 
-}
+template<
+    typename TResult
+>
+struct shared_task_traits
+{
+    typedef shared_task_promise<shared_task_traits> promise_type;
+    typedef shared_task<TResult> future_type;
+    typedef TResult result_type;
+};
 
+template <
+    typename TResult
+> class shared_task :
+    public shared_task_base<
+        shared_task_traits<TResult>
+    >
+{
+public:
+    using traits_type = shared_task_traits<TResult>;
+    using promise_type = typename traits_type::promise_type;
+    using shared_task::shared_task_base::shared_task_base;
+};
+
+}
 using detail::shared_task;
 }
