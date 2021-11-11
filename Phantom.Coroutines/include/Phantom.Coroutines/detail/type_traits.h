@@ -4,9 +4,10 @@
 #include <type_traits>
 #include "coroutine.h"
 
-namespace Phantom::Coroutines::detail
+namespace Phantom::Coroutines
 {
-
+namespace detail
+{
 // Determine if a given type is in a list of other types.
 template<
     typename T,
@@ -33,7 +34,7 @@ using enable_if_in_types_t = typename enable_if_in_types<T, Types...>::type;
 
 template<
     typename T
-> concept Label = 
+> concept Label =
 std::is_empty_v<T>;
 
 template<
@@ -46,8 +47,8 @@ template<
     template<typename> typename Filter,
     typename FilteredTypesTuple
 > struct filter_tuple_types<
-    Filter, 
-    std::tuple<>, 
+    Filter,
+    std::tuple<>,
     FilteredTypesTuple
 >
 {
@@ -60,15 +61,15 @@ template<
     typename... RemainingTypes,
     typename... FilteredTypes
 > struct filter_tuple_types<
-    Filter, 
-    std::tuple<Type, RemainingTypes...>, 
+    Filter,
+    std::tuple<Type, RemainingTypes...>,
     std::tuple<FilteredTypes...>>
     :
-public std::conditional_t<
+    public std::conditional_t<
     Filter<Type>::value,
     filter_tuple_types<Filter, std::tuple<RemainingTypes...>, std::tuple<FilteredTypes..., Type>>,
     filter_tuple_types<Filter, std::tuple<RemainingTypes...>, std::tuple<FilteredTypes...>>
->
+    >
 {
 };
 
@@ -139,7 +140,7 @@ struct tuple_element_index<
 template<
     typename Type,
     typename...RemainingTypes
-> 
+>
 struct tuple_element_index<
     Type,
     std::tuple<Type, RemainingTypes...>,
@@ -158,7 +159,7 @@ struct tuple_element_index<
     Type,
     std::tuple<OtherType, RemainingTypes...>,
     std::void_t<
-        decltype(tuple_element_index<Type, std::tuple<RemainingTypes...>>::value)>
+    decltype(tuple_element_index<Type, std::tuple<RemainingTypes...>>::value)>
 >
 {
     static const size_t value =
@@ -176,7 +177,7 @@ template<
 template<
     typename TAwaiter
 >
-concept is_awaiter = 
+concept is_awaiter =
 requires (
     TAwaiter awaiter)
 {
@@ -259,3 +260,10 @@ using awaitable_result_type_t = typename awaitable_result_type<TAwaitable>::type
 
 } // namespace detail
 
+using detail::awaitable_result_type_t;
+using detail::awaitable_result_type;
+using detail::is_awaitable;
+using detail::is_awaiter;
+using detail::has_co_await;
+
+} // namespace Phantom::Coroutines
