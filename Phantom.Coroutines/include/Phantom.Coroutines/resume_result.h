@@ -1,5 +1,6 @@
 #include <type_traits>
 #include "detail/coroutine.h"
+#include "type_traits.h"
 
 namespace Phantom::Coroutines
 {
@@ -20,7 +21,7 @@ public:
 
     bool did_suspend() const { return true; }
 
-    auto result() noeexcept(noexcept(m_awaiter.await_resume()))
+    auto result() noexcept(noexcept(m_awaiter.await_resume()))
     {
         return (m_awaiter.await_resume());
     }
@@ -49,7 +50,7 @@ public:
 
     bool did_suspend() const { return m_suspended; }
 
-    auto result() noeexcept(noexcept(m_awaiter.await_resume()))
+    auto result() noexcept(noexcept(m_awaiter.await_resume()))
     {
         return (m_awaiter.await_resume());
     }
@@ -104,7 +105,7 @@ class resume_result_awaiter<
 >
 {
     TAwaiter m_awaiter;
-    bool m_suspended;
+    bool m_suspended = false;
 
 public:
     resume_result_awaiter(
@@ -146,7 +147,7 @@ class resume_result_awaiter<
 >
 {
     TAwaiter m_awaiter;
-    bool m_suspended;
+    bool m_suspended = false;
 
 public:
     resume_result_awaiter(
@@ -183,14 +184,14 @@ public:
 };
 
 template<
-    typename TAwaiter
-> auto with_resume_result(
+    has_co_await TAwaitable
+> decltype(auto) with_resume_result(
     TAwaitable&& awaitable
 )
 {
-    return resume_result_awaiter(
-        operator co_await(awaitable)
-    );
+    return (resume_result_awaiter(
+        awaitable.operator co_await()
+    ));
 }
 
 }
