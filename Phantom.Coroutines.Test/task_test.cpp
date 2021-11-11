@@ -1,4 +1,5 @@
 #include <string>
+#include <type_traits>
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/detail/type_traits.h"
 #include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
@@ -11,6 +12,11 @@ static_assert(detail::is_awaitable<task<>>);
 static_assert(detail::is_awaitable<task<int>>);
 static_assert(detail::is_awaitable<task<int&>>);
 static_assert(detail::is_awaitable<task<int&&>>);
+
+class task_test
+{
+static_assert(std::same_as<int&&, decltype(std::declval<task<int&&>::awaiter>().await_resume())>);
+};
 
 static_assert(std::same_as<detail::awaitable_result_type_t<task<>>, void>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<int>>, int>);
