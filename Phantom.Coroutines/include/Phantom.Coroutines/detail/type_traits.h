@@ -246,6 +246,26 @@ decltype(auto) get_awaitable_result(
 }
 
 template<
+    has_co_await TAwaitable
+>
+decltype(auto) get_awaiter(
+    TAwaitable&& awaitable
+)
+{
+    return (awaitable.operator co_await());
+}
+
+template<
+    is_awaiter TAwaitable
+>
+decltype(auto) get_awaiter(
+    TAwaitable&& awaitable
+)
+{
+    return (awaitable);
+}
+
+template<
     is_awaitable TAwaitable
 >
 struct awaitable_result_type

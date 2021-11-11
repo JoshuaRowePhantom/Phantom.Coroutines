@@ -226,3 +226,22 @@ template<
 >
 using awaitable_result_type_t = awaitable_result_type<TAwaitable>::type;
 ```
+
+== resume_result.h ==
+
+There are situations where it is useful to know whether a given asynchronous operation
+suspended.  For example, when waiting on a lock, it can be useful to know whether the
+lock wait actually resulted in a suspension so that the resuming coroutine can
+decide to reschedule on a threadpool thread rather than blocking the coroutine that
+released the lock.
+
+```with_resume_result``` is a function accepting an awaitable object and returns
+a coroutine whose result has two members:
+
+```
+// Determine whether with_resume_result believes the calling coroutine was suspended.
+bool did_suspend() const;
+
+// Get the result of awaiting the underlying awaitable.
+auto result();
+```

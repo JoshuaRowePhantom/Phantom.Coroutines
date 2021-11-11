@@ -6,7 +6,7 @@ namespace Phantom::Coroutines
 {
 
 template<
-    typename TAwaiter
+    is_awaiter TAwaiter
 >
 class always_suspended_resume_result
 {
@@ -28,7 +28,7 @@ public:
 };
 
 template<
-    typename TAwaiter
+    is_awaiter TAwaiter
 >
 class maybe_suspended_resume_result
 {
@@ -57,7 +57,7 @@ public:
 };
 
 template <
-    typename TAwaiter,
+    is_awaiter TAwaiter,
     typename TAwait_suspend_result = decltype(std::declval<TAwaiter>().await_suspend(std::declval<coroutine_handle<>>()))
 >
 class resume_result_awaiter
@@ -139,7 +139,7 @@ public:
 };
 
 template <
-    typename TAwaiter
+    is_awaiter TAwaiter
 >
 class resume_result_awaiter<
     TAwaiter,
@@ -190,7 +190,7 @@ template<
 )
 {
     return (resume_result_awaiter(
-        awaitable.operator co_await()
+        get_awaiter(awaitable)
     ));
 }
 
