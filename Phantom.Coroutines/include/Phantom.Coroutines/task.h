@@ -174,7 +174,6 @@ private basic_task_result_type<Traits>
         TaskTraits Traits
     > friend class basic_task_promise_base;
 
-    friend class task_test;
 public:
     using promise_type = typename Traits::promise_type;
     using result_type = typename Traits::result_type;
