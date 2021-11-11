@@ -17,8 +17,13 @@ template<
     typename Traits
 > concept TaskTraits = requires
 {
+    // The basic_task_promise-derived class that implements the promise type.
     typename Traits::promise_type;
+
+    // The basic_task-derived class that implements the future type.
     typename Traits::future_type;
+
+    // The result type of the task.
     typename Traits::result_type;
 };
 
@@ -346,6 +351,12 @@ void basic_task_promise<Traits>::return_void()
 }
 
 }
+using detail::basic_task;
+using detail::basic_task_promise;
 using detail::task;
+using detail::task_promise;
+using detail::TaskTraits;
+using detail::VoidTaskTraits;
+using detail::ReferenceTaskTraits;
 
 }
