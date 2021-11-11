@@ -5,6 +5,7 @@
 #include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/sync_wait.h"
+#include "lifetime_tracker.h"
 
 using namespace Phantom::Coroutines;
 
@@ -50,6 +51,70 @@ TEST(task_test, Can_return_reference)
     }());
 
     ASSERT_EQ(&value, &result);
+}
+
+TEST(task_test, Can_return_rvalue_reference_Address_doesnt_change)
+{
+    std::string value = "hello world";
+    std::string* finalAddress;
+
+    sync_wait([&]() -> task<>
+    {
+        auto& v = reinterpret_cast<std::string&>(co_await[&]() -> task<std::string&&>
+        {
+            co_return value;
+        }());
+
+        finalAddress = &v;
+    }());
+
+    ASSERT_EQ(&value, finalAddress);
+}
+
+TEST(task_test, Can_use_returned_rvalue_reference)
+{
+    detail::lifetime_statistics statistics;
+    detail::lifetime_tracker initialValue = statistics.tracker();
+
+    sync_wait([&]() -> task<>
+    {
+        auto endValue = co_await[&]() -> task<detail::lifetime_tracker&&>
+        {
+            co_return initialValue;
+        }();
+
+        [&]() {
+            ASSERT_EQ(2, statistics.instance_count);
+            ASSERT_EQ(1, statistics.move_construction_count);
+        }();
+    }());
+
+    ASSERT_TRUE(initialValue.moved_from());
+    ASSERT_EQ(1, statistics.instance_count);
+}
+
+TEST(task_test, Can_use_returned_rvalue_reference_with_same_address)
+{
+    detail::lifetime_statistics statistics;
+    detail::lifetime_tracker initialValue = statistics.tracker();
+
+    sync_wait([&]() -> task<>
+    {
+        [&](detail::lifetime_tracker&& endValue) {
+
+            endValue.use();
+            ASSERT_EQ(1, statistics.instance_count);
+            ASSERT_EQ(0, statistics.move_construction_count);
+        }(
+            co_await[&]() -> task<detail::lifetime_tracker&&>
+        {
+            co_return initialValue;
+        }());
+    }());
+
+    ASSERT_FALSE(initialValue.moved_from());
+    ASSERT_EQ(1, statistics.instance_count);
+    ASSERT_FALSE(statistics.used_after_move);
 }
 
 TEST(task_test, Can_suspend_and_resume)

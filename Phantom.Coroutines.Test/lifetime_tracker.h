@@ -9,14 +9,15 @@ class lifetime_tracker;
 class lifetime_statistics
 {
 public:
-    size_t copy_construction_count;
-    size_t move_construction_count;
-    size_t destruction_count;
-    size_t replace_count;
-    size_t copy_count;
-    size_t move_into_count;
-    size_t move_from_count;
-    bool used_after_move;
+    size_t copy_construction_count = 0;
+    size_t move_construction_count = 0;
+    size_t destruction_count = 0;
+    size_t replace_count = 0;
+    size_t copy_count = 0;
+    size_t move_into_count = 0;
+    size_t move_from_count = 0;
+    size_t instance_count = 0;
+    bool used_after_move = false;
 
     lifetime_tracker tracker();
 };
@@ -32,7 +33,9 @@ class lifetime_tracker
         lifetime_statistics* statistics
     ) : m_statistics(
         statistics)
-    {}
+    {
+        m_statistics->instance_count++;
+    }
 
 public:
     lifetime_tracker(
@@ -40,6 +43,7 @@ public:
     ) : m_statistics(
         other.m_statistics)
     {
+        m_statistics->instance_count++;
         m_statistics->copy_construction_count++;
     }
 
@@ -48,6 +52,7 @@ public:
     ) : m_statistics(
         other.m_statistics)
     {
+        m_statistics->instance_count++;
         m_statistics->move_construction_count++;
         other.m_movedFrom = true;
     }
@@ -55,26 +60,31 @@ public:
     ~lifetime_tracker()
     {
         m_statistics->destruction_count++;
+        m_statistics->instance_count--;
     }
 
     lifetime_tracker& operator=(
         const lifetime_tracker& other)
     {
+        m_statistics->instance_count--;
         m_statistics->replace_count++;
         m_statistics = other.m_statistics;
         m_movedFrom = other.m_movedFrom;
         m_statistics->copy_count++;
+        m_statistics->instance_count++;
         return *this;
     }
 
     lifetime_tracker& operator=(
         lifetime_tracker&& other)
     {
+        m_statistics->instance_count--;
         m_statistics->replace_count++;
         m_statistics->move_into_count++;
         m_statistics = other.m_statistics;
         m_movedFrom = other.m_movedFrom;
         m_statistics->move_from_count++;
+        m_statistics->instance_count++;
         return *this;
     }
 
@@ -88,6 +98,11 @@ public:
         }
 
         return !m_movedFrom;
+    }
+
+    bool moved_from() const
+    {
+        return m_movedFrom;
     }
 };
 

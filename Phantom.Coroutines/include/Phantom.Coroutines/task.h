@@ -96,7 +96,7 @@ public basic_task_promise_base<Traits>
     using promise_type = typename Traits::promise_type;
     using future_type = typename Traits::future_type;
     using result_type = typename Traits::result_type;
-
+    using basic_task_type = basic_task<Traits>;
     using basic_task_promise::basic_task_promise_base::m_task;
 
 public:
@@ -106,9 +106,19 @@ public:
         TValue&& result
     )
     {
-        m_task->m_result.emplace<future_type::value_index>(
-            std::forward<TValue>(result)
-            );
+        if constexpr (std::is_rvalue_reference_v<result_type>)
+        {
+            m_task->m_result.emplace<basic_task_type::value_index>(
+                result
+                );
+
+        }
+        else
+        {
+            m_task->m_result.emplace<basic_task_type::value_index>(
+                std::forward<TValue>(result)
+                );
+        }
     }
 };
 
@@ -135,6 +145,8 @@ template<
 {
     typedef Traits::result_type result_variant_member_type;
     static constexpr bool is_void = false;
+    static constexpr bool is_reference = false;
+    static constexpr bool is_rvalue_reference = false;
 };
 
 template<
@@ -145,6 +157,8 @@ template<
 {
     typedef std::monostate result_variant_member_type;
     static constexpr bool is_void = true;
+    static constexpr bool is_reference = false;
+    static constexpr bool is_rvalue_reference = false;
 };
 
 template<
@@ -155,6 +169,8 @@ template<
 {
     typedef std::reference_wrapper<std::remove_reference_t<typename Traits::result_type>> result_variant_member_type;
     static constexpr bool is_void = false;
+    static constexpr bool is_reference = true;
+    static constexpr bool is_rvalue_reference = std::is_rvalue_reference_v<typename Traits::result_type>;
 };
 
 template<
@@ -165,6 +181,8 @@ private basic_task_result_type<Traits>
 {
     using typename basic_task::basic_task_result_type::result_variant_member_type;
     using basic_task::basic_task_result_type::is_void;
+    using basic_task::basic_task_result_type::is_reference;
+    using basic_task::basic_task_result_type::is_rvalue_reference;
 
     template<
         TaskTraits Traits
@@ -186,8 +204,8 @@ private:
         std::exception_ptr
     > result_variant_type;
 
-    const static size_t value_index = 1;
-    const static size_t exception_index = 2;
+    static const size_t value_index = 1;
+    static const size_t exception_index = 2;
 
     result_variant_type m_result;
 
@@ -255,6 +273,10 @@ private:
             if constexpr (is_void)
             {
                 return;
+            }
+            else if constexpr (is_rvalue_reference)
+            {
+                return (static_cast<result_type>(std::get<value_index>(m_task.m_result).get()));
             }
             else
             {
