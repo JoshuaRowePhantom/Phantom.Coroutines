@@ -235,22 +235,6 @@ private:
     {
     }
 
-    basic_task(
-        basic_task&&
-    ) = delete;
-
-    basic_task(
-        const basic_task&
-    ) = delete;
-
-    void operator=(
-        const basic_task&
-        ) = delete;
-
-    void operator=(
-        const basic_task&&
-        ) = delete;
-
     class awaiter
     {
         friend class basic_task;
