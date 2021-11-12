@@ -160,7 +160,6 @@ template<
     typedef Traits::result_type result_variant_member_type;
     static constexpr bool is_void = false;
     static constexpr bool is_reference = false;
-    static constexpr bool is_rvalue_reference = false;
 };
 
 template<
@@ -172,7 +171,6 @@ template<
     typedef std::monostate result_variant_member_type;
     static constexpr bool is_void = true;
     static constexpr bool is_reference = false;
-    static constexpr bool is_rvalue_reference = false;
 };
 
 template<
@@ -184,7 +182,6 @@ template<
     typedef std::reference_wrapper<std::remove_reference_t<typename Traits::result_type>> result_variant_member_type;
     static constexpr bool is_void = false;
     static constexpr bool is_reference = true;
-    static constexpr bool is_rvalue_reference = std::is_rvalue_reference_v<typename Traits::result_type>;
 };
 
 template<
@@ -197,7 +194,6 @@ private immovable_object
     using typename basic_task::basic_task_result_type::result_variant_member_type;
     using basic_task::basic_task_result_type::is_void;
     using basic_task::basic_task_result_type::is_reference;
-    using basic_task::basic_task_result_type::is_rvalue_reference;
 
     template<
         TaskTraits Traits
@@ -273,13 +269,14 @@ private:
             {
                 return;
             }
-            else if constexpr (is_rvalue_reference)
+            else if constexpr (is_reference)
             {
+                // If the result type is a reference type, unwrap the contained reference_wrapper.
                 return (static_cast<result_type>(std::get<value_index>(m_task.m_result).get()));
             }
             else
             {
-                return (static_cast<result_type&>((std::get<value_index>(m_task.m_result))));
+                return (static_cast<result_type&&>((std::get<value_index>(m_task.m_result))));
             }
         }
     };
