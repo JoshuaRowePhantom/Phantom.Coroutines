@@ -33,10 +33,21 @@ storage_for<TValue>
 
     TValue* getValue() { return reinterpret_cast<TValue*>(&m_storage); }
 
-    struct awaiter
+    class awaiter
     {
+        template<
+            typename TValue
+        > friend class single_consumer_promise;
+
         single_consumer_promise& m_promise;
 
+        awaiter(
+            single_consumer_promise& promise
+        ) : 
+            m_promise { promise }
+        {}
+
+    public:
         bool await_ready()
         {
             return m_promise.m_atomicState.load(std::memory_order_acquire) == CompleteState{};
