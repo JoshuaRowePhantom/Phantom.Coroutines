@@ -72,9 +72,25 @@ protected:
 public:
     suspend_always initial_suspend() const noexcept { return suspend_always{}; }
     
-    inline final_suspend_transfer_and_destroy final_suspend() noexcept;
-    inline future_type get_return_object();
-    inline void unhandled_exception() noexcept;
+    final_suspend_transfer_and_destroy final_suspend() noexcept
+    {
+        return final_suspend_transfer_and_destroy
+        {
+            m_task->m_continuation
+        };
+    }
+    
+    future_type get_return_object()
+    {
+        return future_type{ static_cast<promise_type*>(this) };
+    }
+
+    void unhandled_exception() noexcept
+    {
+        m_task->m_result.emplace<basic_task<Traits>::exception_index>(
+            std::current_exception()
+            );
+    }
 };
 
 template<
@@ -131,7 +147,10 @@ public basic_task_promise_base<Traits>
 
     using basic_task_promise::basic_task_promise_base::m_task;
 public:
-    inline void return_void();
+    void return_void()
+    {
+        m_task->m_result.emplace<task<void>::value_index>(std::monostate{});
+    }
 };
 
 template<
@@ -323,43 +342,6 @@ template<
 public basic_task_promise<task_traits<TResult>>
 {
 };
-
-template<
-    TaskTraits Traits
-> typename Traits::future_type
-basic_task_promise_base<Traits>::get_return_object()
-{
-    return future_type{ static_cast<promise_type *>(this) };
-}
-
-template<
-    TaskTraits Traits
-> final_suspend_transfer_and_destroy
-basic_task_promise_base<Traits>::final_suspend() noexcept
-{
-    return final_suspend_transfer_and_destroy
-    {
-        m_task->m_continuation
-    };
-}
-
-template<
-    TaskTraits Traits
->
-void basic_task_promise_base<Traits>::unhandled_exception() noexcept
-{
-    m_task->m_result.emplace<basic_task<Traits>::exception_index>(
-        std::current_exception()
-        );
-}
-
-template<
-    VoidTaskTraits Traits
->
-void basic_task_promise<Traits>::return_void()
-{
-    m_task->m_result.emplace<task<void>::value_index>(std::monostate{});
-}
 
 }
 using detail::basic_task;
