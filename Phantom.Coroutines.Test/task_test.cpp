@@ -30,6 +30,21 @@ TEST(task_test, Can_await_void_task)
     );
 }
 
+TEST(task_test, Can_handle_thrown_exception)
+{
+    ASSERT_THROW(
+        {
+            sync_wait(
+                []() -> task<>
+            {
+                throw 5;
+                co_return;
+            }()
+                );
+        },
+        int);
+}
+
 TEST(task_test, Can_await_string_task)
 {
     auto result = sync_wait(
@@ -178,5 +193,37 @@ TEST(task_test, Destroys_returned_value)
     }());
 
     ASSERT_EQ(1, instanceCountBeforeDestruction);
+    ASSERT_EQ(0, instanceCountAfterDestruction);
+}
+
+TEST(task_test, Destroys_thrown_exception)
+{
+    lifetime_statistics statistics;
+    std::optional<size_t> instanceCountBeforeDestruction;
+    std::optional<size_t> instanceCountAfterDestruction;
+
+    auto taskWithReturnValueLambda = [&]() -> task<int>
+    {
+        throw statistics.tracker();
+        co_return 5;
+    };
+
+    sync_wait([&]() -> task<>
+    {
+        {
+            auto task = taskWithReturnValueLambda();
+            try
+            {
+                co_await task;
+            }
+            catch (lifetime_tracker &)
+            {
+                instanceCountBeforeDestruction = statistics.instance_count;
+            }
+        }
+        instanceCountAfterDestruction = statistics.instance_count;
+    }());
+
+    ASSERT_EQ(2, instanceCountBeforeDestruction);
     ASSERT_EQ(0, instanceCountAfterDestruction);
 }
