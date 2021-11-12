@@ -245,3 +245,11 @@ bool did_suspend() const;
 // Get the result of awaiting the underlying awaitable.
 auto result();
 ```
+
+== single_consumer_promise.h ==
+
+This class provides push-based completion scheme.  A single coroutine at a time 
+can co_await the single_consumer_promise.  Some other thread can call ```emplace(...)```
+to construct a value to return to the waiting coroutine.  Only one call
+to ```emplace(...)``` can be made.  
+
