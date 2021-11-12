@@ -289,7 +289,7 @@ private:
             }
             else
             {
-                return (static_cast<result_type>((std::get<value_index>(m_task.m_result))));
+                return (static_cast<result_type&>((std::get<value_index>(m_task.m_result))));
             }
         }
     };
