@@ -220,8 +220,15 @@ private:
 
     result_variant_type m_result;
 
-    promise_type* m_promise = nullptr;
-    coroutine_handle<> m_continuation;
+    // We only need the promise object until await_suspend
+    // has been called; then we tell the promise object
+    // about this object and set the continuation
+    // member.
+    union
+    {
+        promise_type* m_promise = nullptr;
+        coroutine_handle<> m_continuation;
+    };
 
     basic_task(
         promise_type* promise
@@ -249,12 +256,12 @@ private:
             coroutine_handle<> continuation
         )
         {
-            // The task can only be co-awaited once.
-            assert(!m_task.m_continuation);
-
+            // Setting m_continuation below resets promise,
+            // so save it here.
+            auto promise = m_task.m_promise;
+            promise->m_task = &m_task;
             m_task.m_continuation = continuation;
-            m_task.m_promise->m_task = &m_task;
-            return coroutine_handle<promise_type>::from_promise(*m_task.m_promise);
+            return coroutine_handle<promise_type>::from_promise(*promise);
         }
 
         decltype(auto) await_resume()
