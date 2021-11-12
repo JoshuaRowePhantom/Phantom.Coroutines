@@ -6,6 +6,9 @@ find_package(GTest REQUIRED)
 if (MSVC)
 	add_compile_options("/std:c++20")
 	add_compile_options("/Fa")
+	
+	# Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
+	add_compile_options("/DPHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_DEFAULT_CONSTRUCTIBLE")
 endif()
 
 add_subdirectory(Phantom.Coroutines)
