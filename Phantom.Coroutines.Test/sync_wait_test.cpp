@@ -15,15 +15,19 @@ TEST(as_future_test, Create_future_from_task)
 static_assert(std::same_as<std::future<void>, decltype(as_future(typed_awaiter<void>{}))>);
 static_assert(std::same_as<std::future<int>, decltype(as_future(typed_awaiter<int>{}))>);
 static_assert(std::same_as<std::future<int&>, decltype(as_future(typed_awaiter<int&>{}))>);
+static_assert(std::same_as<std::future<int>, decltype(as_future(typed_awaiter<int&&>{}))>);
 
 static_assert(std::same_as<std::future<void>, decltype(as_future(typed_awaitable<void>{}))>);
 static_assert(std::same_as<std::future<int>, decltype(as_future(typed_awaitable<int>{}))>);
 static_assert(std::same_as<std::future<int&>, decltype(as_future(typed_awaitable<int&>{}))>);
+static_assert(std::same_as<std::future<int>, decltype(as_future(typed_awaitable<int&&>{}))>);
 
 static_assert(std::same_as<void, decltype(sync_wait(typed_awaiter<void>{}))>);
 static_assert(std::same_as<int, decltype(sync_wait(typed_awaiter<int>{}))>);
-static_assert(std::same_as<int&, decltype(sync_wait(typed_awaiter<int&>{}))>);
+static_assert(std::same_as<int&, decltype(sync_wait(typed_awaiter<int&>{})) > );
+static_assert(std::same_as<int, decltype(sync_wait(typed_awaiter<int&&>{}))>);
 
 static_assert(std::same_as<void, decltype(sync_wait(typed_awaitable<void>{}))>);
 static_assert(std::same_as<int, decltype(sync_wait(typed_awaitable<int>{}))>);
-static_assert(std::same_as<int&, decltype(sync_wait(typed_awaitable<int&>{}))>);
+static_assert(std::same_as<int&, decltype(sync_wait(typed_awaitable<int&>{})) > );
+static_assert(std::same_as<int, decltype(sync_wait(typed_awaitable<int&&>{}))>);

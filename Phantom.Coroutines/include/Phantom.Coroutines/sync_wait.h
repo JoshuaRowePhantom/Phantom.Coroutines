@@ -2,6 +2,10 @@
 #include "detail/type_traits.h"
 #include <exception>
 #include <future>
+#ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_DEFAULT_CONSTRUCTIBLE
+#include "task.h"
+#include <optional>
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -73,7 +77,11 @@ template<
     TAwaitable&& awaitable
 )
 {
-    typedef awaitable_result_type_t<TAwaitable> result_type;
+    typedef std::conditional_t<
+        std::is_rvalue_reference_v<awaitable_result_type_t<TAwaitable>>,
+        std::remove_reference_t<awaitable_result_type_t<TAwaitable>>,
+        awaitable_result_type_t<TAwaitable>
+    > result_type;
 
     std::promise<result_type> promise;
     auto future = promise.get_future();
@@ -92,7 +100,36 @@ template<
     TAwaitable&& awaitable
 )
 {
-    return (as_future(std::forward<TAwaitable>(awaitable)).get());
+#ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_DEFAULT_CONSTRUCTIBLE
+    
+    // Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
+    typedef std::conditional_t<
+        std::is_rvalue_reference_v<awaitable_result_type_t<TAwaitable>>,
+        std::remove_reference_t<awaitable_result_type_t<TAwaitable>>,
+        awaitable_result_type_t<TAwaitable>
+    > result_type;
+
+    if constexpr (
+        !std::same_as<void, result_type>
+        &&
+        !std::is_reference_v<result_type>
+        &&
+        !std::is_default_constructible_v<result_type>)
+    {
+        auto wrapWithOptional = [&]() -> task<std::optional<result_type>>
+        {
+            co_return co_await awaitable;
+        };
+
+        return (*sync_wait(
+            wrapWithOptional()
+        ));
+    }
+    else
+#endif
+    {
+        return (as_future(std::forward<TAwaitable>(awaitable)).get());
+    }
 }
 
 }
