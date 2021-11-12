@@ -159,7 +159,8 @@ struct tuple_element_index<
     Type,
     std::tuple<OtherType, RemainingTypes...>,
     std::void_t<
-    decltype(tuple_element_index<Type, std::tuple<RemainingTypes...>>::value)>
+        std::enable_if_t<!std::is_same_v<Type, OtherType>>,
+        decltype(tuple_element_index<Type, std::tuple<RemainingTypes...>>::value)>
 >
 {
     static const size_t value =
