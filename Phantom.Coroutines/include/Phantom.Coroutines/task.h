@@ -14,6 +14,8 @@ namespace Phantom::Coroutines
 {
 namespace detail
 {
+
+// The Traits parameter to basic_task, basic_task_promise must satisfy this concept.
 template<
     typename Traits
 > concept TaskTraits = requires
@@ -28,6 +30,7 @@ template<
     typename Traits::result_type;
 };
 
+// A specialization of TaskTraits to detect void-returning tasks.
 template<
     typename Traits
 > concept VoidTaskTraits =
@@ -35,6 +38,7 @@ TaskTraits<Traits>
 &&
 std::same_as<void, typename Traits::result_type>;
 
+// A specialization of TaskTraits to detect reference-returning tasks.
 template<
     typename Traits
 > concept ReferenceTaskTraits =
@@ -43,26 +47,9 @@ TaskTraits<Traits>
 std::is_reference_v<typename Traits::result_type>;
 
 template<
-    typename TResult = void
-> class task;
-
-template<
-    typename TResult = void
-> class task_promise;
-
-template<
     TaskTraits Traits
 >
 class basic_task_promise;
-
-template<
-    typename TResult
-> struct task_traits
-{
-    typedef task_promise<TResult> promise_type;
-    typedef task<TResult> future_type;
-    typedef TResult result_type;
-};
 
 template<
     TaskTraits Traits
@@ -301,6 +288,25 @@ public:
     }
 };
 
+// task and task_promise are the library-provided derivations
+// of basic_task and basic_task_promise that add no behavior.
+template<
+    typename TResult = void
+> class task;
+
+template<
+    typename TResult = void
+> class task_promise;
+
+template<
+    typename TResult
+> struct task_traits
+{
+    typedef task_promise<TResult> promise_type;
+    typedef task<TResult> future_type;
+    typedef TResult result_type;
+};
+
 template<
     typename TResult
 >
@@ -315,7 +321,8 @@ template<
 > class task_promise
     :
 public basic_task_promise<task_traits<TResult>>
-{};
+{
+};
 
 template<
     TaskTraits Traits
