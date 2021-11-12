@@ -41,8 +41,8 @@ public:
         bool suspended
     ) :
         m_awaiter{
-        awaiter
-    },
+            std::forward<TAwaiter>(awaiter)
+        },
         m_suspended{
             suspended
     }
@@ -184,13 +184,15 @@ public:
 };
 
 template<
-    has_co_await TAwaitable
+    is_awaitable TAwaitable
 > decltype(auto) with_resume_result(
     TAwaitable&& awaitable
 )
 {
     return (resume_result_awaiter(
-        get_awaiter(awaitable)
+        std::move(
+            get_awaiter(
+                std::forward<TAwaitable>(awaitable)))
     ));
 }
 
