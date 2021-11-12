@@ -2,6 +2,7 @@
 
 #include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
+#include "detail/immovable_object.h"
 #include "detail/promise_traits.h"
 #include "single_consumer_promise.h"
 #include <concepts>
@@ -67,6 +68,8 @@ template<
     TaskTraits Traits
 >
 class basic_task_promise_base
+    :
+private immovable_object
 {
     template<
         TaskTraits Traits
@@ -182,7 +185,8 @@ template<
     TaskTraits Traits
 > class basic_task
     :
-private basic_task_result_type<Traits>
+private basic_task_result_type<Traits>,
+private immovable_object
 {
     using typename basic_task::basic_task_result_type::result_variant_member_type;
     using basic_task::basic_task_result_type::is_void;

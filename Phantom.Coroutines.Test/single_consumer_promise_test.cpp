@@ -4,6 +4,7 @@
 #include "Phantom.Coroutines/single_consumer_promise.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
+#include "lifetime_tracker.h"
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
@@ -27,7 +28,6 @@ TEST(single_consumer_promise_test, Set_after_await_causes_await_to_continue)
     ASSERT_EQ(true, didSuspend);
 }
 
-
 TEST(single_consumer_promise_test, Set_before_await_causes_await_to_not_suspend)
 {
     single_consumer_promise<std::wstring> promise;
@@ -47,3 +47,15 @@ TEST(single_consumer_promise_test, Set_before_await_causes_await_to_not_suspend)
     ASSERT_EQ(false, didSuspend);
 }
 
+
+TEST(single_consumer_promise_test, Destroy_calls_destructor_of_embedded_value)
+{
+    lifetime_statistics statistics;
+    {
+        single_consumer_promise<lifetime_tracker> promise;
+
+        promise.emplace(statistics.tracker());
+        ASSERT_EQ(1, statistics.instance_count);
+    }
+    ASSERT_EQ(0, statistics.instance_count);
+}

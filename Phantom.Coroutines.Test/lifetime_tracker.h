@@ -19,7 +19,7 @@ public:
     size_t instance_count = 0;
     bool used_after_move = false;
 
-    lifetime_tracker tracker();
+    inline lifetime_tracker tracker();
 };
 
 class lifetime_tracker

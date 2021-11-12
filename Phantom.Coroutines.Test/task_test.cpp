@@ -8,6 +8,7 @@
 #include "lifetime_tracker.h"
 
 using namespace Phantom::Coroutines;
+using namespace Phantom::Coroutines::detail;
 
 static_assert(detail::is_awaitable<task<>>);
 static_assert(detail::is_awaitable<task<int>>);
@@ -153,4 +154,29 @@ TEST(task_test, Can_loop_without_stackoverflow)
     auto actualSum = sync_wait(
         outerTaskLambda());
     ASSERT_EQ(1000000, actualSum);
+}
+
+TEST(task_test, Destroys_returned_value)
+{
+    lifetime_statistics statistics;
+    std::optional<size_t> instanceCountBeforeDestruction;
+    std::optional<size_t> instanceCountAfterDestruction;
+
+    auto taskWithReturnValueLambda = [&]() -> task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    sync_wait([&]() -> task<>
+    {
+        {
+            auto task = taskWithReturnValueLambda();
+            co_await task;
+            instanceCountBeforeDestruction = statistics.instance_count;
+        }
+        instanceCountAfterDestruction = statistics.instance_count;
+    }());
+
+    ASSERT_EQ(1, instanceCountBeforeDestruction);
+    ASSERT_EQ(0, instanceCountAfterDestruction);
 }
