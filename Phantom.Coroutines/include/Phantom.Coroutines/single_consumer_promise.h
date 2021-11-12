@@ -33,23 +33,71 @@ storage_for<TValue>
 
     TValue* getValue() { return reinterpret_cast<TValue*>(&m_storage); }
 
+    struct awaiter
+    {
+        single_consumer_promise& m_promise;
+
+        bool await_ready()
+        {
+            return m_promise.m_atomicState.load(std::memory_order_acquire) == CompleteState{};
+        }
+
+        bool await_suspend(
+            coroutine_handle<> coroutine
+        )
+        {
+            auto nextStateLambda = [&](state_type previousState) -> state_type
+            {
+                if (previousState == CompleteState{})
+                {
+                    return CompleteState{};
+                }
+                return coroutine;
+            };
+
+            auto previousState = compare_exchange_weak_loop(
+                m_promise.m_atomicState,
+                nextStateLambda,
+                std::memory_order_relaxed
+            );
+
+            assert(!previousState.is<WaitingCoroutineState>());
+
+            return previousState != CompleteState{};
+        }
+
+        TValue& await_resume()
+        {
+            assert(m_promise.m_atomicState.load(std::memory_order_relaxed) == CompleteState{});
+            return *m_promise.getValue();
+        }
+    };
+
 public:
     single_consumer_promise()
         :
         m_atomicState(IncompleteState{})
     {}
 
+    single_consumer_promise(
+        const single_consumer_promise&
+    ) = delete;
+
+    single_consumer_promise(
+        single_consumer_promise&&
+    ) = delete;
+
     template<
-        typename TValue
+        typename ... TConstructorArguments
     >
     explicit single_consumer_promise(
-        TValue&& value
+        TConstructorArguments&&... args
     )
         :
         m_atomicState(CompleteState{})
     {
         new (&m_storage) TValue(
-            std::forward<TValue>(value)...
+            std::forward<TConstructorArguments>(args)...
         );
     }
 
@@ -90,40 +138,7 @@ public:
         return *this;
     }
 
-    bool await_ready()
-    {
-        return m_atomicState.load(std::memory_order_acquire) == CompleteState{};
-    }
-
-    bool await_suspend(
-        coroutine_handle<> coroutine
-    )
-    {
-        auto nextStateLambda = [&](state_type previousState) -> state_type
-        {
-            if (previousState == CompleteState{})
-            {
-                return CompleteState{};
-            }
-            return coroutine;
-        };
-
-        auto previousState = compare_exchange_weak_loop(
-            m_atomicState,
-            nextStateLambda,
-            std::memory_order_relaxed
-        );
-
-        assert(!previousState.is<WaitingCoroutineState>());
-
-        return previousState == CompleteState{};
-    }
-
-    TValue& await_resume()
-    {
-        assert(m_atomicState.load(std::memory_order_acquire) == CompleteState{});
-        return *getValue();
-    }
+    awaiter operator co_await() { return { *this }; }
 };
 
 }
