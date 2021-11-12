@@ -239,6 +239,13 @@ template<
 using awaitable_result_type_t = awaitable_result_type<TAwaitable>::type;
 ```
 
+=== Implementation Notes ===
+
+```task<Result>``` stores its return value in the task object itself and releases
+the promise object as soon as the task's awaiter is resumed.  Thus, promises
+that embody a large amount of state will be released quickly, and the task's
+state does not bloat the promise state.
+
 == resume_result.h ==
 
 There are situations where it is useful to know whether a given asynchronous operation
