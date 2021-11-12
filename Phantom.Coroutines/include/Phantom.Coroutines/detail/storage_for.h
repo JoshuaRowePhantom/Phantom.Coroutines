@@ -28,8 +28,8 @@ template<
 > struct storage_for
     :
 public storage_for_impl<
-    std::max({ 0, sizeof(TValues)... }),
-    std::max({ 0, alignof(TValues)... })
+    std::max({ static_cast<size_t>(0), sizeof(TValues)... }),
+    std::max({ static_cast<size_t>(0), alignof(TValues)... })
 >
 {};
 
