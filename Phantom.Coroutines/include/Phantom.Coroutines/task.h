@@ -236,62 +236,44 @@ private:
         promise
     )
     {
+        promise->m_task = static_cast<future_type*>(this);
     }
 
-    class awaiter
-    {
-        friend class basic_task;
-        future_type& m_task;
-
-        awaiter(
-            future_type& task
-        ) :
-            m_task{ task }
-        {}
-
-    public:
-        bool await_ready() { return false; }
-
-        coroutine_handle<> await_suspend(
-            coroutine_handle<> continuation
-        )
-        {
-            // Setting m_continuation below resets promise,
-            // so save it here.
-            auto promise = m_task.m_promise;
-            promise->m_task = &m_task;
-            m_task.m_continuation = continuation;
-            return coroutine_handle<promise_type>::from_promise(*promise);
-        }
-
-        decltype(auto) await_resume()
-        {
-            if (m_task.m_result.index() == exception_index)
-            {
-                std::rethrow_exception(
-                    get<exception_index>(m_task.m_result));
-            }
-
-            if constexpr (is_void)
-            {
-                return;
-            }
-            else if constexpr (is_reference)
-            {
-                // If the result type is a reference type, unwrap the contained reference_wrapper.
-                return (static_cast<result_type>(std::get<value_index>(m_task.m_result).get()));
-            }
-            else
-            {
-                return (static_cast<result_type&&>((std::get<value_index>(m_task.m_result))));
-            }
-        }
-    };
-
 public:
-    awaiter operator co_await()
+    bool await_ready() const { return false; }
+
+    coroutine_handle<> await_suspend(
+        coroutine_handle<> continuation
+    )
     {
-        return awaiter{ static_cast<future_type&>(*this) };
+        // Setting m_continuation below resets promise,
+        // so save it here.
+        auto promise = m_promise;
+        m_continuation = continuation;
+        return coroutine_handle<promise_type>::from_promise(*promise);
+    }
+
+    decltype(auto) await_resume()
+    {
+        if (m_result.index() == exception_index)
+        {
+            std::rethrow_exception(
+                get<exception_index>(m_result));
+        }
+
+        if constexpr (is_void)
+        {
+            return;
+        }
+        else if constexpr (is_reference)
+        {
+            // If the result type is a reference type, unwrap the contained reference_wrapper.
+            return (static_cast<result_type>(std::get<value_index>(m_result).get()));
+        }
+        else
+        {
+            return (static_cast<result_type&&>((std::get<value_index>(m_result))));
+        }
     }
 };
 

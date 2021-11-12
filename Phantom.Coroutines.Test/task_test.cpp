@@ -10,13 +10,20 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
+static_assert(detail::is_awaiter<task<>>);
+static_assert(detail::is_awaiter<task<int>>);
+static_assert(detail::is_awaiter<task<int&>>);
+static_assert(detail::is_awaiter<task<int&&>>);
+
 static_assert(detail::is_awaitable<task<>>);
 static_assert(detail::is_awaitable<task<int>>);
 static_assert(detail::is_awaitable<task<int&>>);
 static_assert(detail::is_awaitable<task<int&&>>);
 
-static_assert(std::same_as<detail::awaitable_result_type_t<task<>>, void>);
-static_assert(std::same_as<detail::awaitable_result_type_t<task<int>>, int>);
+static_assert(!detail::has_co_await<task<>&&>);
+
+static_assert(std::same_as<detail::awaitable_result_type_t<task<>&&>, void>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<int&>>, int&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
 
@@ -67,6 +74,69 @@ TEST(task_test, Can_return_reference)
     }());
 
     ASSERT_EQ(&value, &result);
+}
+
+TEST(task_test, Returned_object_is_by_reference_to_caller)
+{
+    lifetime_statistics statistics;
+
+    auto myTask = [&]() -> task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    auto result = sync_wait(
+        myTask());
+
+    result.use();
+    ASSERT_EQ(1, statistics.move_construction_count);
+    ASSERT_EQ(1, statistics.instance_count);
+}
+
+TEST(task_test, Returned_object_is_by_rvalue_reference_to_caller_in_rvalue_context)
+{
+    lifetime_statistics statistics;
+
+    auto myLambda = [&](lifetime_tracker&& tracker)
+    {};
+
+    auto myInnerTask = [&]() -> task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    auto myOuterTask = [&]() -> task<>
+    {
+        myLambda(co_await std::move(myInnerTask()));
+    };
+
+    sync_wait(
+        myOuterTask());
+
+    ASSERT_EQ(1, statistics.move_construction_count);
+    ASSERT_EQ(1, statistics.instance_count);
+}
+
+TEST(task_test, Task_destroys_coroutine)
+{
+    lifetime_statistics statistics;
+    single_consumer_manual_reset_event event;
+
+    // Create and suspend a task, then destroy it.
+    auto myTask = [&]() -> task<>
+    {
+        auto tracker = statistics.tracker();
+        co_await event;
+    }();
+
+    {
+        auto future = as_future(
+            std::move(myTask));
+
+        ASSERT_EQ(1, statistics.instance_count);
+    }
+
+    ASSERT_EQ(0, statistics.instance_count);
 }
 
 TEST(task_test, Can_return_rvalue_reference_Address_doesnt_change)
@@ -185,8 +255,7 @@ TEST(task_test, Destroys_returned_value)
     sync_wait([&]() -> task<>
     {
         {
-            auto task = taskWithReturnValueLambda();
-            co_await task;
+            auto tracker = co_await taskWithReturnValueLambda();
             instanceCountBeforeDestruction = statistics.instance_count;
         }
         instanceCountAfterDestruction = statistics.instance_count;
@@ -214,7 +283,7 @@ TEST(task_test, Destroys_thrown_exception)
             auto task = taskWithReturnValueLambda();
             try
             {
-                co_await task;
+                co_await std::move(task);
             }
             catch (lifetime_tracker &)
             {
