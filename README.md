@@ -51,7 +51,15 @@ Upon co_await'ing the task, the coroutine is started.  When the coroutine comple
 the awaiting coroutine is resumed via symmetric transfer, and the return value
 or exception is propagated to the caller.
 
-The result type of the task is the type parameter to task; the default is void.  
+The result type of the task is a reference to the type parameter to task unless the task
+returns void.  This is done to permit using the result of a task with no additional
+copying.
+
+The default return type of the task is void, so a typical usage is:
+
+```
+task<> DoSomethingThatDoesntReturnAnything() { co_return; }
+```
 
 For extensibility, this file provides the basic_task and basic_task_promise classes, which
 accept a TaskTraits type parameter that glues together the task and promise types.
@@ -190,6 +198,10 @@ template<
 ```
 
 Note that the restrictions on std::future apply to sync_wait: a future cannot return an rvalue-reference.
+
+```as_future()``` performs a co_await on the awaitable object before returning the ```std::future``` object.  Thus,
+it can be used to proactively start a coroutine.  Discarding the future object will result in the coroutine
+running to completion.
 
 == type_traits.h ==
 
