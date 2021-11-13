@@ -117,19 +117,9 @@ public:
         TValue&& result
     )
     {
-        if constexpr (std::is_rvalue_reference_v<result_type>)
-        {
-            m_task->m_result.emplace<basic_task_type::value_index>(
-                result
-                );
-
-        }
-        else
-        {
-            m_task->m_result.emplace<basic_task_type::value_index>(
-                std::forward<TValue>(result)
-                );
-        }
+        m_task->m_result.emplace<basic_task_type::value_index>(
+            std::forward<TValue>(result)
+            );
     }
 };
 
