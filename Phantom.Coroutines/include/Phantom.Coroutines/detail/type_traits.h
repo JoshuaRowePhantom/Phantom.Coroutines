@@ -174,7 +174,6 @@ template<
     typename Tuple
 > constexpr size_t tuple_element_index_v = tuple_element_index<Type, Tuple>::value;
 
-
 template<
     typename TAwaiter
 >
@@ -219,7 +218,7 @@ template<
     TAwaitable awaitable
     )
 {
-    requires is_awaiter<decltype(awaitable.operator co_await())>;
+    requires is_awaiter<decltype(std::forward<TAwaitable>(awaitable).operator co_await())>;
 };
 
 template<
@@ -230,30 +229,13 @@ has_co_await<TAwaitable>
 is_awaiter<TAwaitable>;
 
 template<
-    is_awaitable TAwaitable
->
-decltype(auto) get_awaitable_result(
-    TAwaitable&& awaitable
-)
-{
-    if constexpr (has_co_await<TAwaitable>)
-    {
-        return (awaitable.operator co_await().await_resume());
-    }
-    else
-    {
-        return (awaitable.await_resume());
-    }
-}
-
-template<
     has_co_await TAwaitable
 >
 decltype(auto) get_awaiter(
     TAwaitable&& awaitable
 )
 {
-    return (awaitable.operator co_await());
+    return (std::forward<TAwaitable>(awaitable).operator co_await());
 }
 
 template<
@@ -264,6 +246,16 @@ decltype(auto) get_awaiter(
 )
 {
     return (awaitable);
+}
+
+template<
+    is_awaitable TAwaitable
+>
+decltype(auto) get_awaitable_result(
+    TAwaitable&& awaitable
+)
+{
+    return (get_awaiter(std::forward<TAwaitable>(awaitable)).await_resume());
 }
 
 template<
