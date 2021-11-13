@@ -3,6 +3,7 @@
 #include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
 #include "detail/immovable_object.h"
+#include "detail/non_copyable.h"
 #include "detail/promise_traits.h"
 #include "single_consumer_promise.h"
 #include <concepts>
@@ -28,6 +29,9 @@ template<
 
     // The result type of the task.
     typename Traits::result_type;
+
+    // The type of awaiter.
+    typename Traits::awaiter_type;
 };
 
 // A specialization of TaskTraits to detect void-returning tasks.
@@ -50,98 +54,6 @@ template<
     TaskTraits Traits
 >
 class basic_task_promise;
-
-template<
-    TaskTraits Traits
->
-class basic_task_promise_base
-    :
-private immovable_object
-{
-    template<
-        TaskTraits Traits
-    > friend class basic_task;
-
-    using promise_type = typename Traits::promise_type;
-    using future_type = typename Traits::future_type;
-    using result_type = typename Traits::result_type;
-
-protected:
-    future_type* m_task;
-
-public:
-    suspend_always initial_suspend() const noexcept { return suspend_always{}; }
-    
-    final_suspend_transfer_and_destroy final_suspend() noexcept
-    {
-        return final_suspend_transfer_and_destroy
-        {
-            m_task->m_continuation
-        };
-    }
-    
-    future_type get_return_object()
-    {
-        return future_type{ static_cast<promise_type*>(this) };
-    }
-
-    void unhandled_exception() noexcept
-    {
-        m_task->m_result.emplace<basic_task<Traits>::exception_index>(
-            std::current_exception()
-            );
-    }
-};
-
-template<
-    TaskTraits Traits
->
-class basic_task_promise
-    :
-public basic_task_promise_base<Traits>
-{
-    template<
-        TaskTraits Trait
-    > friend class basic_task;
-
-    using promise_type = typename Traits::promise_type;
-    using future_type = typename Traits::future_type;
-    using result_type = typename Traits::result_type;
-    using basic_task_type = basic_task<Traits>;
-    using basic_task_promise::basic_task_promise_base::m_task;
-
-public:
-    template<
-        typename TValue
-    > void return_value(
-        TValue&& result
-    )
-    {
-        m_task->m_result.emplace<basic_task_type::value_index>(
-            std::forward<TValue>(result)
-            );
-    }
-};
-
-template<
-    VoidTaskTraits Traits
->
-class basic_task_promise<
-    Traits
-> :
-public basic_task_promise_base<Traits>
-{
-    template<
-        TaskTraits Traits
-    > friend class basic_task;
-
-    using basic_task_promise::basic_task_promise_base::m_task;
-public:
-    void return_void()
-    {
-        m_task->m_result.emplace<task<void>::value_index>(std::monostate{});
-    }
-};
 
 template<
     TaskTraits Traits
@@ -176,15 +88,11 @@ template<
 
 template<
     TaskTraits Traits
-> class basic_task
+> class basic_task_awaiter
     :
-private basic_task_result_type<Traits>,
-private immovable_object
+    private immovable_object,
+    private basic_task_result_type<Traits>
 {
-    using typename basic_task::basic_task_result_type::result_variant_member_type;
-    using basic_task::basic_task_result_type::is_void;
-    using basic_task::basic_task_result_type::is_reference;
-
     template<
         TaskTraits Traits
     > friend class basic_task_promise;
@@ -193,12 +101,15 @@ private immovable_object
         TaskTraits Traits
     > friend class basic_task_promise_base;
 
-public:
     using promise_type = typename Traits::promise_type;
     using result_type = typename Traits::result_type;
+    using awaiter_type = typename Traits::awaiter_type;
     using future_type = typename Traits::future_type;
-    
-private:
+
+    using typename basic_task_awaiter::basic_task_result_type::result_variant_member_type;
+    using basic_task_awaiter::basic_task_result_type::is_void;
+    using basic_task_awaiter::basic_task_result_type::is_reference;
+
     typedef std::variant<
         std::monostate,
         result_variant_member_type,
@@ -220,17 +131,18 @@ private:
         coroutine_handle<> m_continuation;
     };
 
-    basic_task(
-        promise_type* promise
+protected:
+    basic_task_awaiter(
+        future_type* future
     ) : m_promise(
-        promise
-    )
-    {
-        promise->m_task = static_cast<future_type*>(this);
-    }
+        future->m_promise
+    ) {}
 
 public:
-    bool await_ready() const { return false; }
+    bool await_ready() const
+    {
+        return false;
+    }
 
     coroutine_handle<> await_suspend(
         coroutine_handle<> continuation
@@ -239,12 +151,18 @@ public:
         // Setting m_continuation below resets promise,
         // so save it here.
         auto promise = m_promise;
+
+        promise->m_awaiter = static_cast<awaiter_type*>(this);
         m_continuation = continuation;
+
         return coroutine_handle<promise_type>::from_promise(*promise);
     }
 
     decltype(auto) await_resume()
     {
+        // The promise object sets m_promise again before resuming.
+        coroutine_handle<promise_type>::from_promise(*m_promise).destroy();
+
         if (m_result.index() == exception_index)
         {
             std::rethrow_exception(
@@ -267,6 +185,143 @@ public:
     }
 };
 
+template<
+    TaskTraits Traits
+>
+class basic_task_promise_base
+    :
+private immovable_object
+{
+    template<
+        TaskTraits Traits
+    > friend class basic_task_awaiter;
+
+    using promise_type = typename Traits::promise_type;
+    using future_type = typename Traits::future_type;
+    using result_type = typename Traits::result_type;
+    using awaiter_type = typename Traits::awaiter_type;
+    using basic_task_awaiter_type = typename basic_task_awaiter<Traits>;
+
+protected:
+    awaiter_type* m_awaiter;
+
+public:
+    suspend_always initial_suspend() const noexcept { return suspend_always{}; }
+    
+    final_suspend_transfer final_suspend() noexcept
+    {
+        m_awaiter->m_promise = static_cast<promise_type*>(this);
+
+        return final_suspend_transfer
+        {
+            m_awaiter->m_continuation
+        };
+    }
+    
+    future_type get_return_object()
+    {
+        return future_type{ static_cast<promise_type*>(this) };
+    }
+
+    void unhandled_exception() noexcept
+    {
+        m_awaiter->m_result.emplace<basic_task_awaiter_type::exception_index>(
+            std::current_exception()
+            );
+    }
+};
+
+template<
+    TaskTraits Traits
+>
+class basic_task_promise
+    :
+public basic_task_promise_base<Traits>
+{
+    template<
+        TaskTraits Traits
+    > friend class basic_task_awaiter;
+
+    using promise_type = typename Traits::promise_type;
+    using future_type = typename Traits::future_type;
+    using result_type = typename Traits::result_type;
+    using basic_task_promise::basic_task_promise_base::m_awaiter;
+
+    using basic_task_awaiter_type = typename basic_task_awaiter<Traits>;
+
+public:
+    template<
+        typename TValue
+    > void return_value(
+        TValue&& result
+    )
+    {
+        m_awaiter->m_result.emplace<basic_task_awaiter_type::value_index>(
+            std::forward<TValue>(result)
+            );
+    }
+};
+
+template<
+    VoidTaskTraits Traits
+>
+class basic_task_promise<
+    Traits
+> :
+public basic_task_promise_base<Traits>
+{
+    template<
+        TaskTraits Traits
+    > friend class basic_task_awaiter;
+
+    using basic_task_awaiter_type = typename basic_task_awaiter<Traits>;
+    using basic_task_promise::basic_task_promise_base::m_awaiter;
+public:
+    void return_void()
+    {
+        m_awaiter->m_result.emplace<basic_task_awaiter_type::value_index>(std::monostate{});
+    }
+};
+
+template<
+    TaskTraits Traits
+> class basic_task
+    :
+private noncopyable
+{
+    template<
+        TaskTraits Traits
+    > friend class basic_task_promise;
+
+    template<
+        TaskTraits Traits
+    > friend class basic_task_awaiter;
+
+public:
+    using promise_type = typename Traits::promise_type;
+    using awaiter_type = typename Traits::awaiter_type;
+    using future_type = typename Traits::future_type;
+    using result_type = typename Traits::result_type;
+
+protected:
+
+    promise_type* m_promise;
+
+    basic_task(
+        promise_type* promise
+    ) : m_promise(
+        promise
+    )
+    {
+    }
+
+public:
+    awaiter_type operator co_await() &&
+    {
+        return awaiter_type { static_cast<future_type*>(this) };
+    }
+};
+
 // task and task_promise are the library-provided derivations
 // of basic_task and basic_task_promise that add no behavior.
 template<
@@ -278,12 +333,17 @@ template<
 > class task_promise;
 
 template<
+    typename TResult = void
+> class task_awaiter;
+
+template<
     typename TResult
 > struct task_traits
 {
     typedef task_promise<TResult> promise_type;
     typedef task<TResult> future_type;
     typedef TResult result_type;
+    typedef task_awaiter<TResult> awaiter_type;
 };
 
 template<
@@ -293,6 +353,14 @@ class task
     :
 public basic_task<task_traits<TResult>>
 {
+    template <
+        TaskTraits Traits
+    > friend class basic_task_promise;
+
+public:
+    task(task_promise<TResult>* promise) 
+        : task::basic_task(promise)
+    {}
 };
 
 template<
@@ -301,6 +369,19 @@ template<
     :
 public basic_task_promise<task_traits<TResult>>
 {
+};
+
+template<
+    typename TResult
+> class task_awaiter
+    :
+public basic_task_awaiter<task_traits<TResult>>
+{
+    template <
+        TaskTraits Traits
+    > friend class basic_task;
+
+    using task_awaiter::basic_task_awaiter::basic_task_awaiter;
 };
 
 }
