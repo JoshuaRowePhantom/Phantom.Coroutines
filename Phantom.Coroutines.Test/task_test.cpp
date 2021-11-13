@@ -10,17 +10,17 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
-static_assert(detail::is_awaiter<task<>>);
-static_assert(detail::is_awaiter<task<int>>);
-static_assert(detail::is_awaiter<task<int&>>);
-static_assert(detail::is_awaiter<task<int&&>>);
+static_assert(detail::is_awaiter<task_awaiter<>>);
+static_assert(detail::is_awaiter<task_awaiter<int>>);
+static_assert(detail::is_awaiter<task_awaiter<int&>>);
+static_assert(detail::is_awaiter<task_awaiter<int&&>>);
 
 static_assert(detail::is_awaitable<task<>>);
 static_assert(detail::is_awaitable<task<int>>);
 static_assert(detail::is_awaitable<task<int&>>);
 static_assert(detail::is_awaitable<task<int&&>>);
 
-static_assert(!detail::has_co_await<task<>&&>);
+static_assert(detail::has_co_await<task<>&&>);
 
 static_assert(std::same_as<detail::awaitable_result_type_t<task<>&&>, void>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
