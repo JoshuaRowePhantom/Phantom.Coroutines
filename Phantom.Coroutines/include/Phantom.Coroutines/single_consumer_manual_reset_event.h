@@ -3,12 +3,15 @@
 #include <atomic>
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
+#include "detail/immovable_object.h"
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
 class single_consumer_manual_reset_event
+    :
+private immovable_object
 {
     struct NotSignalledState {};
     struct SignalledState {};
@@ -130,7 +133,10 @@ public:
         }
     };
 
-    awaiter operator co_await() { return awaiter{ *this }; }
+    awaiter operator co_await() 
+    {
+        return awaiter{ *this }; 
+    }
 };
 
 }
