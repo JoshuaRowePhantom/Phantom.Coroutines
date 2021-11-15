@@ -142,12 +142,23 @@ template<
 
 template<
     typename TLabel
+>
+class UniqueObject
+{
+protected:
+    static inline std::max_align_t g_objectWithUniqueAddressValue;
+};
+
+template<
+    typename TLabel
 > class SingletonStateHandler<
     void*, 
     SingletonState<TLabel>
 >
+    :
+private UniqueObject<TLabel>
 {
-    static inline std::max_align_t g_objectWithUniqueAddressValue;
+    using UniqueObject<TLabel>::g_objectWithUniqueAddressValue;
 
 protected:
     static constexpr bool is_singleton(
