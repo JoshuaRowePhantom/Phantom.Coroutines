@@ -235,7 +235,7 @@ protected:
         auto statePointer = state_set_traits::to_representation(
             state);
         
-        auto stateUint = reinterpret_cast<uint64_t>(
+        auto stateUint = reinterpret_cast<uintptr_t>(
             statePointer);
         
         // Can only pass aligned pointers to StateSetHandle!
@@ -257,7 +257,7 @@ protected:
         atomic_state_handler_tag<TLabel>
     )
     {
-        auto stateUintWithSetNumber = reinterpret_cast<uint64_t>(
+        auto stateUintWithSetNumber = reinterpret_cast<uintptr_t>(
             representation);
 
         // Can't convert wrong representation type to value!
@@ -587,6 +587,11 @@ template<
 > class state<
     basic_atomic_state<TRepresentation, TStates...>
 >
+    :
+private BasicAtomicStateHandlers<
+    TRepresentation,
+    std::tuple<TStates...>
+>
 {
     // Allow basic_atomic_state access to private members.
     template<
@@ -617,9 +622,19 @@ public:
             elementType))
     {}
 
-    constexpr std::strong_ordering operator<=>(
-        const state&
-        ) const = default;
+    constexpr bool operator==(
+        const state& other
+        ) const
+    {
+        return m_value == other.m_value;
+    }
+
+    constexpr bool operator!=(
+        const state& other
+        ) const
+    {
+        return m_value != other.m_value;
+    }
 
     constexpr bool is_singleton() const
     {
