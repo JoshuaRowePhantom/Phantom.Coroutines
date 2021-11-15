@@ -26,6 +26,8 @@ This is a header-only library by design.
 This library does not provide platform-specific IO primitives.  It provides only those
 primitives that are implementable only using the C++ standard and common extensions.
 
+This library include Visual Studio Natvis visualizers for many of the embedded types.
+
 == Using ==
 
 Put the ```include/Phantom.Coroutines``` directory in your include path.  Then, 
@@ -46,7 +48,7 @@ The rest of this document describes specific header file functionality.
 Task.h provides an extensible task<> implementation for implementing coroutines
 that have a single awaiter.  The coroutine is started when the task is co_await'ed.
 This implementation is particularly cheap, and doesn't even use atomic operations.
-The only support operation on a task is to co_await it; it cannot be moved or copied.
+The only support operation on a task is to move it and to co_await it once.
 Upon co_await'ing the task, the coroutine is started.  When the coroutine completes,
 the awaiting coroutine is resumed via symmetric transfer, and the return value
 or exception is propagated to the caller.

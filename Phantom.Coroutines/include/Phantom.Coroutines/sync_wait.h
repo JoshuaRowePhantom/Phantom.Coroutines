@@ -21,8 +21,15 @@ struct as_future_implementation_awaitable
 
 struct as_future_implementation_promise
 {
-    constexpr suspend_never initial_suspend() const noexcept { return suspend_never{}; }
-    constexpr suspend_never final_suspend() const noexcept { return suspend_never{}; }
+    constexpr suspend_never initial_suspend() const noexcept 
+    { 
+        return suspend_never{}; 
+    }
+
+    constexpr suspend_never final_suspend() const noexcept 
+    {
+        return suspend_never{}; 
+    }
 
     constexpr as_future_implementation_awaitable get_return_object() const noexcept
     {
@@ -53,13 +60,13 @@ as_future_implementation(
     {
         if constexpr (std::is_same_v<TResult, void>)
         {
-            co_await awaitable;
+            co_await std::forward<TAwaitable>(awaitable);
             promise.set_value();
         }
         else
         {
             promise.set_value(
-                co_await awaitable);
+                co_await std::forward<TAwaitable>(awaitable));
         }
     }
     catch (...)
@@ -118,7 +125,7 @@ template<
     {
         auto wrapWithOptional = [&]() -> task<std::optional<result_type>>
         {
-            co_return co_await awaitable;
+            co_return co_await std::forward<TAwaitable>(awaitable);
         };
 
         return (*sync_wait(

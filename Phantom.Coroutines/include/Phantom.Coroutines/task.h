@@ -210,11 +210,12 @@ public:
     
     final_suspend_transfer final_suspend() noexcept
     {
+        auto continuation = m_awaiter->m_continuation;
         m_awaiter->m_promise = static_cast<promise_type*>(this);
 
         return final_suspend_transfer
         {
-            m_awaiter->m_continuation
+            continuation
         };
     }
     
