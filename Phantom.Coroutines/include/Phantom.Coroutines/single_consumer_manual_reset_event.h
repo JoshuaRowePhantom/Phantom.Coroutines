@@ -39,7 +39,8 @@ public:
 
     ~single_consumer_manual_reset_event()
     {
-        assert(!m_atomicState.load(std::memory_order_acquire).is<WaitingCoroutineState>());
+        // It's okay to tear down a set of objects that included suspended things.
+        // assert(!m_atomicState.load(std::memory_order_acquire).is<WaitingCoroutineState>());
     }
 
     bool is_set() const
