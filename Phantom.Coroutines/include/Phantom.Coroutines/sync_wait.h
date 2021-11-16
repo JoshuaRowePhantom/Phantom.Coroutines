@@ -2,7 +2,7 @@
 #include "detail/type_traits.h"
 #include <exception>
 #include <future>
-#ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_DEFAULT_CONSTRUCTIBLE
+#ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
 #include "task.h"
 #include <optional>
 #endif
@@ -107,7 +107,7 @@ template<
     TAwaitable&& awaitable
 )
 {
-#ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_DEFAULT_CONSTRUCTIBLE
+#ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
     
     // Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
     typedef std::conditional_t<
@@ -121,7 +121,9 @@ template<
         &&
         !std::is_reference_v<result_type>
         &&
-        !std::is_default_constructible_v<result_type>)
+        !std::is_trivially_constructible_v<result_type>
+        &&
+        !is_optional<result_type>)
     {
         auto wrapWithOptional = [&]() -> task<std::optional<result_type>>
         {

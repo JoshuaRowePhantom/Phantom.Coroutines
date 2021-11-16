@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <tuple>
 #include <type_traits>
 #include "coroutine.h"
@@ -270,6 +271,14 @@ template<
     is_awaitable TAwaitable
 >
 using awaitable_result_type_t = typename awaitable_result_type<TAwaitable>::type;
+
+template<
+    typename T
+> constexpr bool is_optional = false;
+
+template<
+    typename T
+> constexpr bool is_optional<std::optional<T>> = true;
 
 } // namespace detail
 
