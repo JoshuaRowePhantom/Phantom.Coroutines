@@ -37,11 +37,13 @@ public:
     )
     {}
 
+#if 0
     ~single_consumer_manual_reset_event()
     {
         // It's okay to tear down a set of objects that included suspended things.
         // assert(!m_atomicState.load(std::memory_order_acquire).is<WaitingCoroutineState>());
     }
+#endif
 
     bool is_set() const
     {
@@ -77,6 +79,8 @@ public:
     }
 
     class awaiter
+        :
+    private immovable_object
     {
         friend class single_consumer_manual_reset_event;
         single_consumer_manual_reset_event& m_event;
