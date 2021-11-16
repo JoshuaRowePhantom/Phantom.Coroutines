@@ -76,7 +76,8 @@ public:
     }
 
     lifetime_tracker& operator=(
-        lifetime_tracker&& other)
+        lifetime_tracker&& other
+        ) noexcept
     {
         m_statistics->instance_count--;
         m_statistics->replace_count++;
