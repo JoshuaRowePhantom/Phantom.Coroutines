@@ -177,6 +177,33 @@ template<
 
 template<
     typename TAwaiter
+> concept has_void_await_suspend = requires (
+    TAwaiter awaiter,
+    coroutine_handle<> continuation)
+{
+    { awaiter.await_suspend(continuation) } -> std::same_as<void>;
+};
+
+template<
+    typename TAwaiter
+> concept has_bool_await_suspend = requires (
+    TAwaiter awaiter,
+    coroutine_handle<> continuation)
+{
+    { awaiter.await_suspend(continuation) } -> std::same_as<bool>;
+};
+
+template<
+    typename TAwaiter
+> concept has_symmetric_transfer_await_suspend = requires (
+    TAwaiter awaiter,
+    coroutine_handle<> continuation)
+{
+    { awaiter.await_suspend(continuation) } -> std::convertible_to<coroutine_handle<>>;
+};
+
+template<
+    typename TAwaiter
 >
 concept is_awaiter =
 requires (
@@ -187,29 +214,9 @@ requires (
 }
 &&
 (
-    requires (
-        TAwaiter awaiter,
-        coroutine_handle<> continuation
-        )
-{
-    { awaiter.await_suspend(continuation) } -> std::same_as<void>;
-}
-||
-requires (
-    TAwaiter awaiter,
-    coroutine_handle<> continuation
-    )
-{
-    { awaiter.await_suspend(continuation) } -> std::same_as<bool>;
-}
-||
-requires (
-    TAwaiter awaiter,
-    coroutine_handle<> continuation
-    )
-{
-    { awaiter.await_suspend(continuation) } -> std::convertible_to<coroutine_handle<>>;
-}
+    has_void_await_suspend<TAwaiter>
+||  has_bool_await_suspend<TAwaiter>
+||  has_symmetric_transfer_await_suspend<TAwaiter>
 )
 ;
 
