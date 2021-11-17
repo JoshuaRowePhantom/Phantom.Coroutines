@@ -1,7 +1,7 @@
 #include <string>
 #include <gtest/gtest.h>
-#include "Phantom.Coroutines/resume_result.h"
 #include "Phantom.Coroutines/single_consumer_promise.h"
+#include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 #include "lifetime_tracker.h"
@@ -13,38 +13,33 @@ using namespace std::string_literals;
 TEST(single_consumer_promise_test, Set_after_await_causes_await_to_continue)
 {
     single_consumer_promise<std::wstring> promise;
-    std::optional<bool> didSuspend;
+    suspend_result suspendResult;
 
     auto future = as_future([&]() -> task<std::wstring>
     {
-        auto resumeResult = co_await with_resume_result(
-            promise);
-        didSuspend = resumeResult.did_suspend();
-        co_return resumeResult.result();
+        co_return co_await (suspendResult << promise);
     }());
 
     promise.emplace(L"hello world"s);
     ASSERT_EQ(future.get(), L"hello world"s);
-    ASSERT_EQ(true, didSuspend);
+    ASSERT_EQ(true, suspendResult.did_suspend());
 }
 
 TEST(single_consumer_promise_test, Set_before_await_causes_await_to_not_suspend)
 {
     single_consumer_promise<std::wstring> promise;
     std::optional<bool> didSuspend;
+    suspend_result suspendResult;
 
     promise.emplace(L"hello world"s);
 
     auto future = as_future([&]() -> task<std::wstring>
     {
-        auto resumeResult = co_await with_resume_result(
-            promise);
-        didSuspend = resumeResult.did_suspend();
-        co_return resumeResult.result();
+        co_return co_await (suspendResult << promise);
     }());
 
     ASSERT_EQ(future.get(), L"hello world"s);
-    ASSERT_EQ(false, didSuspend);
+    ASSERT_EQ(false, suspendResult.did_suspend());
 }
 
 
