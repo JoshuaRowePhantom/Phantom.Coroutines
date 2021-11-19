@@ -293,10 +293,12 @@ template<
 
 } // namespace detail
 
+using detail::awaiter_type;
 using detail::awaitable_result_type_t;
 using detail::awaitable_result_type;
 using detail::is_awaitable;
 using detail::is_awaiter;
 using detail::has_co_await;
+using detail::get_awaiter;
 
 } // namespace Phantom::Coroutines

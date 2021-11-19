@@ -15,15 +15,42 @@ class suspend_result_awaiter
     friend class suspend_result;
 
     suspend_result& m_suspendResult;
-    Awaiter&& m_awaiter;
+    Awaiter m_awaiter;
 
+    template<
+        is_awaiter CAwaiter
+    > suspend_result_awaiter(
+        suspend_result& suspendResult,
+        Awaiter awaiter
+    ) :
+        m_suspendResult
+    {
+            suspendResult
+    },
+        m_awaiter
+    {
+            std::forward<CAwaiter>(awaiter)
+    }
+    {
+    }
+
+    template<
+        has_co_await CAwaitable
+    >
     suspend_result_awaiter(
         suspend_result& suspendResult,
-        Awaiter&& awaiter
+        CAwaitable&& awaitable
     ) :
-        m_suspendResult { suspendResult },
-        m_awaiter { std::forward<Awaiter>(awaiter) }
-    {}
+        m_suspendResult
+    {
+            suspendResult
+    },
+        m_awaiter
+    {
+            get_awaiter(std::forward<CAwaitable>(awaitable))
+    }
+    {
+    }
 
 public:
     bool await_ready(
@@ -86,7 +113,7 @@ public:
     }
 
     template<
-        is_awaitable Awaitable
+        is_awaiter Awaitable
     > auto operator <<(
         Awaitable&& awaitable
         )
@@ -94,8 +121,20 @@ public:
         return suspend_result_awaiter
         {
             *this,
-            get_awaiter(
-                std::forward<Awaitable>(awaitable))
+            std::forward<Awaitable>(awaitable)
+        };
+    }
+
+    template<
+        has_co_await Awaitable
+    > auto operator <<(
+        Awaitable&& awaitable
+        )
+    {
+        return suspend_result_awaiter<awaiter_type<Awaitable>>
+        {
+            *this,
+            std::forward<Awaitable>(awaitable)
         };
     }
 };
