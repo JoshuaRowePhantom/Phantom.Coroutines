@@ -221,6 +221,10 @@ requires (
 ;
 
 template<
+    typename Awaitable
+> using awaiter_type = decltype(std::declval<Awaitable>().operator co_await());
+
+template<
     typename TAwaitable
 > concept has_co_await = requires(
     TAwaitable awaitable
