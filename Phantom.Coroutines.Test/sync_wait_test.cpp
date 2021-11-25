@@ -28,6 +28,11 @@ static_assert(std::same_as<int, decltype(sync_wait(typed_awaitable<int>{}))>);
 static_assert(std::same_as<int&, decltype(sync_wait(typed_awaitable<int&>{})) > );
 static_assert(std::same_as<int, decltype(sync_wait(typed_awaitable<int&&>{}))>);
 
+static_assert(std::same_as<void, decltype(sync_wait(typed_awaitable<void>{})) > );
+static_assert(std::same_as<std::string, decltype(sync_wait(typed_awaitable<std::string>{}))> );
+static_assert(std::same_as<std::string&, decltype(sync_wait(typed_awaitable<std::string&>{}))> );
+static_assert(std::same_as<std::string, decltype(sync_wait(typed_awaitable<std::string&&>{}))> );
+
 TEST(as_future_test, Create_future_from_task)
 {
     auto future = as_future(

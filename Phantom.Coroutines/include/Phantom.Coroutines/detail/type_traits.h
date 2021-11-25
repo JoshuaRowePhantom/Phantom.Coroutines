@@ -275,7 +275,14 @@ template<
 >
 struct awaitable_result_type
 {
-    typedef decltype((get_awaitable_result(std::declval<TAwaitable>()))) type;
+private:
+    typedef decltype((get_awaitable_result(std::declval<TAwaitable>()))) raw_type;
+public:
+    typedef std::conditional_t<
+        std::is_rvalue_reference_v<raw_type>,
+        std::remove_reference_t<raw_type>,
+        raw_type
+    > type;
 };
 
 template<

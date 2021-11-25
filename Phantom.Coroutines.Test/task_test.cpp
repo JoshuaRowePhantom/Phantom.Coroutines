@@ -23,9 +23,9 @@ static_assert(detail::is_awaitable<task<int&&>>);
 static_assert(detail::has_co_await<task<>&&>);
 
 static_assert(std::same_as<detail::awaitable_result_type_t<task<>&&>, void>);
-static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int>>, int>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<int&>>, int&>);
-static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int>);
 
 TEST(task_test, Can_await_void_task)
 {
