@@ -10,9 +10,9 @@
 		<DisplayString>{reinterpret_cast&lt;void*&gt;(reinterpret_cast&lt;uintptr_t&gt;(m_value) &amp; ~c_StateSetIndexPointerMask)}</DisplayString>
 	</Type>
 
-	<Type Name="Phantom::Coroutines::detail::single_consumer_manual_reset_event">
-		<DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_manual_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled</DisplayString>
-		<DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_manual_reset_event::NotSignalledState&gt;::g_objectWithUniqueAddressValue">Not Signalled</DisplayString>
+	<Type Name="Phantom::Coroutines::detail::single_consumer_event&lt;*&gt;">
+		<DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_event_states::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled</DisplayString>
+		<DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_event_states::NotSignalledState&gt;::g_objectWithUniqueAddressValue">Not Signalled</DisplayString>
 		<DisplayString>Waiting Coroutine: {reinterpret_cast&lt;std::coroutine_handle&lt;void&gt;*&gt;(&amp;m_atomicState.m_atomicRepresentation._Storage._Value)}</DisplayString>
 	</Type>
 </AutoVisualizer>
