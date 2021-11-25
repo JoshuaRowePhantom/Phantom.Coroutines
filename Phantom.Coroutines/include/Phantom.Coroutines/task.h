@@ -121,24 +121,28 @@ template<
 
     result_variant_type m_result;
 
-    // We only need the promise object until await_suspend
-    // has been called; then we tell the promise object
-    // about this object and set the continuation
-    // member.
-    union
-    {
-        promise_type* m_promise = nullptr;
-        coroutine_handle<> m_continuation;
-    };
+    promise_type* m_promise = nullptr;
+    coroutine_handle<> m_continuation;
 
 protected:
     basic_task_awaiter(
         future_type* future
     ) : m_promise(
         future->m_promise
-    ) {}
+    ) 
+    {
+        future->m_promise = nullptr;
+    }
 
 public:
+    ~basic_task_awaiter()
+    {
+        if (m_promise)
+        {
+            coroutine_handle<promise_type>::from_promise(*m_promise).destroy();
+        }
+    }
+
     bool await_ready() const
     {
         return false;
@@ -148,21 +152,14 @@ public:
         coroutine_handle<> continuation
     )
     {
-        // Setting m_continuation below resets promise,
-        // so save it here.
-        auto promise = m_promise;
-
-        promise->m_awaiter = static_cast<awaiter_type*>(this);
+        m_promise->m_awaiter = static_cast<awaiter_type*>(this);
         m_continuation = continuation;
 
-        return coroutine_handle<promise_type>::from_promise(*promise);
+        return coroutine_handle<promise_type>::from_promise(*m_promise);
     }
 
     decltype(auto) await_resume()
     {
-        // The promise object sets m_promise again before resuming.
-        coroutine_handle<promise_type>::from_promise(*m_promise).destroy();
-
         if (m_result.index() == exception_index)
         {
             std::rethrow_exception(
@@ -211,7 +208,6 @@ public:
     final_suspend_transfer final_suspend() noexcept
     {
         auto continuation = m_awaiter->m_continuation;
-        m_awaiter->m_promise = static_cast<promise_type*>(this);
 
         return final_suspend_transfer
         {
@@ -317,9 +313,20 @@ protected:
     }
 
 public:
+    ~basic_task()
+    {
+        if (m_promise)
+        {
+            coroutine_handle<promise_type>::from_promise(*m_promise).destroy();
+        }
+    }
+
     awaiter_type operator co_await() &&
     {
-        return awaiter_type { static_cast<future_type*>(this) };
+        return awaiter_type 
+        { 
+            static_cast<future_type*>(this) 
+        };
     }
 };
 

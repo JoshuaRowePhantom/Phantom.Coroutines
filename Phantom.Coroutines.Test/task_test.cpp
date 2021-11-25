@@ -76,26 +76,10 @@ TEST(task_test, Can_return_reference)
     ASSERT_EQ(&value, &result);
 }
 
-TEST(task_test, Returned_object_is_by_reference_to_caller)
-{
-    lifetime_statistics statistics;
-
-    auto myTask = [&]() -> task<lifetime_tracker>
-    {
-        co_return statistics.tracker();
-    };
-
-    auto result = sync_wait(
-        myTask());
-
-    result.use();
-    ASSERT_EQ(1, statistics.move_construction_count);
-    ASSERT_EQ(1, statistics.instance_count);
-}
-
 TEST(task_test, Returned_object_is_by_rvalue_reference_to_caller_in_rvalue_context)
 {
     lifetime_statistics statistics;
+    std::optional<lifetime_statistics> intermediateStatistics;
 
     auto myLambda = [&](lifetime_tracker&& tracker)
     {};
@@ -108,32 +92,57 @@ TEST(task_test, Returned_object_is_by_rvalue_reference_to_caller_in_rvalue_conte
     auto myOuterTask = [&]() -> task<>
     {
         myLambda(co_await std::move(myInnerTask()));
+        intermediateStatistics = statistics;
     };
 
     sync_wait(
         myOuterTask());
 
-    ASSERT_EQ(1, statistics.move_construction_count);
-    ASSERT_EQ(1, statistics.instance_count);
+    ASSERT_EQ(1, intermediateStatistics->move_construction_count);
+    ASSERT_EQ(0, intermediateStatistics->copy_construction_count);
+    ASSERT_EQ(0, intermediateStatistics->instance_count);
 }
 
-TEST(task_test, Task_destroys_coroutine)
+TEST(task_test, Task_destroys_coroutine_if_not_awaited)
 {
     lifetime_statistics statistics;
     single_consumer_manual_reset_event event;
 
-    // Create and suspend a task, then destroy it.
-    auto myTask = [&]() -> task<>
     {
-        auto tracker = statistics.tracker();
-        co_await event;
-    }();
+        // Create a task and destroy it
+        auto myTask = [&, tracker = statistics.tracker()]()->task<>
+        {
+            tracker.use();
+            co_return;
+        }();
+    }
+
+    ASSERT_EQ(0, statistics.instance_count);
+}
+
+TEST(task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
+{
+    lifetime_statistics statistics;
+    single_consumer_manual_reset_event event;
 
     {
-        auto future = as_future(
-            std::move(myTask));
+        // Create and suspend a task, then destroy it.
+        auto myTask = [&]() -> task<>
+        {
+            auto tracker = statistics.tracker();
+            co_await event;
+        }();
 
-        ASSERT_EQ(1, statistics.instance_count);
+        auto awaiter = std::move(myTask).operator co_await();
+
+        auto coroutine = awaiter.await_suspend(
+            std::noop_coroutine()
+        );
+
+        // This will reach the first suspend point.
+        coroutine.resume();
+
+        // This will destroy the awaiter.
     }
 
     ASSERT_EQ(0, statistics.instance_count);
@@ -293,6 +302,6 @@ TEST(task_test, Destroys_thrown_exception)
         instanceCountAfterDestruction = statistics.instance_count;
     }());
 
-    ASSERT_EQ(2, instanceCountBeforeDestruction);
+    ASSERT_EQ(1, instanceCountBeforeDestruction);
     ASSERT_EQ(0, instanceCountAfterDestruction);
 }

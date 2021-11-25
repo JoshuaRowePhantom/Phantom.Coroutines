@@ -9,6 +9,7 @@ class lifetime_tracker;
 class lifetime_statistics
 {
 public:
+    size_t construction_count = 0;
     size_t copy_construction_count = 0;
     size_t move_construction_count = 0;
     size_t destruction_count = 0;
@@ -34,6 +35,7 @@ class lifetime_tracker
     ) : m_statistics(
         statistics)
     {
+        m_statistics->construction_count++;
         m_statistics->instance_count++;
     }
 
@@ -43,6 +45,7 @@ public:
     ) : m_statistics(
         other.m_statistics)
     {
+        m_statistics->construction_count++;
         m_statistics->instance_count++;
         m_statistics->copy_construction_count++;
     }
@@ -52,6 +55,7 @@ public:
     ) : m_statistics(
         other.m_statistics)
     {
+        m_statistics->construction_count++;
         m_statistics->instance_count++;
         m_statistics->move_construction_count++;
         other.m_movedFrom = true;
