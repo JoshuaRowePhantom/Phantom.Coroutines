@@ -119,7 +119,15 @@ public:
     public:
         bool await_ready() noexcept
         {
-            return m_event.m_atomicState.load(std::memory_order_acquire) == SignalledState{};
+            // We can do a simple load to enable continuing manual reset
+            // events in await_ready without having to do any exchange operations;
+            // auto reset event has to atomically set the state to NotSignalled,
+            // so we always return false for it.
+            if constexpr (std::same_as<StateAfterResumeAwaiter, SignalledState>)
+            {
+                return m_event.m_atomicState.load(std::memory_order_acquire) == SignalledState{};
+            }
+            return false;
         }
 
         bool await_suspend(

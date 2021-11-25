@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/single_consumer_auto_reset_event.h"
+#include "Phantom.Coroutines/suspend_result.h"
+#include "Phantom.Coroutines/sync_wait.h"
+#include "Phantom.Coroutines/task.h"
 
 namespace Phantom::Coroutines
 {
@@ -32,6 +35,49 @@ TEST(single_consumer_auto_reset_event_test, Can_be_reset_after_set)
     single_consumer_auto_reset_event event(true);
     event.reset();
     ASSERT_FALSE(event.is_set());
+}
+
+TEST(single_consumer_auto_reset_event_test, Set_after_await_continues_awaiter_and_leaves_reset)
+{
+    single_consumer_auto_reset_event event;
+    std::optional<bool> stateBeforeWait;
+    std::optional<bool> stateAfterWait;
+    suspend_result suspendResult;
+
+    auto future = as_future([&]() -> task<>
+        {
+            stateBeforeWait = event.is_set();
+            co_await(suspendResult << event);
+            stateAfterWait = event.is_set();
+        }());
+
+    event.set();
+    future.get();
+    ASSERT_EQ(false, stateBeforeWait);
+    ASSERT_EQ(true, suspendResult.did_suspend());
+    ASSERT_EQ(false, stateAfterWait);
+}
+
+TEST(single_consumer_auto_reset_event_test, Set_before_await_causes_awaiter_to_not_suspend_and_leaves_reset)
+{
+    single_consumer_auto_reset_event event;
+    std::optional<bool> stateBeforeWait;
+    std::optional<bool> stateAfterWait;
+    suspend_result suspendResult;
+
+    event.set();
+
+    auto future = as_future([&]() -> task<>
+        {
+            stateBeforeWait = event.is_set();
+            co_await(suspendResult << event);
+            stateAfterWait = event.is_set();
+        }());
+
+    future.get();
+    ASSERT_EQ(true, stateBeforeWait);
+    ASSERT_EQ(false, suspendResult.did_suspend());
+    ASSERT_EQ(false, stateAfterWait);
 }
 
 }
