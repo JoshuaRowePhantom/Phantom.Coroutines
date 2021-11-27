@@ -5,6 +5,7 @@
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
 #include "detail/promise_traits.h"
+#include "detail/variant_result_storage.h"
 #include "single_consumer_promise.h"
 #include <concepts>
 #include <exception>
@@ -57,41 +58,10 @@ class basic_task_promise;
 
 template<
     TaskTraits Traits
-> struct basic_task_result_type
-{
-    typedef Traits::result_type result_variant_member_type;
-    static constexpr bool is_void = false;
-    static constexpr bool is_reference = false;
-};
-
-template<
-    VoidTaskTraits Traits
-> struct basic_task_result_type<
-    Traits
->
-{
-    typedef std::monostate result_variant_member_type;
-    static constexpr bool is_void = true;
-    static constexpr bool is_reference = false;
-};
-
-template<
-    ReferenceTaskTraits Traits
-> struct basic_task_result_type<
-    Traits
->
-{
-    typedef std::reference_wrapper<std::remove_reference_t<typename Traits::result_type>> result_variant_member_type;
-    static constexpr bool is_void = false;
-    static constexpr bool is_reference = true;
-};
-
-template<
-    TaskTraits Traits
 > class basic_task_awaiter
     :
     private immovable_object,
-    private basic_task_result_type<Traits>
+    private variant_result_storage<typename Traits::result_type>
 {
     template<
         TaskTraits Traits
@@ -106,9 +76,9 @@ template<
     using awaiter_type = typename Traits::awaiter_type;
     using future_type = typename Traits::future_type;
 
-    using typename basic_task_awaiter::basic_task_result_type::result_variant_member_type;
-    using basic_task_awaiter::basic_task_result_type::is_void;
-    using basic_task_awaiter::basic_task_result_type::is_reference;
+    using typename basic_task_awaiter::variant_result_storage::result_variant_member_type;
+    using basic_task_awaiter::variant_result_storage::is_void;
+    using basic_task_awaiter::variant_result_storage::is_reference;
 
     typedef std::variant<
         std::monostate,
