@@ -1,3 +1,5 @@
+#pragma once
+
 #include "coroutine.h"
 
 namespace Phantom::Coroutines::detail
