@@ -151,7 +151,7 @@ TEST(task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
 TEST(task_test, Can_return_rvalue_reference_Address_doesnt_change)
 {
     std::string value = "hello world";
-    std::string* finalAddress;
+    std::string* finalAddress = nullptr;
 
     sync_wait([&]() -> task<>
     {
