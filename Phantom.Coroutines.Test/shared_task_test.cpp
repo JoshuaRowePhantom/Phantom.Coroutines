@@ -13,19 +13,16 @@ using namespace Phantom::Coroutines::detail;
 static_assert(detail::is_awaiter<task_awaiter<>>);
 static_assert(detail::is_awaiter<task_awaiter<int>>);
 static_assert(detail::is_awaiter<task_awaiter<int&>>);
-static_assert(detail::is_awaiter<task_awaiter<int&&>>);
 
 static_assert(detail::is_awaitable<shared_task<>>);
 static_assert(detail::is_awaitable<shared_task<int>>);
 static_assert(detail::is_awaitable<shared_task<int&>>);
-static_assert(detail::is_awaitable<shared_task<int&&>>);
 
 static_assert(detail::has_co_await<shared_task<>&&>);
 
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>&&>, void>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>>, int&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>>, int&>);
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&&>>, int&&>);
 
 TEST(shared_task_test, Can_await_void_task)
 {
@@ -76,12 +73,12 @@ TEST(shared_task_test, Can_return_reference)
     ASSERT_EQ(&value, &result);
 }
 
-TEST(shared_task_test, Returned_object_is_by_rvalue_reference_to_caller_in_rvalue_context)
+TEST(shared_task_test, Returned_object_is_by_lvalue_reference_to_caller_in_rvalue_context)
 {
     lifetime_statistics statistics;
     std::optional<lifetime_statistics> intermediateStatistics;
 
-    auto myLambda = [&](lifetime_tracker&& tracker)
+    auto myLambda = [&](lifetime_tracker& tracker)
     {};
 
     auto myInnerTask = [&]() -> shared_task<lifetime_tracker>
@@ -148,68 +145,22 @@ TEST(shared_task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
     ASSERT_EQ(0, statistics.instance_count);
 }
 
-TEST(shared_task_test, Can_return_rvalue_reference_Address_doesnt_change)
+TEST(shared_task_test, Can_return_lvalue_reference_Address_doesnt_change)
 {
     std::string value = "hello world";
     std::string* finalAddress = nullptr;
 
     sync_wait([&]() -> shared_task<>
         {
-            auto& v = reinterpret_cast<std::string&>(co_await[&]() -> shared_task<std::string&&>
+            auto& v = co_await [&]() -> shared_task<std::string&>
             {
                 co_return value;
-            }());
+            }();
 
             finalAddress = &v;
         }());
 
     ASSERT_EQ(&value, finalAddress);
-}
-
-TEST(shared_task_test, Can_use_returned_rvalue_reference)
-{
-    detail::lifetime_statistics statistics;
-    detail::lifetime_tracker initialValue = statistics.tracker();
-
-    sync_wait([&]() -> shared_task<>
-        {
-            auto endValue = co_await[&]() -> shared_task<detail::lifetime_tracker&&>
-            {
-                co_return initialValue;
-            }();
-
-            [&]() {
-                ASSERT_EQ(2, statistics.instance_count);
-                ASSERT_EQ(1, statistics.move_construction_count);
-            }();
-        }());
-
-    ASSERT_TRUE(initialValue.moved_from());
-    ASSERT_EQ(1, statistics.instance_count);
-}
-
-TEST(shared_task_test, Can_use_returned_rvalue_reference_with_same_address)
-{
-    detail::lifetime_statistics statistics;
-    detail::lifetime_tracker initialValue = statistics.tracker();
-
-    sync_wait([&]() -> shared_task<>
-        {
-            [&](detail::lifetime_tracker&& endValue) {
-
-                endValue.use();
-                ASSERT_EQ(1, statistics.instance_count);
-                ASSERT_EQ(0, statistics.move_construction_count);
-            }(
-                co_await[&]() -> shared_task<detail::lifetime_tracker&&>
-            {
-                co_return initialValue;
-            }());
-        }());
-
-    ASSERT_FALSE(initialValue.moved_from());
-    ASSERT_EQ(1, statistics.instance_count);
-    ASSERT_FALSE(statistics.used_after_move);
 }
 
 TEST(shared_task_test, Can_suspend_and_resume)

@@ -103,7 +103,7 @@ public:
             continuation);
     }
 
-    auto await_resume()
+    decltype(auto) await_resume()
     {
         return (m_promise->await_resume());
     }
@@ -163,6 +163,9 @@ private:
     using typename basic_shared_task_promise_base::variant_result_storage::result_variant_member_type;
     using basic_shared_task_promise_base::variant_result_storage::is_void;
     using basic_shared_task_promise_base::variant_result_storage::is_reference;
+    using basic_shared_task_promise_base::variant_result_storage::is_rvalue_reference;
+
+    static_assert(!is_rvalue_reference);
 
     // While we -could- use extra states in m_atomicState to store
     // the result object state, this has some disadvantages.
@@ -229,7 +232,7 @@ private:
                 return std::nullopt;
             }
 
-            awaiter.m_nextAwaiter = previousState.as<WaitingCoroutineState>();
+            awaiter->m_nextAwaiter = previousState.as<WaitingCoroutineState>();
             return state_type{ awaiter };
         }
         );
@@ -263,6 +266,10 @@ private:
         {
             return;
         }
+        else if constexpr (is_rvalue_reference)
+        {
+            return std::move(get<return_value_index>(m_result).get());
+        }
         else if constexpr (is_reference)
         {
             return get<return_value_index>(m_result).get();
@@ -289,7 +296,7 @@ public:
 
     future_type get_return_object()
     {
-        return future_type{ this };
+        return future_type{ &get_promise() };
     }
 
     final_suspend_transfer final_suspend() noexcept
@@ -340,7 +347,7 @@ public:
             TReturnValue&& value
         )
     {
-        set_result(
+        basic_shared_task_promise::basic_shared_task_promise_base::set_result(
             std::forward<TReturnValue>(value)
         );
     }
@@ -381,16 +388,6 @@ public:
 private:
     promise_type* m_promise;
 
-    basic_shared_task(
-        promise_type* promise
-    ) :
-        m_promise{ promise }
-    {
-        // Do not acquire here.
-        // The promise is constructed with a reference count that
-        // includes the first shared_task's reference.
-    }
-
     void release_reference()
     {
         if (m_promise)
@@ -407,7 +404,17 @@ private:
         }
     }
 
-protected:
+public:
+
+    basic_shared_task(
+        promise_type* promise
+    ) :
+        m_promise{ promise }
+    {
+        // Do not acquire here.
+        // The promise is constructed with a reference count that
+        // includes the first shared_task's reference.
+    }
 
     basic_shared_task(
         const basic_shared_task& other
@@ -454,7 +461,6 @@ protected:
         : m_promise{ nullptr }
     {}
 
-public:
     awaiter_type operator co_await()
     {
         return awaiter_type{ m_promise };

@@ -135,20 +135,16 @@ public:
             std::rethrow_exception(
                 get<exception_index>(m_result));
         }
-
-        if constexpr (is_void)
-        {
-            return;
-        }
-        else if constexpr (is_reference)
-        {
-            // If the result type is a reference type, unwrap the contained reference_wrapper.
-            return (static_cast<result_type>(std::get<value_index>(m_result).get()));
-        }
-        else
-        {
-            return (static_cast<result_type&&>((std::get<value_index>(m_result))));
-        }
+        
+        return (static_cast<
+            std::add_rvalue_reference_t<
+                basic_task_awaiter::variant_result_storage::result_type
+            >
+        >(
+            basic_task_awaiter::variant_result_storage::get<value_index>(
+                m_result
+                )
+            ));
     }
 };
 
