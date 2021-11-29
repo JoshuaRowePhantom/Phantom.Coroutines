@@ -223,6 +223,8 @@ private:
         coroutine_handle<> continuation
     )
     {
+        awaiter->m_continuation = continuation;
+        
         auto previousState = compare_exchange_weak_loop(
             m_atomicState,
             [=](state_type previousState) -> std::optional<state_type>
@@ -243,13 +245,16 @@ private:
             return get_coroutine_handle();
         }
 
+        // If the task is already ready, just continue.
         if (is_ready(previousState))
         {
             return continuation;
         }
 
-        awaiter->m_continuation = continuation;
-
+        // Otherwise, there is a "join" operation here;
+        // this is not the first co_await on the shared_task, so
+        // there's nothing to start,
+        // but the task is not complete so there's nothing to resume.
         return noop_coroutine();
     }
 
