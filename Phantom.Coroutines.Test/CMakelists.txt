@@ -7,6 +7,7 @@ add_executable(
 	detail/variant_member_test.cpp
 	auto_reset_event_test.cpp
 	atomic_state_test.cpp
+	generator_test.cpp
 	manual_reset_event_test.cpp
 	shared_task_test.cpp
 	single_consumer_auto_reset_event_test.cpp
