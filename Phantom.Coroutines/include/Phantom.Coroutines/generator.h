@@ -20,6 +20,7 @@ template<
 	typename Traits::generator_type;
 	typename Traits::iterator_type;
 	typename Traits::promise_type;
+	typename Traits::result_type;
 };
 
 template<
@@ -208,6 +209,55 @@ public:
 		return iterator_type{};
 	}
 };
+
+template<
+	typename TResult
+> class generator;
+
+template<
+	typename TResult
+> class generator_promise;
+
+template<
+	typename TResult
+> class generator_iterator;
+
+template<
+	typename TResult
+> struct generator_traits
+{
+	typedef generator<TResult> generator_type;
+	typedef generator_promise<TResult> promise_type;
+	typedef generator_iterator<TResult> iterator_type;
+	typedef TResult result_type;
+};
+
+template<
+	typename TResult
+> class generator
+	:
+public basic_generator<
+	generator_traits<TResult>
+>
+{};
+
+template<
+	typename TResult
+> class generator_promise
+	:
+public basic_generator_promise<
+	generator_traits<TResult>
+>
+{};
+
+template<
+	typename TResult
+> class generator_iterator
+	:
+public basic_generator_iterator<
+	generator_traits<TResult>
+>
+{};
 
 }
 }
