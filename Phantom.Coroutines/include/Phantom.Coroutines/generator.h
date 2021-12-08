@@ -31,6 +31,14 @@ template<
 	GeneratorTraits Traits
 > class basic_generator_promise
 {
+	template<
+		GeneratorTraits Traits
+	> friend class basic_generator_iterator;
+
+	template<
+		GeneratorTraits Traits
+	> friend class basic_generator;
+
 	using promise_type = typename Traits::promise_type;
 	using result_type = typename Traits::result_type;
 	using generator_type = typename Traits::generator_type;
@@ -97,13 +105,30 @@ template<
 	GeneratorTraits Traits
 > class basic_generator_iterator
 {
-	using typename Traits::promise_type;
-	using typename Traits::result_type;
+	using promise_type = typename Traits::promise_type;
+	using generator_type = typename Traits::generator_type;
+	using result_type = typename Traits::result_type;
 	using basic_promise_type = basic_generator_promise<Traits>;
 
 	promise_type* m_promise;
 
 public:
+	basic_generator_iterator()
+		:
+		m_promise{ nullptr }
+	{}
+
+	basic_generator_iterator(
+		generator_type& generator
+	) :
+		m_promise { generator.m_promise }
+	{
+		if (m_promise->m_currentValue.index() == basic_promise_type::EmptyIndex)
+		{
+			m_promise = nullptr;
+		}
+	}
+
 	basic_generator_iterator& operator++()
 	{
 		std::coroutine_handle<promise_type>::from_promise(*m_promise).resume();
@@ -114,12 +139,19 @@ public:
 				std::get<basic_promise_type::ExceptionIndex>(
 					m_promise->m_currentValue));
 		}
+		
+		if (m_promise->m_currentValue.index() == basic_promise_type::EmptyIndex)
+		{
+			m_promise = nullptr;
+		}
+
+		return *this;
 	}
 
 	result_type& operator*()
 	{
 		return std::get<basic_promise_type::ValueIndex>(
-			m_promise.m_currentValue);
+			m_promise->m_currentValue);
 	}
 
 	bool operator==(
@@ -143,6 +175,12 @@ template<
 	GeneratorTraits Traits
 > class basic_generator
 {
+	template<
+		GeneratorTraits Traits
+	> friend class basic_generator_iterator;
+	
+	using basic_promise_type = basic_generator_promise<Traits>;
+
 public:
 	using promise_type = typename Traits::promise_type;
 	using generator_type = typename Traits::generator_type;
@@ -200,7 +238,14 @@ public:
 
 	iterator_type begin()
 	{
-		return iterator_type{ static_cast<generator_type>(*this) };
+		if (m_promise->m_currentValue.index() == basic_promise_type::ExceptionIndex)
+		{
+			std::rethrow_exception(
+				std::get<basic_promise_type::ExceptionIndex>(
+					m_promise->m_currentValue));
+		}
+
+		return iterator_type{ static_cast<generator_type&>(*this) };
 	}
 
 	iterator_type end() const 
@@ -256,7 +301,10 @@ template<
 public basic_generator_iterator<
 	generator_traits<TResult>
 >
-{};
+{
+public:
+	using generator_iterator::basic_generator_iterator::basic_generator_iterator;
+};
 
 }
 
