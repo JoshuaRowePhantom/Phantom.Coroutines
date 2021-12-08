@@ -52,10 +52,21 @@ template<
 >
 class basic_shared_task_promise;
 
+class shared_task_awaiter_list_entry
+{
+    template<
+        SharedTaskTraits Traits
+    > friend class basic_shared_task_promise_base;
+
+    shared_task_awaiter_list_entry* m_nextAwaiter;
+    coroutine_handle<> m_continuation;
+};
+
 template<
     SharedTaskTraits Traits
 > class basic_shared_task_awaiter
     :
+private shared_task_awaiter_list_entry,
 private immovable_object
 {
     template<
@@ -75,17 +86,15 @@ private immovable_object
     using result_type = typename Traits::result_type;
     using awaiter_type = typename Traits::awaiter_type;
 
-    awaiter_type* m_nextAwaiter;
-    coroutine_handle<> m_continuation;
     promise_type* m_promise;
 
 protected:
     basic_shared_task_awaiter(
-        promise_type* promise
+        future_type& future
     ) :
         m_promise
     {
-        promise
+        future.m_promise
     }
     {}
 
@@ -148,17 +157,15 @@ private:
 
     typedef atomic_state<
         SingletonState<CompletedState>,
-        StateSet<WaitingCoroutineState, awaiter_type*>
+        StateSet<WaitingCoroutineState, shared_task_awaiter_list_entry*>
     > atomic_state_type;
     typedef atomic_state_type::state_type state_type;
 
     static const inline state_type NotStartedState = state_type{ nullptr };
     atomic_state_type m_atomicState = NotStartedState;
 
-    // Reference count starts at 2 to avoid two atomic increment operations.
-    // 1 for the running coroutine,
-    // 1 for the first shared_task object.
-    std::atomic<size_t> m_referenceCount = 2;
+    // Reference count starts at 1 to avoid an atomic increment operation
+    std::atomic<size_t> m_referenceCount = 1;
 
     using typename basic_shared_task_promise_base::variant_result_storage::result_variant_member_type;
     using basic_shared_task_promise_base::variant_result_storage::is_void;
@@ -235,7 +242,7 @@ private:
             }
 
             awaiter->m_nextAwaiter = previousState.as<WaitingCoroutineState>();
-            return state_type{ awaiter };
+            return state_type{ static_cast<shared_task_awaiter_list_entry*>(awaiter) };
         }
         );
 
@@ -384,6 +391,10 @@ template<
     SharedTaskTraits Traits
 > class basic_shared_task
 {
+    template<
+        SharedTaskTraits Traits
+    > friend class basic_shared_task_awaiter;
+
 public:
     using promise_type = typename Traits::promise_type;
     using future_type = typename Traits::future_type;
@@ -468,7 +479,7 @@ public:
 
     awaiter_type operator co_await()
     {
-        return awaiter_type{ m_promise };
+        return awaiter_type{ static_cast<future_type&>(*this) };
     }
 };
 
@@ -514,8 +525,6 @@ template <
     >
 {
 public:
-    using traits_type = shared_task_traits<TResult>;
-    using promise_type = typename traits_type::promise_type;
     using shared_task::basic_shared_task::basic_shared_task;
 };
 

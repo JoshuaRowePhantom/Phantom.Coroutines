@@ -73,31 +73,36 @@ TEST(shared_task_test, Can_return_reference)
     ASSERT_EQ(&value, &result);
 }
 
-TEST(shared_task_test, Returned_object_is_by_lvalue_reference_to_caller_in_rvalue_context)
+TEST(shared_task_test, Multiple_co_awaits_cause_only_one_invocation)
 {
-    lifetime_statistics statistics;
-    std::optional<lifetime_statistics> intermediateStatistics;
+    std::atomic_int invocationCount = 0;
 
-    auto myLambda = [&](lifetime_tracker& tracker)
-    {};
-
-    auto myInnerTask = [&]() -> shared_task<lifetime_tracker>
-    {
-        co_return statistics.tracker();
-    };
-
-    auto myOuterTask = [&]() -> shared_task<>
-    {
-        myLambda(co_await std::move(myInnerTask()));
-        intermediateStatistics = statistics;
-    };
+    auto task = [&]() -> shared_task<> 
+    { 
+        ++invocationCount; 
+        co_return; 
+    }();
 
     sync_wait(
-        myOuterTask());
+        task);
 
-    ASSERT_EQ(1, intermediateStatistics->move_construction_count);
-    ASSERT_EQ(0, intermediateStatistics->copy_construction_count);
-    ASSERT_EQ(0, intermediateStatistics->instance_count);
+    sync_wait(
+        task);
+
+    ASSERT_EQ(1, invocationCount);
+}
+
+TEST(shared_task_test, Return_by_value_returns_reference_to_same_object_to_all_calling_awaiters)
+{
+    auto task = []() -> shared_task<int> { co_return 5; }();
+
+    auto& result1 = sync_wait(
+        task);
+
+    auto& result2 = sync_wait(
+        task);
+
+    ASSERT_EQ(&result1, &result2);
 }
 
 TEST(shared_task_test, Task_destroys_coroutine_if_not_awaited)
@@ -117,7 +122,20 @@ TEST(shared_task_test, Task_destroys_coroutine_if_not_awaited)
     ASSERT_EQ(0, statistics.instance_count);
 }
 
-TEST(shared_task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
+TEST(shared_task_test, Task_destroys_coroutine_if_awaited)
+{
+    lifetime_statistics statistics;
+    single_consumer_manual_reset_event event;
+
+    sync_wait([&, tracker = statistics.tracker()]()->shared_task<>
+    {
+        tracker.use();
+        co_return;
+    }());
+
+    ASSERT_EQ(0, statistics.instance_count);
+}
+TEST(shared_task_test, Task_does_destroy_coroutine_if_destroyed_while_suspended)
 {
     lifetime_statistics statistics;
     single_consumer_manual_reset_event event;
@@ -130,7 +148,7 @@ TEST(shared_task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
             co_await event;
         }();
 
-        auto awaiter = std::move(myTask).operator co_await();
+        auto awaiter = myTask.operator co_await();
 
         auto coroutine = awaiter.await_suspend(
             std::noop_coroutine()
@@ -139,28 +157,10 @@ TEST(shared_task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
         // This will reach the first suspend point.
         coroutine.resume();
 
-        // This will destroy the awaiter.
+        // This will destroy the task.
     }
 
     ASSERT_EQ(0, statistics.instance_count);
-}
-
-TEST(shared_task_test, Can_return_lvalue_reference_Address_doesnt_change)
-{
-    std::string value = "hello world";
-    std::string* finalAddress = nullptr;
-
-    sync_wait([&]() -> shared_task<>
-        {
-            auto& v = co_await [&]() -> shared_task<std::string&>
-            {
-                co_return value;
-            }();
-
-            finalAddress = &v;
-        }());
-
-    ASSERT_EQ(&value, finalAddress);
 }
 
 TEST(shared_task_test, Can_suspend_and_resume)
@@ -200,8 +200,7 @@ TEST(shared_task_test, Can_loop_without_stackoverflow)
         outerTaskLambda());
     ASSERT_EQ(1000000, actualSum);
 }
-
-TEST(shared_task_test, Destroys_returned_value)
+TEST(shared_task_test, Destroys_returned_value_when_co_awaited_as_lvalue)
 {
     lifetime_statistics statistics;
     std::optional<size_t> instanceCountBeforeDestruction;
@@ -215,7 +214,32 @@ TEST(shared_task_test, Destroys_returned_value)
     sync_wait([&]() -> shared_task<>
         {
             {
-                auto tracker = co_await taskWithReturnValueLambda();
+                auto task = taskWithReturnValueLambda();
+                auto& tracker = co_await task;
+                instanceCountBeforeDestruction = statistics.instance_count;
+            }
+            instanceCountAfterDestruction = statistics.instance_count;
+        }());
+
+    ASSERT_EQ(1, instanceCountBeforeDestruction);
+    ASSERT_EQ(0, instanceCountAfterDestruction);
+}
+
+TEST(shared_task_test, Destroys_returned_value_when_co_awaited_as_rvalue)
+{
+    lifetime_statistics statistics;
+    std::optional<size_t> instanceCountBeforeDestruction;
+    std::optional<size_t> instanceCountAfterDestruction;
+
+    auto taskWithReturnValueLambda = [&]() -> shared_task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    sync_wait([&]() -> shared_task<>
+        {
+            {
+                auto& tracker = co_await taskWithReturnValueLambda();
                 instanceCountBeforeDestruction = statistics.instance_count;
             }
             instanceCountAfterDestruction = statistics.instance_count;
@@ -231,19 +255,19 @@ TEST(shared_task_test, Destroys_thrown_exception)
     std::optional<size_t> instanceCountBeforeDestruction;
     std::optional<size_t> instanceCountAfterDestruction;
 
-    auto taskWithReturnValueLambda = [&]() -> shared_task<int>
+    auto taskLambda = [&]() -> shared_task<>
     {
         throw statistics.tracker();
-        co_return 5;
+        co_return;
     };
 
     sync_wait([&]() -> shared_task<>
         {
             {
-                auto task = taskWithReturnValueLambda();
+                auto task = taskLambda();
                 try
                 {
-                    co_await std::move(task);
+                    co_await task;
                 }
                 catch (lifetime_tracker&)
                 {
@@ -253,6 +277,9 @@ TEST(shared_task_test, Destroys_thrown_exception)
             instanceCountAfterDestruction = statistics.instance_count;
         }());
 
-    ASSERT_EQ(1, instanceCountBeforeDestruction);
+    // std::exception_ptr implementation is allowed but not required
+    // to copy the exception object.  Thus, the lifetime_tracker
+    // could have either 1 or 2 as the reference count.
+    ASSERT_TRUE(instanceCountBeforeDestruction == 1 || instanceCountBeforeDestruction == 2);
     ASSERT_EQ(0, instanceCountAfterDestruction);
 }
