@@ -10,18 +10,27 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
-static_assert(detail::is_awaiter<task_awaiter<>>);
-static_assert(detail::is_awaiter<task_awaiter<int>>);
-static_assert(detail::is_awaiter<task_awaiter<int&>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<>>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<int>>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<int&>>>);
+
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<>&>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<int>&>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<int&>&>>);
 
 static_assert(detail::is_awaitable<shared_task<>>);
 static_assert(detail::is_awaitable<shared_task<int>>);
 static_assert(detail::is_awaitable<shared_task<int&>>);
 
+static_assert(detail::has_co_await<shared_task<>&>);
 static_assert(detail::has_co_await<shared_task<>&&>);
 
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>&&>, void>);
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>>, int&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>&>, void>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>&>, int&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>&>, int&>);
+
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>>, void>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>>, int>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>>, int&>);
 
 TEST(shared_task_test, Can_await_void_task)
@@ -239,13 +248,13 @@ TEST(shared_task_test, Destroys_returned_value_when_co_awaited_as_rvalue)
     sync_wait([&]() -> shared_task<>
         {
             {
-                auto& tracker = co_await taskWithReturnValueLambda();
+                co_await taskWithReturnValueLambda();
                 instanceCountBeforeDestruction = statistics.instance_count;
             }
             instanceCountAfterDestruction = statistics.instance_count;
         }());
 
-    ASSERT_EQ(1, instanceCountBeforeDestruction);
+    ASSERT_EQ(0, instanceCountBeforeDestruction);
     ASSERT_EQ(0, instanceCountAfterDestruction);
 }
 

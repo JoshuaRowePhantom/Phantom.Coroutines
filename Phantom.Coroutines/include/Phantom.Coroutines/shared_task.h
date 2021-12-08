@@ -27,8 +27,10 @@ template<
     // The result type of the task.
     typename Traits::result_type;
 
-    // The type of awaiter.
-    typename Traits::awaiter_type;
+    // The awaiter type,
+    // which must be a template accepting the future_type or future_type&.
+    typename Traits::template awaiter_type<typename Traits::future_type>;
+    typename Traits::template awaiter_type<typename Traits::future_type&>;
 };
 
 // A specialization of SharedTaskTraits to detect void-returning tasks.
@@ -63,11 +65,12 @@ class shared_task_awaiter_list_entry
 };
 
 template<
-    SharedTaskTraits Traits
+    SharedTaskTraits Traits,
+    typename FutureType
 > class basic_shared_task_awaiter
     :
-private shared_task_awaiter_list_entry,
-private immovable_object
+    private shared_task_awaiter_list_entry,
+    private immovable_object
 {
     template<
         SharedTaskTraits Traits
@@ -84,37 +87,53 @@ private immovable_object
     using promise_type = typename Traits::promise_type;
     using future_type = typename Traits::future_type;
     using result_type = typename Traits::result_type;
-    using awaiter_type = typename Traits::awaiter_type;
 
-    promise_type* m_promise;
+    FutureType m_future;
+
+    promise_type* promise()
+    {
+        return m_future.m_promise;
+    }
 
 protected:
     basic_shared_task_awaiter(
-        future_type& future
+        FutureType&& future
     ) :
-        m_promise
+        m_future
     {
-        future.m_promise
+        std::forward<FutureType>(future)
     }
     {}
 
 public:
     bool await_ready()
     {
-        return m_promise->await_ready();
+        return promise()->await_ready();
     }
 
     auto await_suspend(
         coroutine_handle<> continuation)
     {
-        return m_promise->await_suspend(
-            static_cast<awaiter_type*>(this),
+        return promise()->await_suspend(
+            this,
             continuation);
     }
 
     decltype(auto) await_resume()
     {
-        return (m_promise->await_resume());
+        if constexpr (
+            std::is_reference_v<FutureType>
+            ||
+            std::is_reference_v<result_type>
+            ||
+            std::is_void_v<result_type>)
+        {
+            return (promise()->await_resume());
+        }
+        else
+        {
+            return (std::move(promise()->await_resume()));
+        }
     }
 };
 
@@ -136,7 +155,6 @@ public:
     using promise_type = typename Traits::promise_type;
     using future_type = typename Traits::future_type;
     using result_type = typename Traits::result_type;
-    using awaiter_type = typename Traits::awaiter_type;
 
 private:
 
@@ -149,7 +167,8 @@ private:
     > friend class basic_shared_task_promise;
 
     template<
-        SharedTaskTraits TResult
+        SharedTaskTraits Traits,
+        typename FutureType
     > friend class basic_shared_task_awaiter;
 
     struct CompletedState {};
@@ -226,7 +245,7 @@ private:
     }
 
     coroutine_handle<> await_suspend(
-        awaiter_type* awaiter,
+        shared_task_awaiter_list_entry* awaiter,
         coroutine_handle<> continuation
     )
     {
@@ -242,7 +261,7 @@ private:
             }
 
             awaiter->m_nextAwaiter = previousState.as<WaitingCoroutineState>();
-            return state_type{ static_cast<shared_task_awaiter_list_entry*>(awaiter) };
+            return state_type{ awaiter };
         }
         );
 
@@ -288,7 +307,7 @@ private:
         }
         else
         {
-            return get<return_value_index>(m_result);
+            return (get<return_value_index>(m_result));
         }
     }
 
@@ -392,14 +411,14 @@ template<
 > class basic_shared_task
 {
     template<
-        SharedTaskTraits Traits
+        SharedTaskTraits Traits,
+        typename FutureType
     > friend class basic_shared_task_awaiter;
 
 public:
     using promise_type = typename Traits::promise_type;
     using future_type = typename Traits::future_type;
     using result_type = typename Traits::result_type;
-    using awaiter_type = typename Traits::awaiter_type;
 
 private:
     promise_type* m_promise;
@@ -477,9 +496,14 @@ public:
         : m_promise{ nullptr }
     {}
 
-    awaiter_type operator co_await()
+    auto operator co_await() &
     {
-        return awaiter_type{ static_cast<future_type&>(*this) };
+        return typename Traits::template awaiter_type<future_type&>{ static_cast<future_type&>(*this) };
+    }
+
+    auto operator co_await() &&
+    {
+        return typename Traits::template awaiter_type<future_type>{ static_cast<future_type&&>(*this) };
     }
 };
 
@@ -492,7 +516,7 @@ template<
 > class shared_task;
 
 template<
-    typename TResult
+    typename FutureType
 > class shared_task_awaiter;
 
 template<
@@ -503,7 +527,10 @@ struct shared_task_traits
     typedef shared_task_promise<TResult> promise_type;
     typedef shared_task<TResult> future_type;
     typedef TResult result_type;
-    typedef shared_task_awaiter<TResult> awaiter_type;
+    template<
+        typename FutureType
+    >
+    using awaiter_type = shared_task_awaiter<FutureType>;
 };
 
 template <
@@ -528,12 +555,30 @@ public:
     using shared_task::basic_shared_task::basic_shared_task;
 };
 
-template <
+template<
     typename TResult
-> class shared_task_awaiter
+> class shared_task_awaiter<
+    shared_task<TResult>
+>
     :
 public basic_shared_task_awaiter<
-    shared_task_traits<TResult>
+    shared_task_traits<TResult>,
+    shared_task<TResult>
+>
+{
+public:
+    using shared_task_awaiter::basic_shared_task_awaiter::basic_shared_task_awaiter;
+};
+
+template<
+    typename TResult
+> class shared_task_awaiter<
+    shared_task<TResult>&
+>
+    :
+public basic_shared_task_awaiter<
+    shared_task_traits<TResult>,
+    shared_task<TResult>&
 >
 {
 public:
