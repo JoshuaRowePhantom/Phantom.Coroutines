@@ -31,26 +31,26 @@ template<
 	GeneratorTraits Traits
 > class basic_generator_promise
 {
-	using typename Traits::promise_type;
-	using typename Traits::result_type;
-	using typename Traits::generator_type;
+	using promise_type = typename Traits::promise_type;
+	using result_type = typename Traits::result_type;
+	using generator_type = typename Traits::generator_type;
 
 	typedef std::variant<
 		std::monostate,
-		result_type&,
+		std::reference_wrapper<std::remove_reference_t<result_type>>,
 		std::exception_ptr
 	> current_value_holder_type;
 
-	size_t EmptyIndex = 0;
-	size_t ValueIndex = 1;
-	size_t ExceptionIndex = 2;
+	static const std::size_t EmptyIndex = 0;
+	static const std::size_t ValueIndex = 1;
+	static const std::size_t ExceptionIndex = 2;
 
 	current_value_holder_type m_currentValue;
 
 public:
 	generator_type get_return_object()
 	{
-		return generator_type{ static_cast<promise_type>(*this) };
+		return generator_type{ static_cast<promise_type&>(*this) };
 	}
 
 	suspend_never initial_suspend() noexcept
@@ -65,9 +65,8 @@ public:
 	)
 	{
 		m_currentValue.emplace<ValueIndex>(
-			std::forward<Value>(
-				value
-				));
+			static_cast<std::add_lvalue_reference_t<result_type>>(
+				value));
 		return suspend_always{};
 	}
 
@@ -145,9 +144,9 @@ template<
 > class basic_generator
 {
 public:
-	using typename Traits::promise_type;
-	using typename Traits::generator_type;
-	using typename Traits::iterator_type;
+	using promise_type = typename Traits::promise_type;
+	using generator_type = typename Traits::generator_type;
+	using iterator_type = typename Traits::iterator_type;
 
 private:
 	promise_type* m_promise;
@@ -260,4 +259,11 @@ public basic_generator_iterator<
 {};
 
 }
+
+using detail::basic_generator;
+using detail::basic_generator_iterator;
+using detail::basic_generator_promise;
+using detail::generator;
+using detail::GeneratorTraits;
+
 }
