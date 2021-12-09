@@ -6,6 +6,7 @@ add_executable(
 	detail/type_traits_test.cpp
 	detail/variant_member_test.cpp
 	async_generator_test.cpp
+	async_mutex_test.cpp
 	atomic_state_test.cpp
 	auto_reset_event_test.cpp
 	generator_test.cpp
@@ -17,7 +18,7 @@ add_executable(
 	sync_wait_test.cpp
 	task_test.cpp
 	when_ready_test.cpp
-	)
+	 "async_test.h")
 
 target_link_libraries(
 	Phantom.Coroutines.Test
