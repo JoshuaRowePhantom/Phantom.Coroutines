@@ -17,7 +17,6 @@ class async_mutex
 	:
 private immovable_object
 {
-
 	struct UnlockedState {};
 	struct LockedState;
 
