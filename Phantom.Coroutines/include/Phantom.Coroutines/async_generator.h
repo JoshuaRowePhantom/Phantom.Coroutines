@@ -218,7 +218,7 @@ public:
 
 	bool await_ready() const noexcept 
 	{
-		return m_promise->m_currentValue.index() != basic_promise_type::EmptyIndex;
+		return !m_promise || m_promise->m_currentValue.index() != basic_promise_type::EmptyIndex;
 	}
 
 	coroutine_handle<> await_suspend(
@@ -231,7 +231,7 @@ public:
 
 	iterator_type await_resume()
 	{
-		if (m_promise->m_currentValue.index() == basic_promise_type::ExceptionIndex)
+		if (m_promise && m_promise->m_currentValue.index() == basic_promise_type::ExceptionIndex)
 		{
 			std::rethrow_exception(
 				std::get<basic_promise_type::ExceptionIndex>(
