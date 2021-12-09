@@ -48,7 +48,9 @@ private immovable_object
 			coroutine_handle<> continuation
 		) noexcept;
 
-		void await_resume() noexcept {}
+		void await_resume() noexcept 
+		{
+		}
 	};
 
 	class async_mutex_scoped_lock_operation
@@ -123,6 +125,9 @@ public:
 		// We maintain the ordered list in m_waiters;
 		// when that empties out, we copy the atomically added awaiters into
 		// m_waiters.
+
+		// Question: do we have to memory_order_acquire something here
+		// to ensure m_waiters is correct?
 		if (!m_waiters)
 		{
 			state_type previousState = LockedNoWaitersState;
@@ -253,7 +258,7 @@ inline bool async_mutex::async_mutex_lock_operation::await_suspend(
 		nextStateLambda
 	);
 
-	return previousState == UnlockedState{};
+	return previousState != UnlockedState{};
 }
 
 inline async_mutex_lock async_mutex::async_mutex_scoped_lock_operation::await_resume() noexcept

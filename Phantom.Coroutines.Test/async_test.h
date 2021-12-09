@@ -8,6 +8,7 @@
 class ASYNC_TEST_CLASS_NAME(test_suite_name, test_name) \
     : public parent_class \
 { \
+public: \
     ::Phantom::Coroutines::task<> AsyncTestBody(); \
 }; \
 \

@@ -15,4 +15,31 @@
 		<DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_event_states::NotSignalledState&gt;::g_objectWithUniqueAddressValue">Not Signalled</DisplayString>
 		<DisplayString>Waiting Coroutine: {reinterpret_cast&lt;std::coroutine_handle&lt;void&gt;*&gt;(&amp;m_atomicState.m_atomicRepresentation._Storage._Value)}</DisplayString>
 	</Type>
+
+	<!--<Type Name="Phantom::Coroutines::detail::async_mutex::async_mutex_lock_operation">
+		<DisplayString>Lock waiter {m_continuation}</DisplayString>
+	</Type>-->
+
+	<Type Name="Phantom::Coroutines::detail::async_mutex">
+		<DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::async_mutex::UnlockedState&gt;::g_objectWithUniqueAddressValue">Unlocked</DisplayString>
+		<DisplayString>Locked</DisplayString>
+
+		<Expand>
+			<Item Name="Waiters">m_waiters</Item>
+			
+			<LinkedListItems>
+				<HeadPointer>m_waiters</HeadPointer>
+				<NextPointer>m_nextAwaiter</NextPointer>
+				<ValueNode>this</ValueNode>
+			</LinkedListItems>
+
+			<Item Name="Reverse Waiters">m_state</Item>
+			
+			<LinkedListItems>
+				<HeadPointer>static_cast&lt;Phantom::Coroutines::detail::async_mutex::async_mutex_lock_operation*&gt;(m_state.m_atomicRepresentation._Storage._Value)</HeadPointer>
+				<NextPointer>m_nextAwaiter</NextPointer>
+				<ValueNode>this</ValueNode>
+			</LinkedListItems>
+		</Expand>
+	</Type>
 </AutoVisualizer>
