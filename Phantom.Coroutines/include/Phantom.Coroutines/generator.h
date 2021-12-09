@@ -46,12 +46,14 @@ template<
 	typedef std::variant<
 		std::monostate,
 		std::reference_wrapper<std::remove_reference_t<result_type>>,
+		std::remove_cvref_t<result_type>,
 		std::exception_ptr
 	> current_value_holder_type;
 
 	static const std::size_t EmptyIndex = 0;
-	static const std::size_t ValueIndex = 1;
-	static const std::size_t ExceptionIndex = 2;
+	static const std::size_t ValueRefIndex = 1;
+	static const std::size_t ValueIndex = 2;
+	static const std::size_t ExceptionIndex = 3;
 
 	current_value_holder_type m_currentValue;
 
@@ -73,6 +75,30 @@ public:
 	)
 	{
 		m_currentValue.emplace<ValueIndex>(
+			std::forward<Value>(value));
+		return suspend_always{};
+	}
+
+	template<
+		typename = std::enable_if_t<
+			std::is_reference_v<result_type>
+		>
+	>
+	suspend_always yield_value(
+		result_type& value
+	)
+	{
+		m_currentValue.emplace<ValueRefIndex>(
+			static_cast<std::add_lvalue_reference_t<result_type>>(
+				value));
+		return suspend_always{};
+	}
+
+	suspend_always yield_value(
+		std::remove_reference_t<result_type>&& value
+	)
+	{
+		m_currentValue.emplace<ValueRefIndex>(
 			static_cast<std::add_lvalue_reference_t<result_type>>(
 				value));
 		return suspend_always{};
@@ -148,9 +174,15 @@ public:
 		return *this;
 	}
 
-	result_type& operator*()
+	std::add_lvalue_reference_t<result_type> operator*()
 	{
-		return std::get<basic_promise_type::ValueIndex>(
+		if (m_promise->m_currentValue.index() == basic_promise_type::ValueIndex)
+		{
+			return std::get<basic_promise_type::ValueIndex>(
+				m_promise->m_currentValue);
+		}
+
+		return std::get<basic_promise_type::ValueRefIndex>(
 			m_promise->m_currentValue);
 	}
 
