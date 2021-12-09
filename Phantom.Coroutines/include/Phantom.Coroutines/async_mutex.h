@@ -169,6 +169,7 @@ public:
 		// to ensure m_waiters is correct?
 
 		// This has the potential to overflow the stack.
+		// We expect callers to be using suspend_result.
 		waiter->m_continuation.resume();
 		return;
 	}
@@ -205,9 +206,15 @@ public:
 		async_mutex_lock&& other
 		) noexcept
 	{
+		if (this == &other)
+		{
+			return *this;
+		}
+
 		release();
 		m_mutex = other.m_mutex;
 		other.m_mutex = nullptr;
+		return *this;
 	}
 
 	void release() noexcept

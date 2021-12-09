@@ -53,6 +53,24 @@ TEST(async_mutex_test, destructor_unlocks_scoped_lock)
 	ASSERT_TRUE(result2);
 }
 
+TEST(async_mutex_test, assign_empty_unlocks_scoped_lock)
+{
+	async_mutex mutex;
+	auto result1 = mutex.try_scoped_lock();
+	result1 = async_mutex_lock{};
+	auto result2 = mutex.try_scoped_lock();
+	ASSERT_TRUE(result2);
+}
+
+TEST(async_mutex_test, assign_self_keeps_scoped_lock)
+{
+	async_mutex mutex;
+	auto result1 = mutex.try_scoped_lock();
+	result1 = std::move(result1);
+	auto result2 = mutex.try_scoped_lock();
+	ASSERT_FALSE(result2);
+}
+
 TEST(async_mutex_test, double_release_scoped_lock_does_not_unlock)
 {
 	async_mutex mutex;
