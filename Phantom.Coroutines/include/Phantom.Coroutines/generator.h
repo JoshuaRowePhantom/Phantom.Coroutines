@@ -139,6 +139,11 @@ template<
 	promise_type* m_promise;
 
 public:
+	typedef std::remove_reference_t<result_type> value_type;
+	typedef size_t difference_type;
+	typedef std::add_lvalue_reference_t<result_type> reference;
+	typedef std::input_iterator_tag iterator_category;
+
 	basic_generator_iterator()
 		:
 		m_promise{ nullptr }
@@ -184,6 +189,11 @@ public:
 
 		return std::get<basic_promise_type::ValueRefIndex>(
 			m_promise->m_currentValue);
+	}
+
+	std::remove_reference_t<result_type>* operator->()
+	{
+		return &*this;
 	}
 
 	bool operator==(
@@ -270,6 +280,11 @@ public:
 
 	iterator_type begin()
 	{
+		if (m_promise == nullptr)
+		{
+			return iterator_type{};
+		}
+
 		if (m_promise->m_currentValue.index() == basic_promise_type::ExceptionIndex)
 		{
 			std::rethrow_exception(
