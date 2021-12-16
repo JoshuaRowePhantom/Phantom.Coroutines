@@ -2,6 +2,7 @@
 
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
+#include "detail/fibonacci_heap.h"
 #include "detail/immovable_object.h"
 #include <limits>
 
@@ -134,79 +135,50 @@ template<
 		}
 	};
 
-	void determine_awaiters_to_resume(
-		value_type publishedValue,
-		awaiter* awaitersHeap,
-		awaiter** awaitersToResume,
-		awaiter** newAwaitersHeap
-	)
+	struct awaiter_heap_traits
 	{
-		while (awaitersHeap)
-		{
-			auto nextAwaiter = awaitersHeap->m_siblingPointer;
+		typedef awaiter* heap_type;
 
-			if (!Traits::precedes(
-				publishedValue,
-				awaitersHeap->m_value))
-			{
-				determine_awaiters_to_resume(
-					publishedValue,
-					awaitersHeap->m_subtreePointer,
-					awaitersToResume,
-					newAwaitersHeap
-				);
-
-				awaitersHeap->m_siblingPointer = *awaitersToResume;
-				*awaitersToResume = *awaitersHeap;
-			}
-			else
-			{
-				*newAwaitersHeap = awaitersHeap;
-				newAwaitersHeap = &awaitersHeap->m_siblingPointer;
-			}
-
-			awaitersHeap = nextAwaiter;
-		}
-	}
-
-	void merge_awaiters_heaps(
-		awaiter** mergedTarget,
-		awaiter* mergeSource)
-	{
-		std::array<awaiter*, maximumAwaiterDegree> heapsByDegree = { nullptr };
-
-		while (mergeSource)
-		{
-			auto nextMergeSource = mergeSource->m_siblingPointer;
-			awaiter* mergeTarget;
-
-			while (mergeTarget = heapsByDegree[mergeSource->degree])
-			{
-				if (Traits::precedes(
-					mergeTarget->m_value,
-					mergeSource->m_value))
-				{
-					std::swap(
-						mergeSource,
-						mergeTarget
-					);
-				}
-
-				mergeTarget->m_siblingPointer = mergeSource->m_subtreePointer;
-				mergeSource->m_subtreePointer = mergeTarget;
-				++mergeSource.m_degree;
-			}
-
-			mergeSource = nextMergeSource;
+		static bool precedes(
+			awaiter* left,
+			awaiter* right
+		) {
+			return Traits::precedes(
+				left->m_value,
+				right->m_value);
 		}
 
-		*mergedTarget = nullptr;
-		for (auto mergedTree : heapsByDegree)
-		{
-			mergedTree->m_siblingPointer = *mergedTarget;
-			*mergedTarget = mergedTree;
+		static bool is_empty(
+			awaiter* heap
+		) {
+			return heap;
 		}
-	}
+
+		static awaiter* empty()
+		{
+			return nullptr;
+		}
+
+		static awaiter** child(
+			awaiter* heap)
+		{
+			return &heap->m_childPointer;
+		}
+
+		static awaiter** sibling(
+			awaiter* heap)
+		{
+			return &heap->m_siblingPointer;
+		}
+
+		static size_t& degree(
+			awaiter* heap)
+		{
+			return heap->m_degree;
+		}
+	};
+
+	static_assert(FibonacciHeapTraits<awaiter_heap_traits>);
 
 	void resume_awaiters(
 		value_type publishedValue,
@@ -225,12 +197,6 @@ template<
 			std::memory_order_acquire
 		);
 
-		determine_awaiters_to_resume(
-			publishedValue,
-			newAwaitersHeap,
-			&awaitersToResume,
-			&newAwaitersHeap);
-
 		while (true)
 		{
 			auto previousPublishedValue = publishedValue;
@@ -243,17 +209,21 @@ template<
 				std::memory_order_acquire
 			);
 
-			determine_awaiters_to_resume(
-				publishedValue,
-				oldAwaitersHeap,
-				&awaitersToResume,
-				&oldAwaitersHeap
-			);
-
-			merge_awaiters_heaps(
-				&newAwaitersHeap,
-				oldAwaitersHeap
-			);
+			auto newAwaitersHeap = fibonacci_heap_extract<awaiter_heap_traits>(
+				fibonacci_heap_collect_predicate(
+					&awaitersToResume,
+					[&](awaiter* heap)
+					{
+						return !Traits::precedes(
+							heap->m_value,
+							publishedValue
+						);
+					}),
+					{
+						oldAwaitersHeap,
+						newAwaitersHeap
+					}
+				);
 
 			// If we are going to put back no awaiters,
 			// then this thread isn't putting back any awaiters
