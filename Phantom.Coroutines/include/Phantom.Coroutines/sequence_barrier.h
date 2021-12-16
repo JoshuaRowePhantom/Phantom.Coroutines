@@ -70,7 +70,7 @@ template<
 
 		sequence_barrier* m_sequenceBarrier;
 		awaiter* m_siblingPointer;
-		awaiter* m_subtreePointer;
+		awaiter* m_subtreePointer = nullptr;
 		degree_type m_degree = 0;
 		coroutine_handle<> m_continuation;
 
@@ -103,14 +103,17 @@ template<
 			auto nextQueuedAwaiter = m_sequenceBarrier->m_queuedAwaiters.load(
 				std::memory_order_relaxed
 			);
+
+			do
+			{
+				m_siblingPointer = nextQueuedAwaiter;
+			}
 			while (!m_sequenceBarrier->m_queuedAwaiters.compare_exchange_weak(
 				nextQueuedAwaiter,
 				this,
 				std::memory_order_release,
 				std::memory_order_relaxed
-			))
-			{
-			};
+			));
 
 			// Double check to see if the value has been published.
 			auto publishedValue = m_sequenceBarrier->m_publishedValue.load(
@@ -164,7 +167,7 @@ template<
 		static bool is_empty(
 			awaiter* heap
 		) {
-			return heap;
+			return !heap;
 		}
 
 		static awaiter* empty()
@@ -214,8 +217,6 @@ template<
 		{
 			auto previousPublishedValue = publishedValue;
 
-			bool resumeSpecialAwaiter = false;
-
 			// Take ownership of the awaiters heap
 			auto oldAwaitersHeap = m_awaitersHeap.exchange(
 				nullptr,
@@ -244,22 +245,15 @@ template<
 					std::move(heapsToExtract)
 				);
 
-			// If we are going to put back no awaiters,
-			// then this thread isn't putting back any awaiters
-			// that might be resumable because the published value
-			// has changed.  Therefore, don't rerun the loop.
-			if (newAwaitersHeap == nullptr)
-			{
-				break;
-			}
-
 			// Put back the heap if we can
 			oldAwaitersHeap = nullptr;
-			if (!m_awaitersHeap.compare_exchange_strong(
-				oldAwaitersHeap,
-				newAwaitersHeap,
-				std::memory_order_release,
-				std::memory_order_relaxed))
+			if (newAwaitersHeap != nullptr
+				&&
+				!m_awaitersHeap.compare_exchange_strong(
+					oldAwaitersHeap,
+					newAwaitersHeap,
+					std::memory_order_release,
+					std::memory_order_relaxed))
 			{
 				// If we couldn't put the heap back,
 				// then there's another heap that we might
@@ -302,9 +296,9 @@ template<
 			// Now check to see whether any of the awaiters we might have
 			// put back are possibly resumable.  If they are, then
 			// try the loop again.
-			if (publishedValue != previousPublishedValue)
+			if (publishedValue == previousPublishedValue)
 			{
-				continue;
+				break;
 			}
 		}
 
@@ -327,9 +321,12 @@ public:
 			std::memory_order_release
 		);
 
+		bool resumeSpecialAwaiter;
+
 		resume_awaiters(
 			value,
-			nullptr
+			nullptr,
+			resumeSpecialAwaiter
 		);
 	}
 
