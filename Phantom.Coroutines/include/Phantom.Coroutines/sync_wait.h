@@ -1,3 +1,5 @@
+#pragma once
+
 #include "detail/coroutine.h"
 #include "detail/type_traits.h"
 #include <exception>
