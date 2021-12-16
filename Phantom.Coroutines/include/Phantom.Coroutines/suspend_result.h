@@ -17,9 +17,7 @@ class suspend_result_awaiter
     suspend_result& m_suspendResult;
     Awaiter m_awaiter;
 
-    template<
-        is_awaiter CAwaiter
-    > suspend_result_awaiter(
+    suspend_result_awaiter(
         suspend_result& suspendResult,
         Awaiter awaiter
     ) :
@@ -29,7 +27,7 @@ class suspend_result_awaiter
     },
         m_awaiter
     {
-            std::forward<CAwaiter>(awaiter)
+            std::forward<Awaiter>(awaiter)
     }
     {
     }
