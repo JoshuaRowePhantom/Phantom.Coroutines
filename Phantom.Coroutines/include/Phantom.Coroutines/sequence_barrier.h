@@ -57,7 +57,7 @@ template<
 	std::atomic<awaiter*> m_awaitersHeap;
 
 	static constexpr size_t maximumAwaiterDegree = std::numeric_limits<size_t>::digits;
-	typedef int degree_type;
+	typedef size_t degree_type;
 
 	class awaiter
 	{
@@ -72,6 +72,7 @@ template<
 		awaiter* m_siblingPointer;
 		awaiter* m_subtreePointer;
 		degree_type m_degree = 0;
+		coroutine_handle<> m_continuation;
 
 		awaiter(
 			sequence_barrier* sequenceBarrier,
@@ -96,6 +97,8 @@ template<
 			coroutine_handle<> continuation
 		) noexcept
 		{
+			m_continuation = continuation;
+
 			// Enqueue this awaiter into the linked list of awaiters.
 			auto nextQueuedAwaiter = m_sequenceBarrier->m_queuedAwaiters.load(
 				std::memory_order_relaxed
@@ -121,10 +124,15 @@ template<
 				// Try to resume awaiters,
 				// and if we in particular desire to resume this object,
 				// do not suspend.
-				return m_sequenceBarrier->trigger(
+				bool resumeThisAwaiter = false;
+
+				m_sequenceBarrier->resume_awaiters(
 					publishedValue,
-					this
+					this,
+					resumeThisAwaiter
 				);
+
+				return resumeThisAwaiter;
 			}
 
 			return true;
@@ -167,7 +175,7 @@ template<
 		static awaiter** child(
 			awaiter* heap)
 		{
-			return &heap->m_childPointer;
+			return &heap->m_subtreePointer;
 		}
 
 		static awaiter** sibling(
@@ -214,20 +222,26 @@ template<
 				std::memory_order_acquire
 			);
 
-			auto newAwaitersHeap = fibonacci_heap_extract<awaiter_heap_traits>(
-				fibonacci_heap_collect_predicate(
-					&awaitersToResume,
-					[&](awaiter* heap)
-					{
-						return !Traits::precedes(
-							heap->m_value,
-							publishedValue
-						);
-					}),
-					{
-						oldAwaitersHeap,
-						newAwaitersHeap
-					}
+			auto predicate = fibonacci_heap_collect_predicate<awaiter_heap_traits>(
+				&awaitersToResume,
+				[&](awaiter* heap)
+				{
+					return !Traits::precedes(
+						heap->m_value,
+						publishedValue
+					);
+				});
+
+			auto heapsToExtract = {
+				oldAwaitersHeap,
+				newAwaitersHeap
+			};
+
+			newAwaitersHeap = fibonacci_heap_extract<
+				awaiter_heap_traits, 
+				std::initializer_list<awaiter_heap_traits::heap_type>>(
+					std::move(predicate),
+					std::move(heapsToExtract)
 				);
 
 			// If we are going to put back no awaiters,

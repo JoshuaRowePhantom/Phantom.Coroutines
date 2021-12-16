@@ -3,6 +3,8 @@
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
 #include "detail/immovable_object.h"
+#include <array>
+#include <initializer_list>
 #include <limits>
 
 namespace Phantom::Coroutines
@@ -49,10 +51,10 @@ template<
 template<
 	FibonacciHeapTraits Traits,
 	std::predicate<typename Traits::heap_type> Predicate,
-	std::ranges::range<typename Traits::heap_type> Range
+	std::ranges::range Range = std::initializer_list<typename Traits::heap_type>
 > void fibonacci_heap_extract_impl(
 	fibonacci_heap_buffer<Traits>& buffer,
-	Predicate& predicate,
+	Predicate&& predicate,
 	Range&& heaps
 )
 {
@@ -73,10 +75,12 @@ template<
 				// not being copied to the new heap;
 				// the children that do not match will get copied to the new
 				// heap in the "else" clause below.
-				fibonacci_heap_extract(
+				fibonacci_heap_extract_impl<Traits>(
 					buffer,
-					&child,
-					predicate
+					predicate,
+					{
+						child
+					}
 				);
 			}
 			else
@@ -132,10 +136,10 @@ template<
 // on it will return in O(log n) time.
 template<
 	FibonacciHeapTraits Traits,
-	std::predicate<typename Traits::heap_type> Predicate,
-	std::ranges::range<typename Traits::heap_type> Range
+	std::ranges::range Range = std::initializer_list<typename Traits::heap_type>,
+	std::predicate<typename Traits::heap_type> Predicate
 > typename Traits::heap_type fibonacci_heap_extract(
-	Predicate predicate,
+	Predicate&& predicate,
 	Range&& heaps
 	)
 {
@@ -145,13 +149,13 @@ template<
 		bufferItem = Traits::empty();
 	}
 
-	fibonacci_heap_extract_impl(
+	fibonacci_heap_extract_impl<Traits>(
 		buffer,
-		predicate,
+		std::forward<Predicate>(predicate),
 		std::forward<Range>(heaps)
 	);
 
-	typename Traits::heap_type newHeap = Traits::empty(newHeap);
+	typename Traits::heap_type newHeap = Traits::empty();
 
 	for (auto& bufferItem : buffer)
 	{
@@ -184,7 +188,7 @@ template<
 	{
 		if (predicate(heap))
 		{
-			*Traits::next(heap) = *matchingItems;
+			*Traits::sibling(heap) = *matchingItems;
 			*matchingItems = heap;
 			return true;
 		}
