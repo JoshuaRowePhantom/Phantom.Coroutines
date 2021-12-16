@@ -42,4 +42,35 @@
 			</LinkedListItems>
 		</Expand>
 	</Type>
+
+	<Type Name="Phantom::Coroutines::detail::sequence_barrier&lt;*&gt;::awaiter">
+		<DisplayString>Waiting for {{{m_value}}}: {m_continuation}</DisplayString>
+	</Type>
+
+	<Type Name="Phantom::Coroutines::detail::sequence_barrier&lt;*&gt;">
+		<DisplayString>Last published {{{m_publishedValue}}}</DisplayString>
+
+		<Expand>
+
+			<Item Name="Queued Waiters">m_queuedAwaiters</Item>
+
+			<TreeItems>
+				<HeadPointer>m_queuedAwaiters._Storage._Value</HeadPointer>
+				<LeftPointer>m_subtreePointer</LeftPointer>
+				<RightPointer>m_siblingPointer</RightPointer>
+				<ValueNode>this</ValueNode>
+			</TreeItems>
+
+			<Item Name="Coalesced Waiters">m_awaitersHeap</Item>
+
+			<TreeItems>
+				<HeadPointer>m_awaitersHeap._Storage._Value</HeadPointer>
+				<LeftPointer>m_subtreePointer</LeftPointer>
+				<RightPointer>m_siblingPointer</RightPointer>
+				<ValueNode>this</ValueNode>
+			</TreeItems>
+
+		</Expand>
+	</Type>
+
 </AutoVisualizer>
