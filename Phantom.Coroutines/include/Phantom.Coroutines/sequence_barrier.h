@@ -4,21 +4,26 @@
 #include "detail/coroutine.h"
 #include "detail/fibonacci_heap.h"
 #include "detail/immovable_object.h"
+#include <concepts>
 #include <limits>
 
 namespace Phantom::Coroutines
 {
 template<
 	typename Traits
-> concept SequenceBarrierTraits = requires
+> concept SequenceBarrierTraits = requires (
+	typename Traits::value_type value
+	)
 {
 	typename Traits::value_type;
 	typename Traits::atomic_value_type;
+	{ Traits::precedes(value, value) } -> std::convertible_to<bool>;
 };
 
 template<
 	typename Value
-> struct sequence_barrier_traits
+>
+struct sequence_barrier_traits
 {
 	typedef Value value_type;
 	typedef std::atomic<Value> atomic_value_type;
@@ -36,7 +41,7 @@ namespace detail
 {
 
 template<
-	typename Value,
+	typename Value = size_t,
 	SequenceBarrierTraits Traits = sequence_barrier_traits<Value>
 > class sequence_barrier
 	:

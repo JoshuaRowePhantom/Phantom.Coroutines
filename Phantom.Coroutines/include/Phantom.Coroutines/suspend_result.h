@@ -118,7 +118,9 @@ public:
         Awaitable&& awaitable
         )
     {
-        return suspend_result_awaiter
+        return suspend_result_awaiter<
+            Awaitable&&
+        >
         {
             *this,
             std::forward<Awaitable>(awaitable)
