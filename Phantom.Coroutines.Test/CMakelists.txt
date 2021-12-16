@@ -20,7 +20,7 @@ add_executable(
 	sync_wait_test.cpp
 	task_test.cpp
 	when_ready_test.cpp
-)
+ "inline_scheduler_test.cpp")
 
 target_link_libraries(
 	Phantom.Coroutines.Test
