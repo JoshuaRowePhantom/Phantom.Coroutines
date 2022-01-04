@@ -91,9 +91,9 @@ Spec ==
 
 SpecWithFairness ==
     /\  Spec
-    /\  SF_vars(Process)
-    /\  SF_vars(Enqueue)
-    /\  SF_vars(FinishEnqueue)
+    /\  WF_vars(Process)
+    /\  WF_vars(Enqueue)
+    /\  WF_vars(FinishEnqueue)
 
 AllItemsGetProcessed ==
     []<>(ProcessedItemsSet = Items)
