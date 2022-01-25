@@ -112,22 +112,22 @@ public:
 		return *this;
 	}
 
-	const Value& get() const
+	const Value& get() const noexcept
 	{
 		return m_reusableId->m_value;
 	}
 
-	operator const Value&() const
+	operator const Value&() const noexcept
 	{
 		return get();
 	}
 
-	const Value& operator*() const
+	const Value& operator*() const noexcept
 	{
 		return get();
 	}
 
-	const Value* operator->() const
+	const Value* operator->() const noexcept
 	{
 		return &get();
 	}
