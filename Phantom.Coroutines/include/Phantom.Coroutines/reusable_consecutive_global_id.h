@@ -109,6 +109,7 @@ public:
 	)
 	{
 		std::swap(m_reusableId, other.m_reusableId);
+		return *this;
 	}
 
 	const Value& get() const
