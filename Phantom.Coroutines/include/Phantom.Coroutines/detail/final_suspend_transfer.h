@@ -1,6 +1,7 @@
 #pragma once
 
 #include "coroutine.h"
+#include <assert.h>
 
 namespace Phantom::Coroutines::detail
 {
