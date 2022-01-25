@@ -43,3 +43,28 @@ TEST(reusable_consecutive_global_id_test, reuses_most_recent_freed_id)
 	ASSERT_EQ(3, id5);
 	ASSERT_EQ(3, id5);
 }
+
+TEST(reusable_consecutive_global_id_test, moved_constructor_from_id_doesnt_get_reused)
+{
+	struct label;
+	std::optional<reusable_consecutive_global_id<label>> id0{ {} };
+	reusable_consecutive_global_id<label> id1{ std::move(*id0) };
+	id0.reset();
+	reusable_consecutive_global_id<label> id2;
+
+	ASSERT_EQ(0, id1);
+	ASSERT_EQ(1, id2);
+}
+
+TEST(reusable_consecutive_global_id_test, moved_into_id_does_get_reused)
+{
+	struct label;
+	std::optional < reusable_consecutive_global_id<label>> id0{ {} };
+	reusable_consecutive_global_id<label> id1;
+	id1 = std::move(*id0);
+	id0.reset();
+	reusable_consecutive_global_id<label> id2;
+
+	ASSERT_EQ(0, id1);
+	ASSERT_EQ(1, id2);
+}
