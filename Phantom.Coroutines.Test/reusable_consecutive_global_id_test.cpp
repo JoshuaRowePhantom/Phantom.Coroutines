@@ -59,7 +59,7 @@ TEST(reusable_consecutive_global_id_test, moved_constructor_from_id_doesnt_get_r
 TEST(reusable_consecutive_global_id_test, moved_into_id_does_get_reused)
 {
 	struct label;
-	std::optional < reusable_consecutive_global_id<label>> id0{ {} };
+	std::optional<reusable_consecutive_global_id<label>> id0{ {} };
 	reusable_consecutive_global_id<label> id1;
 	id1 = std::move(*id0);
 	id0.reset();
@@ -68,3 +68,10 @@ TEST(reusable_consecutive_global_id_test, moved_into_id_does_get_reused)
 	ASSERT_EQ(0, id1);
 	ASSERT_EQ(1, id2);
 }
+
+struct reusable_consecutive_global_id_test_global_label;
+static_assert(!std::copyable<reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>>);
+static_assert(!std::copy_constructible<reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>>);
+static_assert(!std::assignable_from<reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&, reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&>);
+static_assert(!std::assignable_from<reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&, const reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&>);
+static_assert(!std::assignable_from<reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&, const reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>>);
