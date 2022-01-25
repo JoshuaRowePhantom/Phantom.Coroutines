@@ -38,7 +38,7 @@ class reusable_consecutive_global_id
 	reusable_id* m_reusableId;
 
 public:
-	reusable_consecutive_global_id()
+	reusable_consecutive_global_id() noexcept
 	{
 		auto reusableId = m_reusableIds.load(
 			std::memory_order_acquire
@@ -75,13 +75,13 @@ public:
 
 	reusable_consecutive_global_id(
 		reusable_consecutive_global_id&& other
-	) :
+	) noexcept :
 		m_reusableId { other.m_reusableId }
 	{
 		other.m_reusableId = nullptr;
 	}
 
-	~reusable_consecutive_global_id()
+	~reusable_consecutive_global_id() noexcept
 	{
 		if (!m_reusableId)
 		{
@@ -106,7 +106,7 @@ public:
 
 	reusable_consecutive_global_id& operator=(
 		reusable_consecutive_global_id&& other
-	)
+	) noexcept
 	{
 		std::swap(m_reusableId, other.m_reusableId);
 		return *this;
