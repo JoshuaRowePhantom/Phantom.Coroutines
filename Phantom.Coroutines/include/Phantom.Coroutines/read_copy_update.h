@@ -201,7 +201,7 @@ public:
 			auto result = operation::m_section.m_listHead.compare_exchange_strong(
 				operation::m_listEntry,
 				m_replacementListEntry,
-				std::memory_order_release,
+				std::memory_order_acq_rel,
 				std::memory_order_acquire
 			);
 
