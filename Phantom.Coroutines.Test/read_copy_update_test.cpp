@@ -21,7 +21,7 @@ TEST(read_copy_update_test, can_read_written_const_value)
 	ASSERT_EQ(*section.read(), "hello world 2");
 }
 
-TEST(read_copy_update_test, can_read_modify_value_before_exchange)
+TEST(read_copy_update_test, can_modify_value_before_exchange)
 {
 	read_copy_update_section<const std::string> section("hello world 1");
 	
@@ -32,7 +32,7 @@ TEST(read_copy_update_test, can_read_modify_value_before_exchange)
 	ASSERT_EQ(*section.read(), "2ello world 2");
 }
 
-TEST(read_copy_update_test, can_read_modifier_and_replacement_value_after_failed_exchange_and_then_succeed)
+TEST(read_copy_update_test, can_read_modified_and_replacement_value_after_failed_exchange_and_then_succeed)
 {
 	read_copy_update_section<const std::string> section("hello world 1");
 
@@ -40,10 +40,15 @@ TEST(read_copy_update_test, can_read_modifier_and_replacement_value_after_failed
 	auto operation2 = section.update();
 
 	operation1.emplace("hello world 2");
+	
+	ASSERT_EQ(operation1.value(), "hello world 1");
+
 	operation2.emplace("hello world 3");
 	operation2.exchange();
 
 	ASSERT_EQ(false, operation1.compare_exchange_strong());
+	// As a result of the compare_exchange_strong, operation1's current value()
+	// is updated to the result of operation2.exchange()
 	ASSERT_EQ(operation1.value(), "hello world 3");
 	ASSERT_EQ(operation1.replacement(), "hello world 2");
 
@@ -70,7 +75,7 @@ TEST(read_copy_update_test, can_read_written_value)
 	ASSERT_EQ(*section.read(), "hello world 2");
 }
 
-TEST(read_copy_update_test, read_continues_to_return_value_at_beginning_of_read_when_replaced_on_same_thread)
+TEST(read_copy_update_test, read_continues_to_return_value_at_beginning_of_read_when_replaced)
 {
 	read_copy_update_section<std::string> section("hello world 1");
 	auto readOperation1 = section.read();
