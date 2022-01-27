@@ -32,6 +32,25 @@ TEST(read_copy_update_test, can_read_modify_value_before_exchange)
 	ASSERT_EQ(*section.read(), "2ello world 2");
 }
 
+TEST(read_copy_update_test, can_read_modifier_and_replacement_value_after_failed_exchange_and_then_succeed)
+{
+	read_copy_update_section<const std::string> section("hello world 1");
+
+	auto operation1 = section.exchange();
+	auto operation2 = section.exchange();
+
+	operation1.emplace("hello world 2");
+	operation2.emplace("hello world 3").exchange();
+
+	ASSERT_EQ(false, operation1.compare_exchange_strong());
+	ASSERT_EQ(*operation1, "hello world 3");
+	ASSERT_EQ(operation1.replacement(), "hello world 2");
+
+	ASSERT_EQ(*operation2, "hello world 3");
+
+	ASSERT_EQ(true, operation1.compare_exchange_strong());
+}
+
 TEST(read_copy_update_test, can_read_new_value_after_exchange)
 {
 	read_copy_update_section<const std::string> section("hello world 1");
