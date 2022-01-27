@@ -61,8 +61,6 @@ private immovable_object
 
 	std::atomic<list_entry*> m_listHead = nullptr;
 
-	class constructor_tag {};
-
 	class operation
 		:
 		protected assert_same_thread,
@@ -107,10 +105,9 @@ public:
 	{
 	public:
 		read_operation(
-			read_copy_update_section& section,
-			constructor_tag = {}
+			const read_copy_update_section& section
 		) :
-			operation{ section }
+			operation{ const_cast<read_copy_update_section&>(section) }
 		{}
 
 		using operation::value;
@@ -138,8 +135,7 @@ public:
 
 	public:
 		update_operation(
-			read_copy_update_section& section,
-			constructor_tag = {}
+			read_copy_update_section& section
 		) :
 			operation{ section }
 		{}
@@ -236,8 +232,7 @@ public:
 	{
 	public:
 		write_operation(
-			read_copy_update_section& section,
-			constructor_tag = {}
+			read_copy_update_section& section
 		) :
 			update_operation{ section }
 		{}
