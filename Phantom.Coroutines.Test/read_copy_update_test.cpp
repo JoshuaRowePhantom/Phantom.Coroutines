@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/read_copy_update.h"
+#include "lifetime_tracker.h"
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
@@ -81,6 +82,63 @@ TEST(read_copy_update_test, read_continues_to_return_value_at_beginning_of_read_
 	auto readOperation1 = section.read();
 	section.emplace("hello world 2");
 	ASSERT_EQ(*readOperation1, "hello world 1");
+}
+
+TEST(read_copy_update_test, object_released_after_replace)
+{
+	lifetime_statistics statistics1;
+	read_copy_update_section<lifetime_tracker> section{ statistics1.tracker() };
+
+	ASSERT_EQ(1, statistics1.instance_count);
+	
+	lifetime_statistics statistics2;
+	section.write().emplace(statistics2.tracker());
+
+	ASSERT_EQ(0, statistics1.instance_count);
+	ASSERT_EQ(1, statistics2.instance_count);
+}
+
+TEST(read_copy_update_test, object_released_after_last_reader_replace)
+{
+	lifetime_statistics statistics1;
+	read_copy_update_section<lifetime_tracker> section{ statistics1.tracker() };
+	std::optional<read_copy_update_section<lifetime_tracker>::read_operation> readOperation1(section);
+	std::optional<read_copy_update_section<lifetime_tracker>::read_operation> readOperation2(section);
+	std::optional<read_copy_update_section<lifetime_tracker>::read_operation> readOperation3(section);
+
+	(*readOperation1)->use();
+	(*readOperation2)->use();
+	(*readOperation3)->use();
+
+	ASSERT_EQ(1, statistics1.instance_count);
+
+	lifetime_statistics statistics2;
+	section.write().emplace(statistics2.tracker());
+
+	(*readOperation1)->use();
+	(*readOperation2)->use();
+	(*readOperation3)->use();
+
+	ASSERT_EQ(1, statistics1.instance_count);
+	ASSERT_EQ(1, statistics2.instance_count);
+
+	readOperation2.reset();
+	(*readOperation1)->use();
+	(*readOperation3)->use();
+
+	ASSERT_EQ(1, statistics1.instance_count);
+	ASSERT_EQ(1, statistics2.instance_count);
+
+	readOperation3.reset();
+	(*readOperation1)->use();
+
+	ASSERT_EQ(1, statistics1.instance_count);
+	ASSERT_EQ(1, statistics2.instance_count);
+
+	readOperation1.reset();
+
+	ASSERT_EQ(0, statistics1.instance_count);
+	ASSERT_EQ(1, statistics2.instance_count);
 }
 
 typedef read_copy_update_section<std::string> rcu_string;
