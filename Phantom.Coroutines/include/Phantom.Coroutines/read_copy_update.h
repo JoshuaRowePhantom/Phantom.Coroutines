@@ -62,15 +62,17 @@ private immovable_object
 	std::atomic<list_entry*> m_listHead = nullptr;
 
 	class constructor_tag {};
+
 	class operation
 		:
 		protected assert_same_thread,
 		private immovable_object
 	{
+	protected:
 		read_copy_update_section& m_section;
 		bool m_previousIsPerformingOperation;
 		list_entry* m_listEntry;
-	protected:
+
 		operation(
 			read_copy_update_section& section
 		)
@@ -90,21 +92,27 @@ private immovable_object
 		}
 
 	public:
+		// Read the value of the read_copy_update_section as
+		// of the time the operation was started.
 		Value* operator->()
 		{
 			check_thread();
 			return &m_listEntry->m_value;
 		}
 
+		// Read the value of the read_copy_update_section as
+		// of the time the operation was started.
 		Value& operator*()
 		{
 			return *operator->();
 		}
 	};
 
-	class read_operation 
+public:
+
+	class read_operation
 		:
-	public operation
+		private operation
 	{
 	public:
 		read_operation(
@@ -113,44 +121,147 @@ private immovable_object
 		) :
 			operation{ section }
 		{}
+
+		using operation::operator->;
+		using operation::operator*;
 	};
 
-	class write_operation
+	class exchange_operation
 		:
-		public operation
+		private operation
 	{
+		list_entry* m_replacementListEntry = nullptr;
+
 	public:
-		write_operation(
+		exchange_operation(
 			read_copy_update_section& section,
 			constructor_tag = {}
 		) :
 			operation{ section }
 		{}
 
-		template<
-			typename AssignValue
-		>
-		[[nodiscard]]
-		bool operator=(AssignValue&& value)
+		~exchange_operation()
 		{
-			operation::check_thread();
-			throw 1;
+			delete m_replacementListEntry;
 		}
 
-		template<
-			typename ... Args
-		>
-		[[nodiscard]]
-		bool emplace(
-			Args&&... args
+		using operation::operator->;
+		using operation::operator*;
+
+		// Set the value to replace with.
+		exchange_operation& operator=(
+			auto&& value
+			)
+		{
+			return emplace(
+				std::forward<decltype(value)>(value)
+			);
+		}
+
+		// Set the value to replace with.
+		exchange_operation& emplace(
+			auto&&... args
 		)
 		{
+			delete m_replacementListEntry;
+			// Important to set to null in case "new" throws.
+			m_replacementListEntry = nullptr;
+			m_replacementListEntry = new list_entry
+			{
+				std::forward<decltype(args)>(args)...
+			};
+
+			return *this;
+		}
+
+		// Perform the exchange.
+		// using the value that was assigned or emplaced.
+		// If there was no previous assignment or emplacement, behavior is undefined.
+		// The value of the operator-> and operator* will be
+		// updated to the new replacement value.
+		void exchange()
+		{
+			while (!compare_exchange_strong()) {}
+		}
+
+		// Conditionally perform the exchange.
+		// using the value that was assigned or emplaced.
+		// If there was no previous assignment or emplacement, behavior is undefined.
+		// The value of the operator-> and operator* will be
+		// updated to the new replacement value if successful, 
+		// or to the current value of the read_copy_update_section if failed.
+		// Returns true if the exchange was successful, false if the exchange failed.
+		[[nodiscard]]
+		bool compare_exchange_strong()
+		{
 			operation::check_thread();
-			throw 1;
+			
+			m_replacementListEntry->m_next = operation::m_listEntry;
+
+			auto result = operation::m_section.m_listHead.compare_exchange_strong(
+				operation::m_listEntry,
+				m_replacementListEntry,
+				std::memory_order_release,
+				std::memory_order_acquire
+			);
+
+			if (result)
+			{
+				m_replacementListEntry = nullptr;
+			}
+
+			return result;
+		}
+
+		// Obtain the value created by the previous operator=
+		// or emplace operation. If there was no previous operation,
+		// behavior is undefined.  If a previous exchange or compare_exchange
+		// succeeded, the behavior is undefined.
+		[[nodiscard]]
+		Value& replacement()
+		{
+			operation::check_thread();
+			return m_replacementListEntry->m_value;
 		}
 	};
 
-public:
+	class write_operation
+		:
+	private exchange_operation
+	{
+	public:
+		write_operation(
+			read_copy_update_section& section,
+			constructor_tag = {}
+		) :
+			exchange_operation{ section }
+		{}
+
+		using exchange_operation::operator->;
+		using exchange_operation::operator*;
+
+		Value& operator=(
+			auto&& value
+			)
+		{
+			return emplace(
+				std::forward<decltype(value)>(value)
+			);
+		}
+
+
+		Value& emplace(
+			auto&&... args
+		)
+		{
+			exchange_operation::emplace(
+				std::forward<decltype(args)>(args)...
+			).exchange();
+
+			return **this;
+		}
+	};
+
 	read_copy_update_section(
 		auto&&... args
 	)
@@ -161,14 +272,43 @@ public:
 		};
 	}
 
-	read_operation read() const
+	[[nodiscard]] read_operation operator->() const
 	{
-		return read_operation{ const_cast<read_copy_update_section&>(*this) };
+		return read();
 	}
 
-	write_operation write()
+	[[nodiscard]] read_operation read() const
+	{
+		return read_operation
+		{ 
+			const_cast<read_copy_update_section&>(*this) 
+		};
+	}
+
+	[[nodiscard]] exchange_operation exchange()
+	{
+		return exchange_operation
+		{
+			*this
+		};
+	}
+
+	[[nodiscard]] write_operation write()
 	{
 		return write_operation{ *this };
+	}
+
+	// Unconditionally replace the stored value.
+	// If this thread loses any races, the operation
+	// is retried until it succeeds.
+	void emplace(
+		auto&&... args
+	)
+	{
+		auto operation = write();
+		operation.emplace(
+			std::forward<decltype(args)>(args)...
+		);
 	}
 };
 
