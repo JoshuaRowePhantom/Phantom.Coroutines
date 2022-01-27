@@ -37,7 +37,7 @@ private immovable_object
 	{
 		size_t m_epoch;
 		list_entry* m_next;
-		Value m_value;
+		std::remove_const_t<Value> m_value;
 
 		list_entry(
 			auto&&... args
@@ -207,6 +207,7 @@ public:
 
 			if (result)
 			{
+				operation::m_listEntry = m_replacementListEntry;
 				m_replacementListEntry = nullptr;
 			}
 
@@ -218,7 +219,7 @@ public:
 		// behavior is undefined.  If a previous exchange or compare_exchange
 		// succeeded, the behavior is undefined.
 		[[nodiscard]]
-		Value& replacement()
+		std::remove_const_t<Value>& replacement()
 		{
 			operation::check_thread();
 			return m_replacementListEntry->m_value;

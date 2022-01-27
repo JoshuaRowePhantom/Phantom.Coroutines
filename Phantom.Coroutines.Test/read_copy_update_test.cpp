@@ -8,7 +8,39 @@ TEST(read_copy_update_test, can_read_initial_value)
 {
 	read_copy_update_section<std::string> section("hello world");
 	ASSERT_TRUE(*section.read() == "hello world");
-	ASSERT_TRUE(*section.read().operator->() == "hello world");
+	ASSERT_TRUE(*section.read() == "hello world");
+	ASSERT_TRUE(*section.operator->() == "hello world");
+	// Verify we can call object methods via operator->
+	ASSERT_EQ(section->begin(), section.read()->begin());
+}
+
+TEST(read_copy_update_test, can_read_written_const_value)
+{
+	read_copy_update_section<const std::string> section("hello world 1");
+	section.emplace("hello world 2");
+	ASSERT_EQ(*section.read(), "hello world 2");
+}
+
+TEST(read_copy_update_test, can_read_modify_value_before_exchange)
+{
+	read_copy_update_section<const std::string> section("hello world 1");
+	
+	auto operation = section.exchange();
+	operation.emplace("hello world 2").replacement()[0] = '2';
+	operation.exchange();
+
+	ASSERT_EQ(*section.read(), "2ello world 2");
+}
+
+TEST(read_copy_update_test, can_read_new_value_after_exchange)
+{
+	read_copy_update_section<const std::string> section("hello world 1");
+
+	auto operation = section.exchange();
+	operation.emplace("hello world 2");
+	operation.exchange();
+
+	ASSERT_EQ(*operation, "hello world 2");
 }
 
 TEST(read_copy_update_test, can_read_written_value)
@@ -25,3 +57,14 @@ TEST(read_copy_update_test, read_continues_to_return_value_at_beginning_of_read_
 	section.emplace("hello world 2");
 	ASSERT_EQ(*readOperation1, "hello world 1");
 }
+
+typedef read_copy_update_section<std::string> rcu_string;
+typedef read_copy_update_section<const std::string> rcu_const_string;
+
+extern rcu_string declval_rcu_string;
+extern rcu_const_string declval_rcu_const_string;
+
+static_assert(std::same_as<std::string&, decltype(*declval_rcu_string.read())>);
+static_assert(std::same_as<std::string&, decltype(*declval_rcu_string.operator->())>);
+static_assert(std::same_as<const std::string&, decltype(*declval_rcu_const_string.read())>);
+static_assert(std::same_as<const std::string&, decltype(*declval_rcu_const_string.operator->())>);
