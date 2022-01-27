@@ -92,19 +92,10 @@ private immovable_object
 		}
 
 	public:
-		// Read the value of the read_copy_update_section as
-		// of the time the operation was started.
-		Value* operator->()
+		Value& value()
 		{
 			check_thread();
-			return &m_listEntry->m_value;
-		}
-
-		// Read the value of the read_copy_update_section as
-		// of the time the operation was started.
-		Value& operator*()
-		{
-			return *operator->();
+			return m_listEntry->m_value;
 		}
 	};
 
@@ -122,56 +113,69 @@ public:
 			operation{ section }
 		{}
 
-		using operation::operator->;
-		using operation::operator*;
+		using operation::value;
+
+		// Read the value of the read_copy_update_section as
+		// of the time the operation was started.
+		Value* operator->()
+		{
+			return &value();
+		}
+
+		// Read the value of the read_copy_update_section as
+		// of the time the operation was started.
+		Value& operator*()
+		{
+			return value();
+		}
 	};
 
-	class exchange_operation
+	class update_operation
 		:
 		private operation
 	{
 		list_entry* m_replacementListEntry = nullptr;
 
 	public:
-		exchange_operation(
+		update_operation(
 			read_copy_update_section& section,
 			constructor_tag = {}
 		) :
 			operation{ section }
 		{}
 
-		~exchange_operation()
+		~update_operation()
 		{
 			delete m_replacementListEntry;
 		}
 
-		using operation::operator->;
-		using operation::operator*;
+		using operation::value;
 
 		// Set the value to replace with.
-		exchange_operation& operator=(
+		decltype(auto) operator=(
 			auto&& value
 			)
 		{
-			return emplace(
+			return (emplace(
 				std::forward<decltype(value)>(value)
-			);
+			));
 		}
 
 		// Set the value to replace with.
-		exchange_operation& emplace(
+		decltype(auto) emplace(
 			auto&&... args
 		)
 		{
 			delete m_replacementListEntry;
 			// Important to set to null in case "new" throws.
 			m_replacementListEntry = nullptr;
+
 			m_replacementListEntry = new list_entry
 			{
 				std::forward<decltype(args)>(args)...
 			};
 
-			return *this;
+			return (replacement());
 		}
 
 		// Perform the exchange.
@@ -228,18 +232,17 @@ public:
 
 	class write_operation
 		:
-	private exchange_operation
+	private update_operation
 	{
 	public:
 		write_operation(
 			read_copy_update_section& section,
 			constructor_tag = {}
 		) :
-			exchange_operation{ section }
+			update_operation{ section }
 		{}
 
-		using exchange_operation::operator->;
-		using exchange_operation::operator*;
+		using update_operation::value;
 
 		Value& operator=(
 			auto&& value
@@ -250,16 +253,17 @@ public:
 			);
 		}
 
-
 		Value& emplace(
 			auto&&... args
 		)
 		{
-			exchange_operation::emplace(
+			update_operation::emplace(
 				std::forward<decltype(args)>(args)...
-			).exchange();
+			);
 
-			return **this;
+			update_operation::exchange();
+
+			return update_operation::value();
 		}
 	};
 
@@ -273,11 +277,15 @@ public:
 		};
 	}
 
+	// Read the current value stored in the section.
+	// The value is only valid for the duration
+	// of the expression.
 	[[nodiscard]] read_operation operator->() const
 	{
 		return read();
 	}
 
+	// Read the current value stored in the section.
 	[[nodiscard]] read_operation read() const
 	{
 		return read_operation
@@ -286,14 +294,50 @@ public:
 		};
 	}
 
-	[[nodiscard]] exchange_operation exchange()
+	// Begin an operation to read / modify / write
+	// the value stored in the section, with update
+	// race detection.
+	// 
+	// A typical use is:
+	// 
+	// void AddEntryToMap(std::string key, std::string value)
+	// {
+	//	read_copy_update_section<std::map<std::string, std::string>> section;
+	//	auto operation = section.update();
+	//  
+	// // Start by copying the original map.
+	//  operation.emplace(operation.value());
+	//  // Add the key / value of interest
+	//  operation.replacement()[key] = value;
+	// 
+	//  while (!operation.compare_exchange_strong())
+	//  {
+	//	   // If we fail to perform the replacement, then our updated map
+	//	   // is missing some entries or has some out of date entries.
+	//	   // Rather than copy the map over again, we modify it in-place,
+	//	   // as there are likely only a few entries updated. A better algorithm
+	//	   // iterates over both maps in parallel.
+	//     for(auto value : operation.value())
+	//     {
+	//        if (!operation.replacement().contains(value.first)
+	//            || operation.replacement()[value.first] != value.second)
+	//        {
+	//            operation.replacement()[value.first] = value.second;
+	//        }
+	//     }
+	//	   operation.replacement()[key] = value;
+	//  }
+	// }
+	[[nodiscard]] update_operation update()
 	{
-		return exchange_operation
+		return update_operation
 		{
 			*this
 		};
 	}
 
+	// Begin an operation to read / modify / write
+	// the value stored in the section.
 	[[nodiscard]] write_operation write()
 	{
 		return write_operation{ *this };
