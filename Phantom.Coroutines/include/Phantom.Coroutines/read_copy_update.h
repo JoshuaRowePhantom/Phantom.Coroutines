@@ -39,12 +39,10 @@ private immovable_object
 		list_entry* m_next;
 		Value m_value;
 
-		template<
-			typename ... Args
-		> list_entry(
-			Args...&& args
+		list_entry(
+			auto&&... args
 		) :
-			m_value{ std::forward<Args>(args)...}
+			m_value{ std::forward<decltype(args)>(args)...}
 		{}
 	};
 
@@ -79,7 +77,7 @@ private immovable_object
 			:
 			m_section{ section },
 			m_previousIsPerformingOperation{ m_threadGuard.m_threadState.m_previousIsPerformingOperation },
-			m_listEntry{ m_listHead }
+			m_listEntry{ section.m_listHead }
 		{}
 
 		~operation()
@@ -153,12 +151,14 @@ private immovable_object
 	};
 
 public:
-	template <
-		typename ... Args
-	> read_copy_update_section(
-		Args&&... args
+	read_copy_update_section(
+		auto&&... args
 	)
 	{
+		m_listHead = new list_entry
+		{
+			std::forward<decltype(args)>(args)...
+		};
 	}
 
 	read_operation read() const
