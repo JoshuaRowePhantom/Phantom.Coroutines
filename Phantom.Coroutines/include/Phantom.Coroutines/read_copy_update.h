@@ -3,6 +3,8 @@
 #include <atomic>
 #include <concepts>
 #include <memory>
+#include <thread>
+#include <mutex>
 #include "detail/assert_same_thread.h"
 #include "detail/scope_guard.h"
 #include "detail/immovable_object.h"
@@ -46,20 +48,32 @@ private immovable_object
 		{}
 	};
 
+	struct thread_state;
+	inline static std::mutex m_threadStatesLock;
+	inline static std::map<std::thread::id, thread_state*> m_threadStates;
+
 	struct thread_state
 	{
-		std::atomic<bool> m_previousIsPerformingOperation;
-	};
+		size_t m_pendingOperationCount;
 
-	struct thread_guard
-	{
-		thread_state m_threadState;
+		thread_state()
+		{
+			std::unique_lock lock(m_threadStatesLock);
+			m_threadStates[std::this_thread::get_id()] = this;
+		}
+
+		~thread_state()
+		{
+			std::unique_lock lock(m_threadStatesLock);
+			m_threadStates.erase(std::this_thread::get_id());
+		}
 	};
 
 	inline static std::atomic<size_t> m_globalEpoch = 0;
-	inline static thread_local thread_guard m_threadGuard;
-
+	inline static thread_local thread_state m_threadState;
+	
 	std::atomic<list_entry*> m_listHead = nullptr;
+	std::atomic<size_t> m_epoch = 0;
 
 	class operation
 		:
@@ -68,7 +82,6 @@ private immovable_object
 	{
 	protected:
 		read_copy_update_section& m_section;
-		bool m_previousIsPerformingOperation;
 		list_entry* m_listEntry;
 
 		operation(
@@ -76,17 +89,17 @@ private immovable_object
 		)
 			:
 			m_section{ section },
-			m_previousIsPerformingOperation{ m_threadGuard.m_threadState.m_previousIsPerformingOperation },
-			m_listEntry{ section.m_listHead }
-		{}
+			m_listEntry{ section.m_listHead.load(std::memory_order_acquire) }
+		{
+			m_threadState.m_pendingOperationCount++;
+		}
 
 		~operation()
 		{
-			if (m_previousIsPerformingOperation)
+			if (--m_threadState.m_pendingOperationCount == 0)
 			{
-				return;
+				// Do cleanup here.
 			}
-			//m_threadGuard.threadState.m_previousIsPerformingOperation = m_previousIsPerformingOperation;
 		}
 
 	public:
