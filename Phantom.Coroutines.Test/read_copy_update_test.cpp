@@ -84,7 +84,7 @@ TEST(read_copy_update_test, read_continues_to_return_value_at_beginning_of_read_
 	ASSERT_EQ(*readOperation1, "hello world 1");
 }
 
-TEST(read_copy_update_test, object_released_after_replace)
+TEST(read_copy_update_test, object_released_after_replace_and_reread)
 {
 	lifetime_statistics statistics1;
 	read_copy_update_section<lifetime_tracker> section{ statistics1.tracker() };
@@ -94,11 +94,16 @@ TEST(read_copy_update_test, object_released_after_replace)
 	lifetime_statistics statistics2;
 	section.write().emplace(statistics2.tracker());
 
+	ASSERT_EQ(1, statistics1.instance_count);
+	ASSERT_EQ(1, statistics2.instance_count);
+
+	std::ignore = section.operator->();
+
 	ASSERT_EQ(0, statistics1.instance_count);
 	ASSERT_EQ(1, statistics2.instance_count);
 }
 
-TEST(read_copy_update_test, object_released_after_last_reader_replace)
+TEST(read_copy_update_test, object_released_after_replace_and_last_reader_released_and_reread)
 {
 	lifetime_statistics statistics1;
 	read_copy_update_section<lifetime_tracker> section{ statistics1.tracker() };
@@ -137,6 +142,10 @@ TEST(read_copy_update_test, object_released_after_last_reader_replace)
 
 	readOperation1.reset();
 
+	ASSERT_EQ(1, statistics1.instance_count);
+	ASSERT_EQ(1, statistics2.instance_count);
+
+	std::ignore = section.operator->();
 	ASSERT_EQ(0, statistics1.instance_count);
 	ASSERT_EQ(1, statistics2.instance_count);
 }

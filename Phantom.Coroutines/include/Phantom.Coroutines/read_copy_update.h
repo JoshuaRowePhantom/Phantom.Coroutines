@@ -3,8 +3,9 @@
 #include <atomic>
 #include <concepts>
 #include <memory>
+#include <ranges>
 #include <thread>
-#include <mutex>
+#include <unordered_map>
 #include "detail/assert_same_thread.h"
 #include "detail/scope_guard.h"
 #include "detail/immovable_object.h"
@@ -21,84 +22,111 @@ class ReadCopyUpdate_CleanupOnReadOrWrite
 {};
 
 template<
-	typename TReadCopyUpdateCleaner
-> concept ReadCopyUpdateCleaner =
-	std::same_as<TReadCopyUpdateCleaner, ReadCopyUpdate_CleanupOnWrite>
-	||
-	std::same_as<TReadCopyUpdateCleaner, ReadCopyUpdate_CleanupOnReadOrWrite>;
-
-template<
-	typename Value,
-	ReadCopyUpdateCleaner CleanupPolicy = ReadCopyUpdate_CleanupOnReadOrWrite
+	typename Value
 >
 class read_copy_update_section
 	:
 private immovable_object
 {
-	struct list_entry
-	{
-		size_t m_epoch;
-		list_entry* m_next;
-		std::remove_const_t<Value> m_value;
+	typedef size_t epoch_type;
 
-		list_entry(
+	typedef Value value_type;
+	typedef std::remove_const_t<Value> mutable_value_type;
+
+	struct value_holder
+	{
+		epoch_type m_epoch;
+		mutable_value_type m_value;
+
+		value_holder(
 			auto&&... args
-		) :
-			m_value{ std::forward<decltype(args)>(args)...}
+		) : m_value { std::forward<decltype(args)>(args)... }
 		{}
 	};
 
-	struct thread_state;
-	inline static std::mutex m_threadStatesLock;
-	inline static std::map<std::thread::id, thread_state*> m_threadStates;
+	typedef std::shared_ptr<value_holder> value_holder_ptr;
+	typedef std::atomic<value_holder_ptr> atomic_value_holder_ptr;
 
-	struct thread_state
-	{
-		size_t m_pendingOperationCount;
-
-		thread_state()
-		{
-			std::unique_lock lock(m_threadStatesLock);
-			m_threadStates[std::this_thread::get_id()] = this;
-		}
-
-		~thread_state()
-		{
-			std::unique_lock lock(m_threadStatesLock);
-			m_threadStates.erase(std::this_thread::get_id());
-		}
-	};
-
-	inline static std::atomic<size_t> m_globalEpoch = 0;
-	inline static thread_local thread_state m_threadState;
-	
-	std::atomic<list_entry*> m_listHead = nullptr;
-	std::atomic<size_t> m_epoch = 0;
+	std::atomic<epoch_type> m_epoch;
+	atomic_value_holder_ptr m_value;
 
 	class operation
 		:
 		protected assert_same_thread,
 		private immovable_object
 	{
+
 	protected:
+		typedef std::unordered_map<read_copy_update_section*, value_holder_ptr> value_map;
+		typedef std::unordered_multimap<value_holder*, operation*> pending_operations_map;
+		inline static thread_local value_map m_threadLocalValues;
+		inline static thread_local pending_operations_map m_threadLocalSoftOperations;
+
 		read_copy_update_section& m_section;
-		list_entry* m_listEntry;
+		
+		pending_operations_map::iterator m_threadLocalSoftOperationsEntry;
+
+		value_holder* m_valueHolderSoftReference;
+		value_holder_ptr m_valueHolderHardReference;
 
 		operation(
 			read_copy_update_section& section
 		)
 			:
-			m_section{ section },
-			m_listEntry{ section.m_listHead.load(std::memory_order_acquire) }
+			m_section{ section }
 		{
-			m_threadState.m_pendingOperationCount++;
+			// We explicitly don't use try_emplace here
+			// so that we don't incur the expensive shared_ptr load operation
+			// at m_value.load
+			auto threadValueMapEntry = m_threadLocalValues.find(&section);
+
+			if (threadValueMapEntry == m_threadLocalValues.end())
+			{
+				threadValueMapEntry = m_threadLocalValues.insert(std::make_pair(
+					&section,
+					m_section.m_value.load(
+						std::memory_order_acquire
+					)))
+					.first;
+			}
+
+			// If the current epoch has changed, then the thread local value map contains an obsolete value.
+			if (threadValueMapEntry->second->m_epoch != m_section.m_epoch.load(std::memory_order_acquire))
+			{
+				// The thread local value map contains an obsolete value.
+				// We want to replace it with the up-to-date value, but before we do so
+				// we need to make sure any other pending operations on this thread
+				// are correctly reference counting the value.
+				// So find all the existing operations on the same epoch and grant
+				// them hard references to the value_holder.
+				auto operationsOnThisEpoch = m_threadLocalSoftOperations.equal_range(
+					threadValueMapEntry->second.get()
+				);
+
+				for (auto& operation : std::ranges::subrange(operationsOnThisEpoch.first, operationsOnThisEpoch.second))
+				{
+					operation.second->m_valueHolderHardReference = threadValueMapEntry->second;
+				}
+
+				// Now we can replace the thread-local map entry with the current value.
+				threadValueMapEntry->second = m_section.m_value.load(
+					std::memory_order_acquire);
+			}
+
+			m_valueHolderSoftReference = threadValueMapEntry->second.get();
+			m_threadLocalSoftOperationsEntry = m_threadLocalSoftOperations.insert(
+				std::make_pair(
+					m_valueHolderSoftReference,
+					this
+				));
 		}
 
 		~operation()
 		{
-			if (--m_threadState.m_pendingOperationCount == 0)
+			if (m_threadLocalSoftOperationsEntry != m_threadLocalSoftOperations.end())
 			{
-				// Do cleanup here.
+				m_threadLocalSoftOperations.erase(
+					m_threadLocalSoftOperationsEntry);
 			}
 		}
 
@@ -106,7 +134,7 @@ private immovable_object
 		Value& value()
 		{
 			check_thread();
-			return m_listEntry->m_value;
+			return m_valueHolderSoftReference->m_value;
 		}
 	};
 
@@ -144,7 +172,7 @@ public:
 		:
 		private operation
 	{
-		list_entry* m_replacementListEntry = nullptr;
+		value_holder_ptr m_replacementValueHolder = nullptr;
 
 	public:
 		update_operation(
@@ -152,11 +180,6 @@ public:
 		) :
 			operation{ section }
 		{}
-
-		~update_operation()
-		{
-			delete m_replacementListEntry;
-		}
 
 		using operation::value;
 
@@ -175,15 +198,10 @@ public:
 			auto&&... args
 		)
 		{
-			delete m_replacementListEntry;
-			// Important to set to null in case "new" throws.
-			m_replacementListEntry = nullptr;
-
-			m_replacementListEntry = new list_entry
-			{
+			m_replacementValueHolder = std::make_shared<value_holder>(
 				std::forward<decltype(args)>(args)...
-			};
-
+				);
+			
 			return (replacement());
 		}
 
@@ -209,20 +227,40 @@ public:
 		{
 			operation::check_thread();
 			
-			m_replacementListEntry->m_next = operation::m_listEntry;
+			m_replacementValueHolder->m_epoch = operation::m_section.m_epoch.fetch_add(1, std::memory_order_relaxed);
 
-			auto result = operation::m_section.m_listHead.compare_exchange_strong(
-				operation::m_listEntry,
-				m_replacementListEntry,
+			// To atomically swap out a shared_ptr,
+			// we need to have one in hand. Unfortunately,
+			// that means locking and acquiring a copy here
+			// before doing the actual compare_exchange_strong.
+			// We'll optimize this another day; writes are expected to
+			// be infrequent in this data structure.
+			if (operation::m_valueHolderHardReference.get() != operation::m_valueHolderSoftReference)
+			{
+				operation::m_valueHolderHardReference = operation::m_section.m_value.load(
+					std::memory_order_relaxed
+				);
+
+				if (operation::m_threadLocalSoftOperationsEntry != operation::m_threadLocalSoftOperations.end())
+				{
+					operation::m_threadLocalSoftOperations.erase(
+						operation::m_threadLocalSoftOperationsEntry);
+					operation::m_threadLocalSoftOperationsEntry = operation::m_threadLocalSoftOperations.end();
+				}
+			}
+
+			auto result = operation::m_section.m_value.compare_exchange_strong(
+				operation::m_valueHolderHardReference,
+				m_replacementValueHolder,
 				std::memory_order_acq_rel,
 				std::memory_order_acquire
 			);
 
 			if (result)
 			{
-				operation::m_listEntry = m_replacementListEntry;
-				m_replacementListEntry = nullptr;
+				operation::m_valueHolderHardReference = std::move(m_replacementValueHolder);
 			}
+			operation::m_valueHolderSoftReference = operation::m_valueHolderHardReference.get();
 
 			return result;
 		}
@@ -235,7 +273,7 @@ public:
 		std::remove_const_t<Value>& replacement()
 		{
 			operation::check_thread();
-			return m_replacementListEntry->m_value;
+			return m_replacementValueHolder->m_value;
 		}
 	};
 
@@ -277,12 +315,12 @@ public:
 
 	read_copy_update_section(
 		auto&&... args
-	)
+	) :
+		m_value
+	{ std::make_shared<value_holder>(
+			std::forward<decltype(args)>(args)...) 
+	}
 	{
-		m_listHead = new list_entry
-		{
-			std::forward<decltype(args)>(args)...
-		};
 	}
 
 	// Read the current value stored in the section.
