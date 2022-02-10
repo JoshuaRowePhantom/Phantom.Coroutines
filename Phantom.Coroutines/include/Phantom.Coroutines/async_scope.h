@@ -130,7 +130,7 @@ class async_scope
 		is_awaitable auto&& awaiter
 	)
 	{
-		co_await awaiter;
+		co_await std::forward<decltype(awaiter)>(awaiter);
 		if (m_outstandingTasks.fetch_sub(1) == 1)
 		{
 			co_await join_resumer{ *this };

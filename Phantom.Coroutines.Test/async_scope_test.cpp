@@ -70,3 +70,31 @@ TEST(async_scope_test, Joining_completes_immediately_if_all_tasks_already_comple
 	ASSERT_EQ(true, complete);
 	future.get();
 }
+
+TEST(async_scope_test, Can_await_immovable_task)
+{
+	async_scope scope;
+	bool completeTask1 = false;
+	bool complete = false;
+
+	single_consumer_manual_reset_event event1;
+	scope.spawn([&]() -> task<> 
+		{ 
+			co_await event1; 
+			completeTask1 = true;
+		}()
+	);
+
+	auto future = as_future([&]() -> task<>
+		{
+			co_await scope.join();
+			complete = true;
+		}());
+
+	ASSERT_EQ(false, complete);
+	ASSERT_EQ(false, completeTask1);
+	event1.set();
+	ASSERT_EQ(true, completeTask1);
+	ASSERT_EQ(true, complete);
+	future.get();
+}
