@@ -41,3 +41,32 @@ TEST(async_scope_test, Joining_waits_for_incomplete_tasks)
 	ASSERT_EQ(true, complete);
 	future.get();
 }
+
+TEST(async_scope_test, Joining_completes_immediately_if_all_tasks_already_complete)
+{
+	async_scope scope;
+	single_consumer_manual_reset_event event1;
+	single_consumer_manual_reset_event event2;
+	single_consumer_manual_reset_event event3;
+	bool complete = false;
+
+	event1.set();
+	scope.spawn(event1);
+	scope.spawn(event2);
+	scope.spawn(event3);
+
+	ASSERT_EQ(false, complete);
+	event2.set();
+	ASSERT_EQ(false, complete);
+	event3.set();
+	ASSERT_EQ(false, complete);
+
+	auto future = as_future([&]() -> task<>
+		{
+			co_await scope.join();
+			complete = true;
+		}());
+
+	ASSERT_EQ(true, complete);
+	future.get();
+}
