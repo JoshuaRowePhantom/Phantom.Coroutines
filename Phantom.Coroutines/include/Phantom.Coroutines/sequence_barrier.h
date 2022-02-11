@@ -73,6 +73,7 @@ template<
 		awaiter* m_subtreePointer = nullptr;
 		degree_type m_degree = 0;
 		coroutine_handle<> m_continuation;
+		atomic_value_type m_publishedValue;
 
 		awaiter(
 			sequence_barrier* sequenceBarrier,
@@ -116,12 +117,12 @@ template<
 			));
 
 			// Double check to see if the value has been published.
-			auto publishedValue = m_sequenceBarrier->m_publishedValue.load(
+			m_publishedValue = m_sequenceBarrier->m_publishedValue.load(
 				std::memory_order_acquire
 			);
 
 			if (!Traits::precedes(
-				publishedValue,
+				m_publishedValue,
 				m_value))
 			{
 				// Try to resume awaiters,
@@ -130,7 +131,7 @@ template<
 				bool resumeThisAwaiter = false;
 
 				m_sequenceBarrier->resume_awaiters(
-					publishedValue,
+					m_publishedValue,
 					this,
 					resumeThisAwaiter
 				);
@@ -143,11 +144,7 @@ template<
 
 		value_type await_resume() noexcept
 		{
-			// Another load will have already been performed with acquire semantics,
-			// so load with relaxed semantics.
-			return m_sequenceBarrier->m_publishedValue.load(
-				std::memory_order_relaxed
-			);
+			return m_publishedValue;
 		}
 	};
 
