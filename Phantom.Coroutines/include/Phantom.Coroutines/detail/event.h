@@ -11,6 +11,7 @@ template<
 >
 class event
 {
+protected:
     class awaiter;
     struct SignalledState {};
     struct WaitingCoroutineState {};
@@ -26,6 +27,8 @@ class event
     class awaiter
     {
         friend class event;
+        friend class manual_reset_event;
+        friend class auto_reset_event;
 
         union
         {
