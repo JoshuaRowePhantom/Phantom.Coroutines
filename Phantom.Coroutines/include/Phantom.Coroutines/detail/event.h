@@ -116,29 +116,6 @@ public:
         return m_state.load(std::memory_order_acquire) == SignalledState{};
     }
 
-    void set()
-    {
-        if constexpr (IsManualResetEvent)
-        {
-            auto previousState = m_state.exchange(SignalledState{});
-            if (previousState.is<SignalledState>())
-            {
-                return;
-            }
-            auto signalledAwaiter = previousState.as<WaitingCoroutineState>();
-            while (signalledAwaiter)
-            {
-                auto nextAwaiter = signalledAwaiter->m_nextAwaiter;
-                signalledAwaiter->m_continuation.resume();
-                signalledAwaiter = nextAwaiter;
-            }
-        }
-        else
-        {
-
-        }
-    }
-
     void reset()
     {
         state_type signalled = SignalledState{};

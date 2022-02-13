@@ -12,10 +12,18 @@ namespace detail
 
 class auto_reset_event
     :
-    public event<false>
+    private event<true>
 {
 public:
     using event::event;
+    using event::is_set;
+    using event::reset;
+    using event::operator co_await;
+
+    void set()
+    {
+    }
+
 };
 }
 using detail::auto_reset_event;
