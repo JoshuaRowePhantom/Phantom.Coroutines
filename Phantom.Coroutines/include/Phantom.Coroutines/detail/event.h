@@ -45,7 +45,7 @@ protected:
         {}
 
     public:
-        inline bool await_ready() const noexcept
+        bool await_ready() const noexcept
         {
             // We can do a simple load to enable continuing manual reset
             // events in await_ready without having to do any exchange operations;
@@ -61,7 +61,7 @@ protected:
             }
         }
 
-        inline bool await_suspend(
+        bool await_suspend(
             coroutine_handle<> continuation
         ) noexcept
         {
