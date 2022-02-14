@@ -3,7 +3,6 @@
 #include <atomic>
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
-#include "detail/event.h"
 
 namespace Phantom::Coroutines
 {
@@ -88,7 +87,7 @@ class manual_reset_event
 public:
     manual_reset_event(
         bool isSignalled = false
-        )
+        ) noexcept
         :
         m_state{ isSignalled ? state_type{SignalledState{}} : NotSignalledState }
     {
@@ -99,7 +98,7 @@ public:
         return m_state.load(std::memory_order_acquire) == SignalledState{};
     }
 
-    void set()
+    void set() noexcept
     {
         auto previousState = m_state.exchange(SignalledState{});
         if (previousState.is<SignalledState>())
@@ -115,7 +114,7 @@ public:
         }
     }
 
-    void reset()
+    void reset() noexcept
     {
         state_type signalled = SignalledState{};
 
@@ -127,7 +126,7 @@ public:
             NotSignalledState);
     }
 
-    awaiter operator co_await()
+    awaiter operator co_await() noexcept
     {
         return awaiter{ this };
     }
