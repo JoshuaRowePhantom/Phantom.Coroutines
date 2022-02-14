@@ -275,10 +275,10 @@ protected:
         assert(
             (stateUintWithSetNumber & c_StateSetIndexPointerMask) == StateSetIndex);
 
-        auto stateUint = stateUintWithSetNumber & c_StateSetIndexPointerMask;
+        auto stateUint = stateUintWithSetNumber & ~c_StateSetIndexPointerMask;
 
         auto statePointer = reinterpret_cast<void*>(
-            stateUintWithSetNumber);
+            stateUint);
 
         return state_set_traits::from_representation(
             statePointer);
@@ -631,6 +631,21 @@ public:
     ) : m_value(
         atomic_state::to_representation(
             elementType))
+    {}
+
+    // Allow implicit construction from anything that has
+    // a specific to_representation method.
+    template<
+        typename TLabel,
+        typename TElementType
+    >
+        state(
+            TLabel label,
+            TElementType elementType
+        ) : m_value(
+            atomic_state::to_representation(
+                elementType,
+                atomic_state_handler_tag<TLabel>{}))
     {}
 
     constexpr bool operator==(

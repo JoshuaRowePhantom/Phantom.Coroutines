@@ -192,6 +192,7 @@ TEST(atomic_state_test, Can_store_pointer_values_into_state_with_two_sets)
     ASSERT_TRUE(!value.is<Label2>());
     ASSERT_TRUE(!value.is<PointedToValue1*>());
     ASSERT_TRUE(value.is<PointedToValue2*>());
+    ASSERT_TRUE(value.as<PointedToValue2*>() == &value2_1);
 
     state.store(&value2_2);
     value = state.load();
@@ -206,6 +207,7 @@ TEST(atomic_state_test, Can_store_pointer_values_into_state_with_two_sets)
     ASSERT_TRUE(!value.is<Label2>());
     ASSERT_TRUE(!value.is<PointedToValue1*>());
     ASSERT_TRUE(value.is<PointedToValue2*>());
+    ASSERT_TRUE(value.as<PointedToValue2*>() == &value2_2);
 }
 
 
