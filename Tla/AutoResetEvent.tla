@@ -152,7 +152,7 @@ Signal_CheckForPendingSignals ==
 Signal_HandlePendingSignals ==
     \E thread \in SignallingThreads :
         /\  SignallingThreadPCs[thread] = "HandlePendingSignals"
-        /\  \/  /\  State.Type = "Signalling"
+        /\  \/  /\  State.Type \in { "Signalling", "Signalled" }
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "Complete"]
                 /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingSignalCount >>
             \/  /\  State.Type # "Signalling"
