@@ -28,6 +28,9 @@ primitives that are implementable only using the C++ standard and common extensi
 
 This library include Visual Studio Natvis visualizers for many of the embedded types.
 
+By and large, this library aims to be source-level compatible with cppcoro.  Cppcoro namespaces,
+includes, and type aliases are provided.
+
 == Using ==
 
 Put the ```include/Phantom.Coroutines``` directory in your include path.  Then, 
