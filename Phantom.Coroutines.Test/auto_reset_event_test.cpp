@@ -52,6 +52,7 @@ TEST(auto_reset_event_test, Set_after_await_continues_one_awaiter_in_reverse_ord
         suspend_result suspendResult;
         co_await(suspendResult << event);
         EXPECT_EQ(true, suspendResult.did_suspend());
+        complete = true;
     };
 
     asyncScope.spawn(waitLambda(complete1));
