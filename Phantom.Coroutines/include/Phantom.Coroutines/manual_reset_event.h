@@ -13,7 +13,6 @@ class manual_reset_event
 {
     class awaiter;
     struct SignalledState {};
-    struct SignallingState {};
     struct WaitingCoroutineState {};
 
     class awaiter
