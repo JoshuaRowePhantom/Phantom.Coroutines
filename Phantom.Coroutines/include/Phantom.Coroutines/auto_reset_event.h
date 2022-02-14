@@ -453,7 +453,8 @@ Signal_HandlePendingSignals ==
         // If the state is that there is a waiter (and therefore not signalled), stays with a waiter.
         m_state.compare_exchange_strong(
             signalled,
-            NotSignalledState);
+            NotSignalledState,
+            std::memory_order_release);
     }
 
     awaiter operator co_await()
