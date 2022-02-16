@@ -44,8 +44,6 @@ SignallingThreadPCsType == [ SignallingThreads -> {
     "ResumeFirst",
     "ReadPendingSignals",
     "ResumeNext",
-    "ResumeNext_EmptyList",
-    "ResumeNext_EmptyList_SignalAllWaiters",
     "ResumeNext_Signal",
     "ObtainPendingAwaiters_ResumeFirst",
     "ObtainPendingAwaiters_ResumeNext"
@@ -148,12 +146,6 @@ Signal_ResumeNext_Signal(thread) ==
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ResumeNext"]
         /\  UNCHANGED << State, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount >>
 
-Signal_ResumeNext_EmptyList(thread) ==
-        /\  SignallingThreadPCs[thread] = "ResumeNext_EmptyList"
-        /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ReleaseSignallingState"]
-        /\  PendingSignalCount' = 0
-        /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingAwaiters, PendingSignalsToHandleCount >>
-
 Signal_Increment(thread) ==
         /\  SignallingThreadPCs[thread] = "Increment"
         /\  PendingSignalCount' = PendingSignalCount + 1
@@ -181,10 +173,10 @@ Signal_CheckForPendingSignals(thread) ==
 
 Signal_HandlePendingSignals(thread) ==
         /\  SignallingThreadPCs[thread] = "HandlePendingSignals"
-        /\  \/  /\  State.Type \in { "Signalling", "Signalled" }
+        /\  \/  /\  State.Type \in { "Signalling", "Signalled", "NoWaitingCoroutine" }
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "Complete"]
                 /\  UNCHANGED << State >>
-            \/  /\  State.Type # "Signalling"
+            \/  /\  State.Type = "WaitingCoroutine"
                 /\  State' = [State EXCEPT !.Type = "Signalling"]
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ReadPendingSignals"]
         /\  UNCHANGED << ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters >>
@@ -212,7 +204,6 @@ Next ==
         \/  Signal_ReadPendingSignals(thread)
         \/  Signal_ResumeNext(thread)
         \/  Signal_ResumeNext_Signal(thread)
-        \/  Signal_ResumeNext_EmptyList(thread)
         \/  Signal_ReleaseSignallingState(thread)
         \/  Signal_CheckForPendingSignals(thread)
         \/  Signal_HandlePendingSignals(thread)
@@ -257,7 +248,6 @@ ForwardProgressCanBeMadeBySignallingThreads ==
             \/  ENABLED(Signal_ReadPendingSignals(thread))
             \/  ENABLED(Signal_ResumeNext(thread))
             \/  ENABLED(Signal_ResumeNext_Signal(thread))
-            \/  ENABLED(Signal_ResumeNext_EmptyList(thread))
             \/  ENABLED(Signal_ReleaseSignallingState(thread))
             \/  ENABLED(Signal_CheckForPendingSignals(thread))
             \/  ENABLED(Signal_HandlePendingSignals(thread))
@@ -298,7 +288,6 @@ DebugEnabled == [
         Signal_ReadPendingSignals |-> ENABLED(Signal_ReadPendingSignals(thread)),
         Signal_ResumeNext |-> ENABLED(Signal_ResumeNext(thread)),          
         Signal_ResumeNext_Signal |-> ENABLED(Signal_ResumeNext_Signal(thread)),      
-        Signal_ResumeNext_EmptyList |-> ENABLED(Signal_ResumeNext_EmptyList(thread)),   
         Signal_ReleaseSignallingState |-> ENABLED(Signal_ReleaseSignallingState(thread)), 
         Signal_CheckForPendingSignals |-> ENABLED(Signal_CheckForPendingSignals(thread)), 
         Signal_HandlePendingSignals |-> ENABLED(Signal_HandlePendingSignals(thread)),   
