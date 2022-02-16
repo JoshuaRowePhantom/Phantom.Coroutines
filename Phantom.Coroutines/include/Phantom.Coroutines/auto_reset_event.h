@@ -78,9 +78,10 @@ Listen_Start(thread) ==
                 }
 
                 m_continuation = continuation;
-
+                
                 if (previousState == NoWaitingCoroutineState{})
                 {
+                    m_nextAwaiter = nullptr;
                     return state_type{ WaitingCoroutineState{}, this };
                 }
 /*
@@ -121,8 +122,8 @@ Listen_Start(thread) ==
     typedef atomic_state<
         SingletonState<SignalledState>,
         SingletonState<NoWaitingCoroutineState>,
-        StateSet<SignallingState, awaiter*>,
-        StateSet<WaitingCoroutineState, awaiter*>
+        StateSet<WaitingCoroutineState, awaiter*>,
+        StateSet<SignallingState, awaiter*>
     > atomic_state_type;
     typedef state<atomic_state_type> state_type;
 
@@ -169,8 +170,8 @@ Signal_ObtainPendingAwaiters(thread) ==
         {
             nextState = state_type{ SignallingState{}, lastState.as<SignallingState>() };
         }
-
         m_pendingAwaiters = lastState.as<SignallingState>();
+        lastState = nextState;
     }
 
 public:
