@@ -12,7 +12,7 @@
     <stringAttribute key="distributedTLC" value="off"/>
     <stringAttribute key="distributedTLCVMArgs" value=""/>
     <intAttribute key="fpBits" value="1"/>
-    <intAttribute key="fpIndex" value="21"/>
+    <intAttribute key="fpIndex" value="43"/>
     <booleanAttribute key="fpIndexRandom" value="true"/>
     <intAttribute key="maxHeapSize" value="9"/>
     <intAttribute key="maxSetSize" value="1000000"/>
@@ -21,7 +21,7 @@
     <stringAttribute key="modelBehaviorNext" value=""/>
     <stringAttribute key="modelBehaviorSpec" value="SpecWithFairness"/>
     <intAttribute key="modelBehaviorSpecType" value="1"/>
-    <stringAttribute key="modelBehaviorVars" value="State, SignallingThreadPCs, NextAwaiters, ListeningThreadPCs, PendingSignalCount"/>
+    <stringAttribute key="modelBehaviorVars" value="State, SignallingThreadPCs, PendingSignalsToHandleCount, NextAwaiters, ListeningThreadPCs, PendingAwaiters, PendingSignalCount"/>
     <stringAttribute key="modelComments" value=""/>
     <booleanAttribute key="modelCorrectnessCheckDeadlock" value="false"/>
     <listAttribute key="modelCorrectnessInvariants">
@@ -49,8 +49,8 @@
     <listAttribute key="traceExploreExpressions">
         <listEntry value="1TypeOk"/>
         <listEntry value="1NoMoreSignalledThreadsThanSignals"/>
-        <listEntry value="0ForwardProgressCanBeMadeBySignallingThreads"/>
-        <listEntry value="0ForwardProgressCanBeMadeByListeningThreads"/>
+        <listEntry value="1ForwardProgressCanBeMadeBySignallingThreads"/>
+        <listEntry value="1ForwardProgressCanBeMadeByListeningThreads"/>
         <listEntry value="0SignallingThreadPCs \in SignallingThreadPCsType"/>
         <listEntry value="0ListeningThreadPCs \in ListeningThreadPCsType"/>
         <listEntry value="0State \in StateType"/>
@@ -59,7 +59,7 @@
         <listEntry value="1DebugEnabled"/>
         <listEntry value="1CardinalityOfListeningThreads(&quot;Pending&quot;)"/>
         <listEntry value="1CardinalityOfSignallingThreads(&quot;Idle&quot;)"/>
-        <listEntry value="1CardinalityOfListeningThreads(&quot;Complete&quot;)"/>
+        <listEntry value="1CardinalityOfListeningThreads(&quot;Resume&quot;)"/>
     </listAttribute>
     <stringAttribute key="view" value=""/>
     <booleanAttribute key="visualizeStateGraph" value="false"/>
