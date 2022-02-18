@@ -5,7 +5,7 @@
     <stringAttribute key="distributedNetworkInterface" value="192.168.1.248"/>
     <intAttribute key="distributedNodesCount" value="1"/>
     <stringAttribute key="distributedTLC" value="off"/>
-    <intAttribute key="fpIndex" value="60"/>
+    <intAttribute key="fpIndex" value="109"/>
     <intAttribute key="maxHeapSize" value="25"/>
     <stringAttribute key="modelBehaviorInit" value="Init"/>
     <stringAttribute key="modelBehaviorNext" value="Next"/>
@@ -20,6 +20,7 @@
     </listAttribute>
     <listAttribute key="modelCorrectnessProperties"/>
     <intAttribute key="modelEditorOpenTabs" value="8"/>
+    <stringAttribute key="modelExpressionEval" value=""/>
     <listAttribute key="modelParameterConstants">
         <listEntry value="Items;;1..3;0;0"/>
         <listEntry value="Threads;;1..3;0;0"/>
