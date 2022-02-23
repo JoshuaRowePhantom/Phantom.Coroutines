@@ -108,7 +108,8 @@ private immovable_object
 					operation.second->m_valueHolderHardReference = threadValueMapEntry->second;
 				}
 
-				// Now we can replace the thread-local map entry with the current value.
+				// Now we can replace the thread-local map entry with a
+				// hard reference to the current value.
 				threadValueMapEntry->second = m_section.m_value.load(
 					std::memory_order_acquire);
 			}
