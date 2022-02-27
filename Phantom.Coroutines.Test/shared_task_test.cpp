@@ -30,8 +30,10 @@ static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>&>, i
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>&>, int&>);
 
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>>, void>);
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>>, int>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>>, int&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>>, int&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string>>, std::string&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string&>>, std::string&>);
 
 TEST(shared_task_test, Can_await_void_task)
 {

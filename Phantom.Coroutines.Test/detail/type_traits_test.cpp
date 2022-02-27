@@ -131,11 +131,11 @@ static_assert(!has_co_await<not_awaitable>);
 static_assert(std::same_as<void, awaitable_result_type_t<typed_awaiter<void>>>);
 static_assert(std::same_as<int, awaitable_result_type_t<typed_awaiter<int>>>);
 static_assert(std::same_as<int&, awaitable_result_type_t<typed_awaiter<int&>>>);
-static_assert(std::same_as<int, awaitable_result_type_t<typed_awaiter<int&&>>>);
+static_assert(std::same_as<int&&, awaitable_result_type_t<typed_awaiter<int&&>>>);
 
 static_assert(std::same_as<void, awaitable_result_type_t<typed_awaitable<void>>>);
 static_assert(std::same_as<int, awaitable_result_type_t<typed_awaitable<int>>>);
 static_assert(std::same_as<int&, awaitable_result_type_t<typed_awaitable<int&>>>);
-static_assert(std::same_as<int, awaitable_result_type_t<typed_awaitable<int&&>>>);
+static_assert(std::same_as<int&&, awaitable_result_type_t<typed_awaitable<int&&>>>);
 
 }

@@ -136,7 +136,7 @@ public:
                 get<exception_index>(m_result));
         }
         
-        return (static_cast<
+        return static_cast<
             std::add_rvalue_reference_t<
                 basic_task_awaiter::variant_result_storage::result_type
             >
@@ -144,7 +144,7 @@ public:
             basic_task_awaiter::variant_result_storage::get<value_index>(
                 m_result
                 )
-            ));
+            );
     }
 };
 
@@ -276,6 +276,13 @@ protected:
         promise
     )
     {
+    }
+
+    basic_task(
+        basic_task&& other
+    ) : m_promise{ other.m_promise }
+    {
+        other.m_promise = nullptr;
     }
 
 public:

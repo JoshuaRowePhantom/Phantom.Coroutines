@@ -122,7 +122,7 @@ public:
     decltype(auto) await_resume()
     {
         if constexpr (
-            std::is_reference_v<FutureType>
+            std::is_lvalue_reference_v<FutureType>
             ||
             std::is_reference_v<result_type>
             ||
@@ -132,7 +132,7 @@ public:
         }
         else
         {
-            return (std::move(promise()->await_resume()));
+            return promise()->await_resume();
         }
     }
 };
@@ -296,10 +296,6 @@ private:
         if constexpr (is_void)
         {
             return;
-        }
-        else if constexpr (is_rvalue_reference)
-        {
-            return std::move(get<return_value_index>(m_result).get());
         }
         else if constexpr (is_reference)
         {

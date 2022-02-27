@@ -26,7 +26,7 @@ add_executable(
 	task_test.cpp
 	thread_pool_scheduler_test.cpp
 	when_ready_test.cpp
- )
+  "cancellation_token_test.cpp" "processor_pool_test.cpp")
 
 target_link_libraries(
 	Phantom.Coroutines.Test

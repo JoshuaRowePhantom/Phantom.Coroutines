@@ -20,12 +20,26 @@ static_assert(detail::is_awaitable<task<int>>);
 static_assert(detail::is_awaitable<task<int&>>);
 static_assert(detail::is_awaitable<task<int&&>>);
 
+static_assert(detail::is_awaiter<task_awaiter<>>);
+static_assert(detail::is_awaiter<task_awaiter<std::string>>);
+static_assert(detail::is_awaiter<task_awaiter<std::string&>>);
+static_assert(detail::is_awaiter<task_awaiter<std::string&&>>);
+
+static_assert(detail::is_awaitable<task<>>);
+static_assert(detail::is_awaitable<task<std::string>>);
+static_assert(detail::is_awaitable<task<std::string&>>);
+static_assert(detail::is_awaitable<task<std::string&&>>);
+
 static_assert(detail::has_co_await<task<>&&>);
 
-static_assert(std::same_as<detail::awaitable_result_type_t<task<>&&>, void>);
-static_assert(std::same_as<detail::awaitable_result_type_t<task<int>>, int>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<>>, void>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<int&>>, int&>);
-static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
+
+static_assert(std::same_as<detail::awaitable_result_type_t<task<std::string>>, std::string&&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<std::string&>>, std::string&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<std::string&&>>, std::string&&>);
 
 TEST(task_test, Can_await_void_task)
 {

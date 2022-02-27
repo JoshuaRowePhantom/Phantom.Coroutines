@@ -110,15 +110,15 @@ template<
 )
 {
     typedef awaitable_result_type_t<TAwaitable> awaitable_result_type;
-
-#ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
-
-    // Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
-    typedef std::conditional_t<
+        typedef std::conditional_t<
         std::is_rvalue_reference_v<awaitable_result_type>,
         std::remove_reference_t<awaitable_result_type>,
         awaitable_result_type
     > result_type;
+
+#ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
+
+    // Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
 
     if constexpr (
         !std::is_void_v<result_type>
@@ -134,12 +134,12 @@ template<
             co_return co_await std::forward<TAwaitable>(awaitable);
         };
 
-        return static_cast<awaitable_result_type>(*as_future(wrapWithOptional()).get());
+        return static_cast<result_type>(*as_future(wrapWithOptional()).get());
     }
     else
 #endif
     {
-        return static_cast<awaitable_result_type>(as_future(std::forward<TAwaitable>(awaitable)).get());
+        return static_cast<result_type>(as_future(std::forward<TAwaitable>(awaitable)).get());
     }
 }
 
