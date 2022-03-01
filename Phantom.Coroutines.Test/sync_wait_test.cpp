@@ -61,7 +61,7 @@ static_assert(std::same_as<long, decltype(sync_wait(std::declval<typed_awaitable
 
 // Verify that shared_task result types get inferred correctly.
 // shared_task as lvalue reference should return reference to result,
-// shared_task as rvalue reference shoudl return result.
+// shared_task as rvalue reference should return result.
 static_assert(std::same_as<void, decltype(sync_wait(std::declval<shared_task<void>>()))>);
 static_assert(std::same_as<int, decltype(sync_wait(std::declval<shared_task<int>>()))>);
 static_assert(std::same_as<int&, decltype(sync_wait(std::declval<shared_task<int&>>()))>);
