@@ -73,7 +73,6 @@ template<
 		awaiter* m_subtreePointer = nullptr;
 		degree_type m_degree = 0;
 		coroutine_handle<> m_continuation;
-		atomic_value_type m_publishedValue;
 
 		awaiter(
 			sequence_barrier* sequenceBarrier,
@@ -84,14 +83,22 @@ template<
 		{}
 
 	public:
-		bool await_ready() const noexcept
+		bool await_ready() noexcept
 		{
-			return !Traits::precedes(
-				m_sequenceBarrier->m_publishedValue.load(
-					std::memory_order_acquire
-				),
-				m_value
+			auto publishedValue = m_sequenceBarrier->m_publishedValue.load(
+				std::memory_order_acquire
 			);
+
+			if (!Traits::precedes(
+				publishedValue,
+				m_value
+			))
+			{
+				m_value = publishedValue;
+				return true;
+			}
+
+			return false;
 		}
 
 		bool await_suspend(
@@ -117,21 +124,23 @@ template<
 			));
 
 			// Double check to see if the value has been published.
-			m_publishedValue = m_sequenceBarrier->m_publishedValue.load(
+			auto publishedValue = m_sequenceBarrier->m_publishedValue.load(
 				std::memory_order_acquire
 			);
 
 			if (!Traits::precedes(
-				m_publishedValue,
+				publishedValue,
 				m_value))
 			{
+				m_value = publishedValue;
+
 				// Try to resume awaiters,
 				// and if we in particular desire to resume this object,
 				// do not suspend.
 				bool resumeThisAwaiter = false;
 
 				m_sequenceBarrier->resume_awaiters(
-					m_publishedValue,
+					m_value,
 					this,
 					resumeThisAwaiter
 				);
@@ -144,7 +153,7 @@ template<
 
 		value_type await_resume() noexcept
 		{
-			return m_publishedValue;
+			return m_value;
 		}
 	};
 
@@ -194,7 +203,7 @@ template<
 	static_assert(FibonacciHeapTraits<awaiter_heap_traits>);
 
 	void resume_awaiters(
-		value_type publishedValue,
+		value_type& publishedValue,
 		awaiter* specialAwaiter,
 		bool& resumeSpecialAwaiter
 	)
