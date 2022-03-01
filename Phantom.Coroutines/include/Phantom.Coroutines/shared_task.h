@@ -124,15 +124,18 @@ public:
         if constexpr (
             std::is_lvalue_reference_v<FutureType>
             ||
-            std::is_reference_v<result_type>
+            std::is_lvalue_reference_v<result_type>
             ||
-            std::is_void_v<result_type>)
+            std::is_void_v<result_type>
+            )
         {
             return (promise()->await_resume());
         }
         else
         {
-            return promise()->await_resume();
+            return static_cast<std::remove_reference_t<result_type>>(
+                promise()->await_resume()
+                );
         }
     }
 };

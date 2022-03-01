@@ -86,10 +86,12 @@ template<
     TAwaitable&& awaitable
 )
 {
+    typedef awaitable_result_type_t<TAwaitable&&> awaitable_result_type;
+
     typedef std::conditional_t<
         std::is_rvalue_reference_v<awaitable_result_type_t<TAwaitable>>,
-        std::remove_reference_t<awaitable_result_type_t<TAwaitable>>,
-        awaitable_result_type_t<TAwaitable>
+        std::remove_reference_t<awaitable_result_type>,
+        awaitable_result_type
     > result_type;
 
     std::promise<result_type> promise;
@@ -109,12 +111,10 @@ template<
     TAwaitable&& awaitable
 )
 {
-    typedef awaitable_result_type_t<TAwaitable> awaitable_result_type;
-        typedef std::conditional_t<
-        std::is_rvalue_reference_v<awaitable_result_type>,
-        std::remove_reference_t<awaitable_result_type>,
-        awaitable_result_type
-    > result_type;
+    typedef decltype(
+        as_future(
+            std::forward<TAwaitable>(awaitable)
+        ).get()) result_type;
 
 #ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
 
@@ -134,12 +134,14 @@ template<
             co_return co_await std::forward<TAwaitable>(awaitable);
         };
 
-        return static_cast<result_type>(*as_future(wrapWithOptional()).get());
+        return static_cast<result_type>(
+            *as_future(wrapWithOptional()).get());
     }
     else
 #endif
     {
-        return static_cast<result_type>(as_future(std::forward<TAwaitable>(awaitable)).get());
+        return static_cast<result_type>(
+            as_future(std::forward<TAwaitable>(awaitable)).get());
     }
 }
 

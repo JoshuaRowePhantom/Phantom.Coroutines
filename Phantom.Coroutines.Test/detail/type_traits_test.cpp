@@ -138,4 +138,23 @@ static_assert(std::same_as<int, awaitable_result_type_t<typed_awaitable<int>>>);
 static_assert(std::same_as<int&, awaitable_result_type_t<typed_awaitable<int&>>>);
 static_assert(std::same_as<int&&, awaitable_result_type_t<typed_awaitable<int&&>>>);
 
+// Verify that awaitable_result_t pays attention to the rvalue/lvalue-ness of the operand.
+// Rvalue
+static_assert(std::same_as<void, awaitable_result_type_t<typed_awaitable<void, void, void>>>);
+static_assert(std::same_as<long, awaitable_result_type_t<typed_awaitable<int, void, long>>>);
+static_assert(std::same_as<long&, awaitable_result_type_t<typed_awaitable<int&, void, long&>>>);
+static_assert(std::same_as<long&&, awaitable_result_type_t<typed_awaitable<int&&, void, long&&>>>);
+
+// Lvalue
+static_assert(std::same_as<void, awaitable_result_type_t<typed_awaitable<void, void, void>&>>);
+static_assert(std::same_as<int, awaitable_result_type_t<typed_awaitable<int, void, long>&>>);
+static_assert(std::same_as<int&, awaitable_result_type_t<typed_awaitable<int&, void, long&>&>>);
+static_assert(std::same_as<int&&, awaitable_result_type_t<typed_awaitable<int&&, void, long&&>&>>);
+
+// Rvalue reference
+static_assert(std::same_as<void, awaitable_result_type_t<typed_awaitable<void, void, void>&&>>);
+static_assert(std::same_as<long, awaitable_result_type_t<typed_awaitable<int, void, long>&&>>);
+static_assert(std::same_as<long&, awaitable_result_type_t<typed_awaitable<int&, void, long&>&&>>);
+static_assert(std::same_as<long&&, awaitable_result_type_t<typed_awaitable<int&&, void, long&&>&&>>);
+
 }

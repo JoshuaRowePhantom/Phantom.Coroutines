@@ -25,15 +25,43 @@ static_assert(detail::is_awaitable<shared_task<int&>>);
 static_assert(detail::has_co_await<shared_task<>&>);
 static_assert(detail::has_co_await<shared_task<>&&>);
 
+// Assert the type of awaiter returned by co_await.
+static_assert(std::same_as<detail::shared_task_awaiter<shared_task<void>>, decltype(std::declval<shared_task<void>>().operator co_await())>);
+static_assert(std::same_as<detail::shared_task_awaiter<shared_task<void>&>, decltype(std::declval<shared_task<void>&>().operator co_await())>);
+static_assert(std::same_as<detail::shared_task_awaiter<shared_task<void>>, decltype(std::declval<shared_task<void>&&>().operator co_await())>);
+
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>&>, void>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>&>, int&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>&>, int&>);
 
+// These assertions verify that co_awaiting an rvalue of a shared_task
+// returns a reference to a value. The assumption made is that the caller
+// discards the shared_task before the co_await operation, and therefore
+// there may be zero references to the shared_task before co_await can return.
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>>, void>);
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>>, int&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>>, int>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>>, int&>);
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string>>, std::string&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string>>, std::string>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string&>>, std::string&>);
+
+// These assertions verify that co_awaiting an lvalue reference of a shared_task
+// returns a reference to a value. The assumption made is that the caller
+// maintains the reference to the lvalue shared_task past the co_await operation.
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>&>, void>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>&>, int&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>&>, int&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string>&>, std::string&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string&>&>, std::string&>);
+
+// These assertions verify that co_awaiting an rvalue of a shared_task
+// returns a reference to a value. The assumption made is that the caller
+// discards the shared_task before the co_await operation, and therefore
+// there may be zero references to the shared_task before co_await can return.
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>&&>, void>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>&&>, int>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>&&>, int&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string>&&>, std::string>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string&>&&>, std::string&>);
 
 TEST(shared_task_test, Can_await_void_task)
 {
