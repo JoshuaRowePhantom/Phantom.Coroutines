@@ -1,8 +1,5 @@
 #pragma once
 
-#include "detail/atomic_state.h"
-#include "detail/coroutine.h"
-#include "detail/immovable_object.h"
 #include <array>
 #include <initializer_list>
 #include <limits>
@@ -27,17 +24,6 @@ template<
 	{ Traits::degree(heap) } -> std::convertible_to<size_t>;
 	std::swap(heap, heap);
 };
-
-// Appends one fibonacci heap to another cheaply in O(1) time.
-template<
-	FibonacciHeapTraits Traits
-> void fibonacci_heap_append(
-	typename Traits::heap_type* heap1,
-	typename Traits::heap_type heap2
-)
-{
-	Traits::link(heap1, heap2);
-}
 
 static constexpr size_t fibonacci_heap_maximum_degree = std::numeric_limits<size_t>::digits;
 

@@ -14,6 +14,9 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+// The thread_pool_scheduler implements the algorithm in ThreadPool.tla
+// 
+// 
 class thread_pool_scheduler
 {
 	class awaiter
