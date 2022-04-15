@@ -74,7 +74,6 @@ std::ostream& operator << (
 		if (printComma)
 		{
 			stream << ",";
-			printComma = true;
 		}
 
 		stream
@@ -84,6 +83,7 @@ std::ostream& operator << (
 			<< ")";
 
 		heapToPrint = heapToPrint->Sibling;
+		printComma = true;
 	}
 	return stream << "]";
 }
@@ -109,15 +109,15 @@ TestFibonacciHeapTraits::heap_type MakeTestHeap(
 	TestFibonacciHeapTraits::heap_type next = nullptr
 )
 {
-	return std::make_shared<TestFibonacciHeapNode>(
-		TestFibonacciHeapNode
-		{
-			key,
-			degree,
-			child,
-			next
-		}
-	);
+return std::make_shared<TestFibonacciHeapNode>(
+	TestFibonacciHeapNode
+	{
+		key,
+		degree,
+		child,
+		next
+	}
+);
 }
 
 }
@@ -131,7 +131,7 @@ TEST(fibonacci_heap_test, test_heap_equality_comparisons)
 	TestFibonacciHeapTraits::heap_type heap2 =
 		MakeTestHeap(1, 1);
 	TestFibonacciHeapTraits::heap_type heap3 =
-		MakeTestHeap(1, 1, 
+		MakeTestHeap(1, 1,
 			MakeTestHeap(2, 2),
 			MakeTestHeap(3, 2));
 	TestFibonacciHeapTraits::heap_type heap4 =
@@ -174,8 +174,105 @@ TEST(fibonacci_heap_test, test_heap_equality_comparisons)
 	ASSERT_FALSE(to_string(heap4) == to_string(heap5));
 }
 
-namespace 
+namespace
 {
+
+bool IsCanonicalFibonacciHeapHead(
+	const TestFibonacciHeapTraits::heap_type& heap
+)
+{
+	// A canonical fibonacci heap head should have 1 child of each degree smaller than itself.
+	std::set<size_t> degreesPresent;
+
+	for (TestFibonacciHeapTraits::heap_type child = heap->Child;
+		child;
+		child = child->Sibling)
+	{
+		if (!IsCanonicalFibonacciHeapHead(child))
+		{
+			return false;
+		}
+
+		if (degreesPresent.contains(child->Degree))
+		{
+			return false;
+		}
+
+		if (child->Degree >= heap->Degree)
+		{
+			return false;
+		}
+
+		if (child->Key < heap->Key)
+		{
+			return false;
+		}
+
+		degreesPresent.insert(child->Degree);
+	}
+
+	for (auto degree = 0; degree < heap->Degree; degree++)
+	{
+		if (!degreesPresent.contains(degree))
+		{
+			return false;
+		}
+		degreesPresent.erase(degree);
+	}
+
+	if (!degreesPresent.empty())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool IsCanonicalFibonacciHeap(
+	const TestFibonacciHeapTraits::heap_type& heap
+)
+{
+	// There should be no duplicate roots of the same degree,
+	// each root should be a canonical heap.
+	std::set<size_t> degreesPresent;
+
+	for (TestFibonacciHeapTraits::heap_type root = heap;
+		root;
+		root = root->Sibling)
+	{
+		if (!IsCanonicalFibonacciHeapHead(root))
+		{
+			return false;
+		}
+
+		if (degreesPresent.contains(root->Degree))
+		{
+			return false;
+		}
+
+		degreesPresent.insert(root->Degree);
+	}
+
+	return true;
+}
+
+bool IsFibonacciHeapWithNoChildren(
+	const TestFibonacciHeapTraits::heap_type& heap
+)
+{
+	for (TestFibonacciHeapTraits::heap_type root = heap;
+		root;
+		root = root->Sibling)
+	{
+		if (root->Degree != 0
+			|| root->Child)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
 
 void DoFibonacciHeapTest(
 	std::string expectedResultHeap,
@@ -192,6 +289,9 @@ void DoFibonacciHeapTest(
 
 	ASSERT_EQ(to_string(resultHeap), expectedResultHeap);
 	ASSERT_EQ(to_string(collectedHeap), expectedCollectedHeap);
+
+	ASSERT_TRUE(IsCanonicalFibonacciHeap(resultHeap));
+	ASSERT_TRUE(IsFibonacciHeapWithNoChildren(collectedHeap));
 }
 
 bool AlwaysTrue(const TestFibonacciHeapTraits::heap_type&)
@@ -225,22 +325,175 @@ TEST(fibonacci_heap_test, fibonacci_heap_extract_from_empty_heap_returns_empty_h
 
 TEST(fibonacci_heap_test, fibonacci_heap_extract_builds_canonical_heap_from_separate_nodes)
 {
-
 	DoFibonacciHeapTest(
-		"[(1,3,[(2,2,[(5,1,[(6,0,[])])(3,0,[])])(10,1,[(11,0,[])])(2,0,[])])(4,1,[(12,0,[])])]",
+		"[]",
 		"[]",
 		&AlwaysFalse,
 		{
-			MakeTestHeap(5, 0),
-			MakeTestHeap(6, 0),
-			MakeTestHeap(3, 0),
-			MakeTestHeap(2, 0),
-			MakeTestHeap(10, 0),
-			MakeTestHeap(11, 0),
-			MakeTestHeap(2, 0),
-			MakeTestHeap(1, 0),
-			MakeTestHeap(12, 0),
-			MakeTestHeap(4, 0)
 		}
 	);
+
+	DoFibonacciHeapTest(
+		"[(1,0,[])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+		}
+	);
+
+	DoFibonacciHeapTest(
+		"[(1,1,[(2,0,[])])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+		}
+	);
+
+	DoFibonacciHeapTest(
+		"[(1,1,[(2,0,[])]),(3,0,[])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+			MakeTestHeap(3, 0),
+		}
+	);
+
+
+	DoFibonacciHeapTest(
+		"[(1,2,[(3,1,[(4,0,[])]),(2,0,[])])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+			MakeTestHeap(3, 0),
+			MakeTestHeap(4, 0),
+		}
+	);
+
+	DoFibonacciHeapTest(
+		"[(1,2,[(3,1,[(4,0,[])]),(2,0,[])]),(5,0,[])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+			MakeTestHeap(3, 0),
+			MakeTestHeap(4, 0),
+			MakeTestHeap(5, 0),
+		}
+	);
+
+	DoFibonacciHeapTest(
+		"[(1,2,[(3,1,[(4,0,[])]),(2,0,[])]),(5,1,[(6,0,[])])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+			MakeTestHeap(3, 0),
+			MakeTestHeap(4, 0),
+			MakeTestHeap(5, 0),
+			MakeTestHeap(6, 0),
+		}
+	);
+
+	DoFibonacciHeapTest(
+		"[(1,2,[(3,1,[(4,0,[])]),(2,0,[])]),(5,1,[(6,0,[])]),(7,0,[])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+			MakeTestHeap(3, 0),
+			MakeTestHeap(4, 0),
+			MakeTestHeap(5, 0),
+			MakeTestHeap(6, 0),
+			MakeTestHeap(7, 0),
+		}
+	);
+
+	DoFibonacciHeapTest(
+		"[(1,3,[(5,2,[(7,1,[(8,0,[])]),(6,0,[])]),(3,1,[(4,0,[])]),(2,0,[])])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+			MakeTestHeap(3, 0),
+			MakeTestHeap(4, 0),
+			MakeTestHeap(5, 0),
+			MakeTestHeap(6, 0),
+			MakeTestHeap(7, 0),
+			MakeTestHeap(8, 0),
+		}
+	);
+
+	DoFibonacciHeapTest(
+		"[(1,3,[(5,2,[(7,1,[(8,0,[])]),(6,0,[])]),(3,1,[(4,0,[])]),(2,0,[])]),(9,0,[])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+			MakeTestHeap(3, 0),
+			MakeTestHeap(4, 0),
+			MakeTestHeap(5, 0),
+			MakeTestHeap(6, 0),
+			MakeTestHeap(7, 0),
+			MakeTestHeap(8, 0),
+			MakeTestHeap(9, 0),
+		}
+	);
+
+	DoFibonacciHeapTest(
+		"[(1,3,[(5,2,[(7,1,[(8,0,[])]),(6,0,[])]),(3,1,[(4,0,[])]),(2,0,[])]),(9,1,[(10,0,[])])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+			MakeTestHeap(3, 0),
+			MakeTestHeap(4, 0),
+			MakeTestHeap(5, 0),
+			MakeTestHeap(6, 0),
+			MakeTestHeap(7, 0),
+			MakeTestHeap(8, 0),
+			MakeTestHeap(9, 0),
+			MakeTestHeap(10, 0),
+		}
+	);
+
+	DoFibonacciHeapTest(
+		"[(1,4,[(9,3,[(13,2,[(15,1,[(16,0,[])]),(14,0,[])]),(11,1,[(12,0,[])]),(10,0,[])]),(5,2,[(7,1,[(8,0,[])]),(6,0,[])]),(3,1,[(4,0,[])]),(2,0,[])]),(17,2,[(19,1,[(20,0,[])]),(18,0,[])])]",
+		"[]",
+		&AlwaysFalse,
+		{
+			MakeTestHeap(1, 0),
+			MakeTestHeap(2, 0),
+			MakeTestHeap(3, 0),
+			MakeTestHeap(4, 0),
+			MakeTestHeap(5, 0),
+			MakeTestHeap(6, 0),
+			MakeTestHeap(7, 0),
+			MakeTestHeap(8, 0),
+			MakeTestHeap(9, 0),
+			MakeTestHeap(10, 0),
+			MakeTestHeap(11, 0),
+			MakeTestHeap(12, 0),
+			MakeTestHeap(13, 0),
+			MakeTestHeap(14, 0),
+			MakeTestHeap(15, 0),
+			MakeTestHeap(16, 0),
+			MakeTestHeap(17, 0),
+			MakeTestHeap(18, 0),
+			MakeTestHeap(19, 0),
+			MakeTestHeap(20, 0),
+		}
+	); 
 }
