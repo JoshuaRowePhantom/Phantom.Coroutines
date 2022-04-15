@@ -3,6 +3,7 @@ cmake_minimum_required (VERSION 3.17)
 add_executable(
 	Phantom.Coroutines.Test
 	detail/awaiters.h
+	detail/fibonacci_heap_test.cpp
 	detail/scope_guard_test.cpp
 	detail/type_traits_test.cpp
 	detail/variant_member_test.cpp
@@ -12,9 +13,11 @@ add_executable(
 	async_test.h
 	atomic_state_test.cpp
 	auto_reset_event_test.cpp
+	cancellation_token_test.cpp
 	generator_test.cpp
 	inline_scheduler_test.cpp
 	manual_reset_event_test.cpp
+	processor_pool_test.cpp
 	read_copy_update_test.cpp
 	reusable_consecutive_global_id_test.cpp
 	sequence_barrier_test.cpp
@@ -25,8 +28,9 @@ add_executable(
 	sync_wait_test.cpp
 	task_test.cpp
 	thread_pool_scheduler_test.cpp
+	trace_test.cpp
 	when_ready_test.cpp
-  "cancellation_token_test.cpp" "processor_pool_test.cpp" "detail/fibonacci_heap_test.cpp")
+  )
 
 target_link_libraries(
 	Phantom.Coroutines.Test
