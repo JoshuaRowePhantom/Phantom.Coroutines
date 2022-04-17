@@ -28,7 +28,7 @@ add_executable(
 	sync_wait_test.cpp
 	task_test.cpp
 	thread_pool_scheduler_test.cpp
-	trace_test.cpp
+	
 	when_ready_test.cpp
   )
 
