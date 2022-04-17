@@ -17,7 +17,7 @@ add_executable(
 	generator_test.cpp
 	inline_scheduler_test.cpp
 	manual_reset_event_test.cpp
-	processor_pool_test.cpp
+	
 	read_copy_update_test.cpp
 	reusable_consecutive_global_id_test.cpp
 	sequence_barrier_test.cpp
