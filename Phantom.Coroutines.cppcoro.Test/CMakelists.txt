@@ -1,0 +1,21 @@
+cmake_minimum_required (VERSION 3.17)
+
+add_executable(
+	Phantom.Coroutines.cppcoro.Test
+	async_auto_reset_event_test.cpp
+   )
+
+target_link_libraries(
+	Phantom.Coroutines.cppcoro.Test
+	PUBLIC
+	Phantom.Coroutines
+	Phantom.Coroutines.cppcoro
+	GTest::gtest
+	GTest::gtest_main
+)
+
+enable_testing()
+
+gtest_discover_tests(
+	Phantom.Coroutines.cppcoro.Test
+	EXTRA_ARGS "--gtest_break_on_failure")
