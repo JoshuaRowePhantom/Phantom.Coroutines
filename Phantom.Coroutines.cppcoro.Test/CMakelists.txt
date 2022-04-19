@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.17)
 add_executable(
 	Phantom.Coroutines.cppcoro.Test
 	async_auto_reset_event_test.cpp
-    "async_generator_test.cpp" "async_manual_reset_event_test.cpp" "async_mutex_test.cpp")
+    "async_generator_test.cpp" "async_manual_reset_event_test.cpp" "async_mutex_test.cpp" "async_scope_test.cpp")
 
 target_link_libraries(
 	Phantom.Coroutines.cppcoro.Test
