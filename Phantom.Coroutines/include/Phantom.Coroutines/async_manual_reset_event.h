@@ -9,7 +9,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
-class manual_reset_event
+class async_manual_reset_event
 {
     class awaiter;
     struct SignalledState {};
@@ -17,18 +17,18 @@ class manual_reset_event
 
     class awaiter
     {
-        friend class manual_reset_event;
+        friend class async_manual_reset_event;
 
         union
         {
             awaiter* m_nextAwaiter;
-            manual_reset_event* m_event;
+            async_manual_reset_event* m_event;
         };
 
         coroutine_handle<> m_continuation;
 
         awaiter(
-            manual_reset_event* event
+            async_manual_reset_event* event
         ) :
             m_event{ event }
         {}
@@ -84,7 +84,7 @@ class manual_reset_event
     atomic_state_type m_state;
 
 public:
-    manual_reset_event(
+    async_manual_reset_event(
         bool isSignalled = false
         ) noexcept
         :
@@ -132,5 +132,5 @@ public:
 };
 
 }
-using detail::manual_reset_event;
+using detail::async_manual_reset_event;
 }

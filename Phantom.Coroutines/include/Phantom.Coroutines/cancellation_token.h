@@ -1,4 +1,3 @@
-#include "manual_reset_event.h"
 #include "detail/immovable_object.h"
 #include <concepts>
 #include <functional>
