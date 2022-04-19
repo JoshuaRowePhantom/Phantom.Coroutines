@@ -336,7 +336,7 @@ public:
 		);
 	}
 
-	awaiter wait_for(
+	awaiter wait_until_published(
 		value_type value
 	)
 	{
