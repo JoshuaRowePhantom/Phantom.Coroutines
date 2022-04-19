@@ -19,4 +19,7 @@ public:
 static_assert(scheduler<inline_scheduler>);
 
 }
+
+using detail::inline_scheduler;
+
 }
