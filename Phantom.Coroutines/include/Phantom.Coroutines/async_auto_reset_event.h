@@ -9,7 +9,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
-class auto_reset_event
+class async_auto_reset_event
 {
     // This class follows the algorithm in AutoResetEvent.tla
 
@@ -21,20 +21,18 @@ class auto_reset_event
 
     class awaiter
     {
-        friend class event;
-        friend class manual_reset_event;
-        friend class auto_reset_event;
+        friend class async_auto_reset_event;
 
         union
         {
             awaiter* m_nextAwaiter;
-            auto_reset_event* m_event;
+            async_auto_reset_event* m_event;
         };
 
         coroutine_handle<> m_continuation;
 
         awaiter(
-            auto_reset_event* event
+            async_auto_reset_event* event
         ) :
             m_event{ event }
         {}
@@ -175,7 +173,7 @@ Signal_ObtainPendingAwaiters(thread) ==
     }
 
 public:
-    auto_reset_event(
+    async_auto_reset_event(
         bool isSignalled = false
         )
         :
@@ -492,5 +490,5 @@ Signal_HandlePendingSignals(thread) ==
 };
 
 }
-using detail::auto_reset_event;
+using detail::async_auto_reset_event;
 }

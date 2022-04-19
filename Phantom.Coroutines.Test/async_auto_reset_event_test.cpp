@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/async_scope.h"
-#include "Phantom.Coroutines/auto_reset_event.h"
+#include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
@@ -8,39 +8,39 @@
 namespace Phantom::Coroutines
 {
 
-TEST(auto_reset_event_test, Can_default_initialize)
+TEST(async_auto_reset_event_test, Can_default_initialize)
 {
-    auto_reset_event event;
+    async_auto_reset_event event;
 }
 
-TEST(auto_reset_event_test, Starts_as_not_set)
+TEST(async_auto_reset_event_test, Starts_as_not_set)
 {
-    auto_reset_event event;
+    async_auto_reset_event event;
     ASSERT_FALSE(event.is_set());
 }
 
-TEST(auto_reset_event_test, Starts_as_not_set_explicitly)
+TEST(async_auto_reset_event_test, Starts_as_not_set_explicitly)
 {
-    auto_reset_event event(false);
+    async_auto_reset_event event(false);
     ASSERT_FALSE(event.is_set());
 }
 
-TEST(auto_reset_event_test, Starts_as_set_explicitly)
+TEST(async_auto_reset_event_test, Starts_as_set_explicitly)
 {
-    auto_reset_event event(true);
+    async_auto_reset_event event(true);
     ASSERT_TRUE(event.is_set());
 }
 
-TEST(auto_reset_event_test, Can_be_reset_after_set)
+TEST(async_auto_reset_event_test, Can_be_reset_after_set)
 {
-    auto_reset_event event(true);
+    async_auto_reset_event event(true);
     event.reset();
     ASSERT_FALSE(event.is_set());
 }
 
-TEST(auto_reset_event_test, Set_after_await_continues_one_awaiter_in_reverse_order_and_leaves_reset)
+TEST(async_auto_reset_event_test, Set_after_await_continues_one_awaiter_in_reverse_order_and_leaves_reset)
 {
-    auto_reset_event event;
+    async_auto_reset_event event;
     async_scope asyncScope;
     bool complete1 = false;
     bool complete2 = false;
@@ -91,9 +91,9 @@ TEST(auto_reset_event_test, Set_after_await_continues_one_awaiter_in_reverse_ord
     ASSERT_EQ(false, event.is_set());
 }
 
-TEST(auto_reset_event_test, Set_before_await_causes_awaiter_to_not_suspend_and_leaves_reset)
+TEST(async_auto_reset_event_test, Set_before_await_causes_awaiter_to_not_suspend_and_leaves_reset)
 {
-    auto_reset_event event;
+    async_auto_reset_event event;
     std::optional<bool> stateBeforeWait;
     std::optional<bool> stateAfterWait;
     suspend_result suspendResult;
