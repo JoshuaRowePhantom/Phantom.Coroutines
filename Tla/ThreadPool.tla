@@ -46,24 +46,25 @@ ThreadStatesType == [Threads ->
         State : { "Steal_UpdateTail" },
         SourceThread : Threads,
         SourceThreadTail : Nat,
-        SourceThreadHead : Nat
+        SourceThreadHead : Int
     ]
     \union
     [
-        State : { "Steal_RereadHead" },
+        State : { "Steal_RereadHead", "Steal_UpdateHead" },
         SourceThread : Threads,
         SourceThreadTail : Nat,
-        SourceThreadHead : Nat,
+        SourceThreadHead : Int,
         SourceThreadCopyEnd : Nat
     ]
     \union
     [
-        State : { "Steal_UpdateHead" },
+        State : { "Steal_AdjustTail" },
+        SourceThread : Threads,
         SourceThreadTail : Nat,
+        SourceThreadHead : Int,
         SourceThreadCopyStart : Nat,
-        SourceThreadCopyEnd : Nat,
-        SourceThreadHead : Nat
-    ]    
+        SourceThreadCopyEnd : Nat
+    ]
     \union
     [
         State : { "Process" },
@@ -72,7 +73,7 @@ ThreadStatesType == [Threads ->
 ]
 
 QueuesType == [Threads -> Seq(Items)]
-HeadsType == [Threads -> Nat]
+HeadsType == [Threads -> Int]
 TailsType == [Threads -> Nat]
 ProcessedItemsType == Seq(Items)
 
@@ -132,7 +133,6 @@ Enqueue_UpdateHead(thread) ==
 
 Process_DecrementHead(thread) ==
         /\  ThreadStates[thread].State = "Idle"
-        /\  Heads[thread] > 0
         /\  DecrementHead(thread)
         /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
                 State |-> "Process_ReadTail"
@@ -205,13 +205,43 @@ Steal_RereadHead(stealingThread) ==
     LET threadState == ThreadStates[stealingThread] IN
         /\  threadState.State = "Steal_RereadHead"
         /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
-                    State |-> "Steal_Copy",
+                    State |-> "Steal_AdjustTail",
                     SourceThread |-> threadState.SourceThread,
                     SourceThreadTail |-> threadState.SourceThreadTail,
+                    SourceThreadHead |-> Heads[threadState.SourceThread],
                     SourceThreadCopyStart |-> threadState.SourceThreadTail,
                     SourceThreadCopyEnd |-> threadState.SourceThreadCopyEnd
                 ]]
         /\  UNCHANGED << PendingItems, Heads, Tails, Queues, ProcessedItems >>
+
+Steal_AdjustTail(stealingThread) ==
+    LET threadState == ThreadStates[stealingThread] IN
+        /\  threadState.State = "Steal_AdjustTail"
+        /\  IF threadState.SourceThreadHead < threadState.SourceThreadCopyEnd
+            THEN
+                /\  IF threadState.SourceThreadHead <= threadState.SourceThreadTail
+                    THEN
+                        /\  Tails' = [Tails EXCEPT ![threadState.SourceThread] = threadState.SourceThreadTail]
+                        /\  GoIdle(stealingThread)
+                    ELSE
+                        /\  Tails' = [Tails EXCEPT ![threadState.SourceThread] = threadState.SourceThreadHead]
+                        /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
+                                    State |-> "Steal_Copy",
+                                    SourceThread |-> threadState.SourceThread,
+                                    SourceThreadTail |-> threadState.SourceThreadTail,
+                                    SourceThreadCopyStart |-> threadState.SourceThreadTail,
+                                    SourceThreadCopyEnd |-> threadState.SourceThreadHead
+                                ]]
+            ELSE
+                /\  UNCHANGED << Tails >>
+                /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
+                            State |-> "Steal_Copy",
+                            SourceThread |-> threadState.SourceThread,
+                            SourceThreadTail |-> threadState.SourceThreadTail,
+                            SourceThreadCopyStart |-> threadState.SourceThreadTail,
+                            SourceThreadCopyEnd |-> threadState.SourceThreadCopyEnd
+                        ]]
+        /\  UNCHANGED << PendingItems, Heads, Queues, ProcessedItems >>
 
 Steal_Copy(stealingThread) ==
     LET threadState == ThreadStates[stealingThread] IN
@@ -268,6 +298,7 @@ Next ==
         \/  Steal_Copy(thread)
         \/  Steal_UpdateTail(thread)
         \/  Steal_RereadHead(thread)
+        \/  Steal_AdjustTail(thread)
         \/  Steal_UpdateHead(thread)
         \/  Process(thread)
         \/  Complete
