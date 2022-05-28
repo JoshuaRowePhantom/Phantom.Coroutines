@@ -22,7 +22,7 @@ vars ==
     ProcessedItems
 >>
 
-PendingItemsType == SUBSET Items
+PendingItemsType == Seq(Items)
 ThreadStatesType == [Threads ->  
     [
         State : { "Idle", "Enqueue_UpdateHead", "Process_IncrementHead", "Process_ReadTail" }
@@ -87,6 +87,15 @@ TypeOk ==
 
 ProcessedItemsSet == { ProcessedItems[index] : index \in DOMAIN(ProcessedItems)}
 
+RECURSIVE SetToSequence(_)
+SetToSequence(S) ==
+    IF S = {}
+    THEN << >>
+    ELSE 
+        LET s == CHOOSE x \in S : TRUE 
+        IN 
+        << s >> \o SetToSequence(S \ {s})
+
 GoIdle(thread) ==
         /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
                 State |-> "Idle"
@@ -108,7 +117,7 @@ DecrementHead(thread) ==
     /\  Heads' = [Heads EXCEPT ![thread] = Heads[thread] - 1]
 
 Init ==
-    /\  PendingItems = Items
+    /\  PendingItems = SetToSequence(Items)
     /\  ThreadStates = [thread \in Threads |-> [State |-> "Idle"]]
     /\  Queues = [thread \in Threads |-> << >>]
     /\  Heads = [thread \in Threads |-> 0]
@@ -116,14 +125,14 @@ Init ==
     /\  ProcessedItems = << >>
 
 Enqueue_UpdateQueue(thread) ==
-    \E item \in PendingItems :
-        /\  ThreadStates[thread].State = "Idle"
-        /\  PendingItems' = PendingItems \ { item }
-        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
-                State |-> "Enqueue_UpdateHead"
-            ]]
-        /\  AddToThreadQueue(thread, item)
-        /\  UNCHANGED << Heads, Tails, ProcessedItems >>
+    /\  PendingItems # << >>
+    /\  ThreadStates[thread].State = "Idle"
+    /\  PendingItems' = Tail(PendingItems)
+    /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
+            State |-> "Enqueue_UpdateHead"
+        ]]
+    /\  AddToThreadQueue(thread, Head(PendingItems))
+    /\  UNCHANGED << Heads, Tails, ProcessedItems >>
 
 Enqueue_UpdateHead(thread) ==
         /\  ThreadStates[thread].State = "Enqueue_UpdateHead"
@@ -197,7 +206,7 @@ Steal_UpdateTail(stealingThread) ==
                             SourceThreadCopyEnd |-> newTail
                         ]]
             ELSE
-                /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [State |-> "Idle"]]
+                /\  GoIdle(stealingThread)
                 /\  UNCHANGED << Tails >>
         /\  UNCHANGED << PendingItems, Heads, Queues, ProcessedItems >>
 
@@ -277,10 +286,8 @@ Process(thread) ==
         /\  UNCHANGED << PendingItems, Queues, Heads, Tails >>
 
 IsComplete ==
-        /\  PendingItems = {}
+        /\  PendingItems = << >>
         /\  ProcessedItemsSet = Items
-        /\  \A thread \in Threads :
-                /\  ThreadStates[thread].State = "Idle"
 
 Complete ==
         /\  IsComplete
@@ -317,8 +324,11 @@ SpecWithFairness ==
         /\  WF_vars(Process_IncrementHead(thread))
         /\  WF_vars(Steal_ReadSourceThreadHead(thread))
         /\  WF_vars(Steal_Copy(thread))
-        /\  WF_vars(Steal_UpdateHead(thread))
+        /\  WF_vars(Steal_UpdateTail(thread))
         /\  WF_vars(Steal_RereadHead(thread))
+        /\  WF_vars(Steal_AdjustTail(thread))
+        /\  WF_vars(Steal_Copy(thread))
+        /\  WF_vars(Steal_UpdateHead(thread))
         /\  WF_vars(Process(thread))
 
 AllItemsGetProcessed ==
