@@ -208,7 +208,6 @@ Steal_RereadHead(stealingThread) ==
                     State |-> "Steal_Copy",
                     SourceThread |-> threadState.SourceThread,
                     SourceThreadTail |-> threadState.SourceThreadTail,
-                    SourceThreadHead |-> Heads[threadState.SourceThreadHead],
                     SourceThreadCopyStart |-> threadState.SourceThreadTail,
                     SourceThreadCopyEnd |-> threadState.SourceThreadCopyEnd
                 ]]
@@ -247,11 +246,14 @@ Process(thread) ==
         /\  GoIdle(thread)
         /\  UNCHANGED << PendingItems, Queues, Heads, Tails >>
 
-Complete ==
+IsComplete ==
         /\  PendingItems = {}
         /\  ProcessedItemsSet = Items
         /\  \A thread \in Threads :
                 /\  ThreadStates[thread].State = "Idle"
+
+Complete ==
+        /\  IsComplete
         /\  UNCHANGED << PendingItems, ThreadStates, Queues, Heads, Tails, ProcessedItems >>
 
 Next ==
@@ -288,7 +290,7 @@ SpecWithFairness ==
         /\  WF_vars(Process(thread))
 
 AllItemsGetProcessed ==
-    []<>(ProcessedItemsSet = Items)
+    []<>(IsComplete)
 
 NoItemIsProcessedInDuplicate ==
     Cardinality(DOMAIN(ProcessedItems)) = Cardinality(ProcessedItemsSet)
