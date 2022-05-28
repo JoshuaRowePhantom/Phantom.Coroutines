@@ -310,8 +310,8 @@ Spec ==
 SpecWithFairness ==
     /\  Spec
     /\  \A thread \in Threads :
-        /\  SF_vars(Enqueue_UpdateHead(thread))
-        /\  WF_vars(Enqueue_UpdateQueue(thread))
+        /\  SF_vars(Enqueue_UpdateQueue(thread))
+        /\  WF_vars(Enqueue_UpdateHead(thread))
         /\  WF_vars(Process_DecrementHead(thread))
         /\  WF_vars(Process_ReadTail(thread))
         /\  WF_vars(Process_IncrementHead(thread))
