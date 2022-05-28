@@ -92,7 +92,7 @@ ThreadStatesType == [Threads ->
 QueuesType == [Threads -> Seq(Items)]
 HeadsType == [Threads -> Int]
 TailsType == [Threads -> Nat]
-ProcessedItemsType == Seq(Items)
+ProcessedItemsType == SUBSET Items
 LocksType == [Threads -> BOOLEAN ]
 
 TypeOk ==
@@ -102,8 +102,6 @@ TypeOk ==
     /\  Heads \in HeadsType
     /\  Tails \in TailsType
     /\  ProcessedItems \in ProcessedItemsType
-
-ProcessedItemsSet == { ProcessedItems[index] : index \in DOMAIN(ProcessedItems)}
 
 Lock(thread) ==
     /\  Locks' = [Locks EXCEPT ![thread] = TRUE]
@@ -147,7 +145,7 @@ Init ==
     /\  Queues = [thread \in Threads |-> << >>]
     /\  Heads = [thread \in Threads |-> 0]
     /\  Tails =  [thread \in Threads |-> 0]
-    /\  ProcessedItems = << >>
+    /\  ProcessedItems = { }
     /\  Locks = [thread \in Threads |-> FALSE]
 
 Enqueue_UpdateQueue(thread) ==
@@ -369,13 +367,13 @@ Steal_UpdateHead(stealingThread) ==
 
 Process(thread) ==
         /\  ThreadStates[thread].State = "Process"
-        /\  ProcessedItems' = ProcessedItems \o << ThreadStates[thread].Item >>
+        /\  ProcessedItems' = ProcessedItems \union { ThreadStates[thread].Item }
         /\  GoIdle(thread)
         /\  UNCHANGED << PendingItems, Queues, Heads, Tails, Locks >>
 
 IsComplete ==
         /\  PendingItems = << >>
-        /\  ProcessedItemsSet = Items
+        /\  ProcessedItems = Items
 
 Complete ==
         /\  IsComplete
@@ -433,7 +431,7 @@ AllItemsGetProcessed ==
     []<>(IsComplete)
 
 NoItemIsProcessedInDuplicate ==
-    Cardinality(DOMAIN(ProcessedItems)) = Cardinality(ProcessedItemsSet)
+    [][(\E thread \in Threads : Process(thread)) => ProcessedItems # ProcessedItems']_vars
 
 Alias ==
     [
