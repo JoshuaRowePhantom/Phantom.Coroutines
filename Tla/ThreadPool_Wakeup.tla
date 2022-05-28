@@ -18,7 +18,7 @@ vars == <<
 ThreadStatesType == 
     [Threads ->
         [
-            State : { "Sleeping", "Processing" }
+            State : { "Sleeping", "Processing", "ProcessingItem" }
         ]
     ]
 
@@ -69,8 +69,10 @@ Process(thread) ==
         /\  threadState.State = "Processing"
         /\  Queues[thread] # 0
         /\  Queues' = [Queues EXCEPT ![thread] = Queues[thread] - 1]
-        /\  ProcessedItems' = ProcessedItems + 1
-        /\  UNCHANGED << ThreadStates, PendingItems >>
+        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
+                State |-> "ProcessingItem"
+            ]]
+        /\  UNCHANGED << PendingItems, ProcessedItems >>
 
 Steal(thread) ==
     \E sourceThread \in Threads :
@@ -84,11 +86,23 @@ Steal(thread) ==
                 ![thread] = count - 1,
                 ![sourceThread] = Queues[sourceThread] - count
             ]
+        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
+                State |-> "ProcessingItem"
+            ]]
+        /\  UNCHANGED << ThreadStates, PendingItems, ProcessedItems >>
+
+ProcessItem(thread) ==
+    LET threadState == ThreadStates[thread] IN
+        /\  threadState.State = "ProcessingItem"
+        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
+                State |-> "Processing"
+            ]]
         /\  ProcessedItems' = ProcessedItems + 1
-        /\  UNCHANGED << ThreadStates, PendingItems >>
+        /\  UNCHANGED << Queues, PendingItems >>
 
 Complete ==
     /\  ProcessedItems = Items
+    /\  \A thread \in Threads: ThreadStates[thread].State = "Sleeping"
     /\  UNCHANGED vars
 
 Next ==
@@ -98,6 +112,7 @@ Next ==
         \* \/  Sleep(thread)
         \/  Process(thread)
         \/  Steal(thread)
+        \/  ProcessItem(thread)
         \/  Complete
 
 Spec ==
@@ -109,6 +124,9 @@ SpecWithFairness ==
     /\  \A thread \in Threads :
         /\  WF_vars(Enqueue(thread))
         /\  WF_vars(Process(thread))
+        /\  WF_vars(
+                ProcessItem(thread)
+            )
 
 AllItemsGetProcessed ==
     []<>(ProcessedItems = Items)
