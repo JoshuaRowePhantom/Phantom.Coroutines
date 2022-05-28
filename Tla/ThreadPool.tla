@@ -10,7 +10,8 @@ VARIABLE
     Queues,
     Heads,
     Tails,
-    ProcessedItems
+    ProcessedItems,
+    Locks
 
 vars ==
 <<
@@ -19,13 +20,29 @@ vars ==
     Queues,
     Heads,
     Tails,
-    ProcessedItems
+    ProcessedItems,
+    Locks
 >>
 
 PendingItemsType == Seq(Items)
 ThreadStatesType == [Threads ->  
     [
-        State : { "Idle", "Enqueue_UpdateHead", "Process_IncrementHead", "Process_ReadTail" }
+        State : 
+        { 
+            "Idle",
+            "Enqueue_UpdateHead",
+            "Process_IncrementHead",
+            "Process_ReadTail",
+            "ProcessInLock",
+            "ProcessInLock_DecrementHead",
+            "ProcessInLock_ReadTail",
+            "ProcessInLock_IncrementHead"
+        }
+    ]
+    \union
+    [
+        State : { "Steal_ReadSourceThreadTail" },
+        SourceThread : Threads
     ]
     \union
     [
@@ -76,6 +93,7 @@ QueuesType == [Threads -> Seq(Items)]
 HeadsType == [Threads -> Int]
 TailsType == [Threads -> Nat]
 ProcessedItemsType == Seq(Items)
+LocksType == [Threads -> BOOLEAN ]
 
 TypeOk ==
     /\  PendingItems \in PendingItemsType
@@ -86,6 +104,13 @@ TypeOk ==
     /\  ProcessedItems \in ProcessedItemsType
 
 ProcessedItemsSet == { ProcessedItems[index] : index \in DOMAIN(ProcessedItems)}
+
+Lock(thread) ==
+    /\  Locks' = [Locks EXCEPT ![thread] = TRUE]
+    /\  UNCHANGED << Heads, Tails, Queues, ProcessedItems, PendingItems >>
+
+Unlock(thread) ==
+    /\  Locks' = [Locks EXCEPT ![thread] = FALSE]
 
 RECURSIVE SetToSequence(_)
 SetToSequence(S) ==
@@ -123,33 +148,38 @@ Init ==
     /\  Heads = [thread \in Threads |-> 0]
     /\  Tails =  [thread \in Threads |-> 0]
     /\  ProcessedItems = << >>
+    /\  Locks = [thread \in Threads |-> FALSE]
 
 Enqueue_UpdateQueue(thread) ==
+    LET threadState == ThreadStates[thread] IN
     /\  PendingItems # << >>
-    /\  ThreadStates[thread].State = "Idle"
+    /\  threadState.State = "Idle"
     /\  PendingItems' = Tail(PendingItems)
     /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
             State |-> "Enqueue_UpdateHead"
         ]]
     /\  AddToThreadQueue(thread, Head(PendingItems))
-    /\  UNCHANGED << Heads, Tails, ProcessedItems >>
+    /\  UNCHANGED << Heads, Tails, ProcessedItems, Locks >>
 
 Enqueue_UpdateHead(thread) ==
-        /\  ThreadStates[thread].State = "Enqueue_UpdateHead"
+    LET threadState == ThreadStates[thread] IN
+        /\  threadState.State = "Enqueue_UpdateHead"
         /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [State |-> "Idle"]]
         /\  IncrementHead(thread)
-        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems >>
+        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems, Locks >>
 
 Process_DecrementHead(thread) ==
-        /\  ThreadStates[thread].State = "Idle"
+    LET threadState == ThreadStates[thread] IN
+        /\  threadState.State = "Idle"
         /\  DecrementHead(thread)
         /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
                 State |-> "Process_ReadTail"
             ]]
-        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems >>
+        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems, Locks >>
 
 Process_ReadTail(thread) ==
-        /\  ThreadStates[thread].State = "Process_ReadTail"
+    LET threadState == ThreadStates[thread] IN
+        /\  threadState.State = "Process_ReadTail"
         /\  IF Tails[thread] > Heads[thread]
             THEN
                 /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
@@ -157,26 +187,81 @@ Process_ReadTail(thread) ==
                     ]]
             ELSE
                 /\  StartProcessing(thread, Queues[thread][Heads[thread] + 1])
-        /\  UNCHANGED << PendingItems, Queues, Tails, Heads, ProcessedItems >>
-        
+        /\  UNCHANGED << PendingItems, Queues, Tails, Heads, ProcessedItems, Locks >>
+
 Process_IncrementHead(thread) ==
-        /\  ThreadStates[thread].State = "Process_IncrementHead"
+    LET threadState == ThreadStates[thread] IN
+        /\  threadState.State = "Process_IncrementHead"
         /\  Heads' = [Heads EXCEPT ![thread] = Heads[thread] + 1]
+        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
+                State |-> "ProcessInLock"
+            ]]
+        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems, Locks >>
+
+ProcessInLock(thread) ==
+    LET threadState == ThreadStates[thread] IN
+        /\  threadState.State = "ProcessInLock"
+        /\  Locks[thread] = FALSE
+        /\  Lock(thread)
+        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
+                State |-> "ProcessInLock_DecrementHead"
+            ]]
+        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems >>
+
+ProcessInLock_DecrementHead(thread) ==
+    LET threadState == ThreadStates[thread] IN
+        /\  threadState.State = "ProcessInLock_DecrementHead"
+        /\  DecrementHead(thread)
+        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
+                State |-> "ProcessInLock_ReadTail"
+            ]]
+        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems, Locks >>
+
+ProcessInLock_ReadTail(thread) ==
+    LET threadState == ThreadStates[thread] IN
+        /\  threadState.State = "ProcessInLock_ReadTail"
+        /\  IF Tails[thread] > Heads[thread]
+            THEN
+                /\  UNCHANGED << Locks >>
+                /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
+                        State |-> "ProcessInLock_IncrementHead"
+                    ]]
+            ELSE
+                /\  Unlock(thread)
+                /\  StartProcessing(thread, Queues[thread][Heads[thread] + 1])
+        /\  UNCHANGED << PendingItems, Queues, Tails, Heads, ProcessedItems >>
+
+ProcessInLock_IncrementHead(thread) ==
+    LET threadState == ThreadStates[thread] IN
+        /\  threadState.State = "ProcessInLock_IncrementHead"
+        /\  Heads' = [Heads EXCEPT ![thread] = Heads[thread] + 1]
+        /\  Unlock(thread)
         /\  GoIdle(thread)
         /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems >>
 
-Steal_ReadSourceThreadTail(stealingThread) ==
+Steal_Lock(stealingThread) ==
     \E sourceThread \in Threads :
     LET threadState == ThreadStates[stealingThread] IN
-        /\  stealingThread # sourceThread
         /\  Heads[stealingThread] = Tails[stealingThread]
+        /\  stealingThread # sourceThread
         /\  threadState.State = "Idle"
+        /\  Locks[sourceThread] = FALSE
+        /\  Lock(sourceThread)
         /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
-                State |-> "Steal_ReadSourceThreadHead",
-                SourceThread |-> sourceThread,
-                SourceThreadTail |-> Tails[sourceThread]
+                State |-> "Steal_ReadSourceThreadTail",
+                SourceThread |-> sourceThread
             ]]
         /\  UNCHANGED << PendingItems, Queues, Heads, Tails, ProcessedItems >>
+
+Steal_ReadSourceThreadTail(stealingThread) ==
+    LET threadState == ThreadStates[stealingThread] IN
+        /\  threadState.State = "Steal_ReadSourceThreadTail"
+        /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
+                State |-> "Steal_ReadSourceThreadHead",
+                SourceThread |-> threadState.SourceThread,
+                SourceThreadTail |-> Tails[threadState.SourceThread]
+            ]]
+        /\  UNCHANGED << PendingItems, Queues, Heads, Tails, ProcessedItems, Locks >>
  
 Steal_ReadSourceThreadHead(stealingThread) ==
     LET threadState == ThreadStates[stealingThread] IN
@@ -187,7 +272,7 @@ Steal_ReadSourceThreadHead(stealingThread) ==
                     SourceThreadTail |-> threadState.SourceThreadTail,
                     SourceThreadHead |-> Heads[threadState.SourceThread]
                 ]]
-        /\  UNCHANGED << PendingItems, Queues, Heads, Tails, ProcessedItems >>
+        /\  UNCHANGED << PendingItems, Queues, Heads, Tails, ProcessedItems, Locks >>
 
 Steal_UpdateTail(stealingThread) ==
     LET threadState == ThreadStates[stealingThread] IN
@@ -196,6 +281,7 @@ Steal_UpdateTail(stealingThread) ==
                 /\  Tails[threadState.SourceThread] = threadState.SourceThreadTail
                 /\  \E newTail \in (threadState.SourceThreadTail + 1)..(threadState.SourceThreadHead) : TRUE
             THEN 
+                /\  UNCHANGED << Locks >>
                 /\  \E newTail \in (threadState.SourceThreadTail + 1)..(threadState.SourceThreadHead) :
                     /\  Tails' = [Tails EXCEPT ![threadState.SourceThread] = newTail]
                     /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
@@ -206,6 +292,7 @@ Steal_UpdateTail(stealingThread) ==
                             SourceThreadCopyEnd |-> newTail
                         ]]
             ELSE
+                /\  Unlock(threadState.SourceThread)
                 /\  GoIdle(stealingThread)
                 /\  UNCHANGED << Tails >>
         /\  UNCHANGED << PendingItems, Heads, Queues, ProcessedItems >>
@@ -221,7 +308,7 @@ Steal_RereadHead(stealingThread) ==
                     SourceThreadCopyStart |-> threadState.SourceThreadTail,
                     SourceThreadCopyEnd |-> threadState.SourceThreadCopyEnd
                 ]]
-        /\  UNCHANGED << PendingItems, Heads, Tails, Queues, ProcessedItems >>
+        /\  UNCHANGED << PendingItems, Heads, Tails, Queues, ProcessedItems, Locks >>
 
 Steal_AdjustTail(stealingThread) ==
     LET threadState == ThreadStates[stealingThread] IN
@@ -250,6 +337,7 @@ Steal_AdjustTail(stealingThread) ==
                             SourceThreadCopyStart |-> threadState.SourceThreadTail,
                             SourceThreadCopyEnd |-> threadState.SourceThreadCopyEnd
                         ]]
+        /\  Unlock(threadState.SourceThread)
         /\  UNCHANGED << PendingItems, Heads, Queues, ProcessedItems >>
 
 Steal_Copy(stealingThread) ==
@@ -265,7 +353,7 @@ Steal_Copy(stealingThread) ==
                 ![stealingThread].SourceThreadCopyStart =
                     threadState.SourceThreadCopyStart + 1
             ]
-        /\  UNCHANGED << PendingItems, Heads, Tails, ProcessedItems >>
+        /\  UNCHANGED << PendingItems, Heads, Tails, ProcessedItems, Locks >>
 
 Steal_UpdateHead(stealingThread) ==
     LET threadState == ThreadStates[stealingThread] IN
@@ -277,13 +365,13 @@ Steal_UpdateHead(stealingThread) ==
         /\  StartProcessing(
                 stealingThread,
                 Queues[stealingThread][Heads[stealingThread] + threadState.SourceThreadCopyEnd - threadState.SourceThreadTail])
-        /\  UNCHANGED << PendingItems, Tails, Queues, ProcessedItems >>
+        /\  UNCHANGED << PendingItems, Tails, Queues, ProcessedItems, Locks >>
 
 Process(thread) ==
         /\  ThreadStates[thread].State = "Process"
         /\  ProcessedItems' = ProcessedItems \o << ThreadStates[thread].Item >>
         /\  GoIdle(thread)
-        /\  UNCHANGED << PendingItems, Queues, Heads, Tails >>
+        /\  UNCHANGED << PendingItems, Queues, Heads, Tails, Locks >>
 
 IsComplete ==
         /\  PendingItems = << >>
@@ -291,7 +379,7 @@ IsComplete ==
 
 Complete ==
         /\  IsComplete
-        /\  UNCHANGED << PendingItems, ThreadStates, Queues, Heads, Tails, ProcessedItems >>
+        /\  UNCHANGED << PendingItems, ThreadStates, Queues, Heads, Tails, ProcessedItems, Locks >>
 
 Next ==
     \E thread \in Threads :
@@ -300,6 +388,11 @@ Next ==
         \/  Process_DecrementHead(thread)
         \/  Process_ReadTail(thread)
         \/  Process_IncrementHead(thread)
+        \/  ProcessInLock(thread)
+        \/  ProcessInLock_DecrementHead(thread)
+        \/  ProcessInLock_ReadTail(thread)
+        \/  ProcessInLock_IncrementHead(thread)
+        \/  Steal_Lock(thread)
         \/  Steal_ReadSourceThreadTail(thread)
         \/  Steal_ReadSourceThreadHead(thread)
         \/  Steal_Copy(thread)
@@ -322,6 +415,11 @@ SpecWithFairness ==
         /\  WF_vars(Process_DecrementHead(thread))
         /\  WF_vars(Process_ReadTail(thread))
         /\  WF_vars(Process_IncrementHead(thread))
+        /\  WF_vars(ProcessInLock(thread))
+        /\  WF_vars(ProcessInLock_DecrementHead(thread))
+        /\  WF_vars(ProcessInLock_ReadTail(thread))
+        /\  WF_vars(ProcessInLock_IncrementHead(thread))
+        /\  WF_vars(Steal_ReadSourceThreadTail(thread))
         /\  WF_vars(Steal_ReadSourceThreadHead(thread))
         /\  WF_vars(Steal_Copy(thread))
         /\  WF_vars(Steal_UpdateTail(thread))
