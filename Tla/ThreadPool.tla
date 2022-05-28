@@ -241,6 +241,8 @@ Steal_Lock(stealingThread) ==
     \E sourceThread \in Threads :
     LET threadState == ThreadStates[stealingThread] IN
         /\  Heads[stealingThread] = Tails[stealingThread]
+        \* This line isn't implementable, and is just an optimization for state space
+        /\  Heads[sourceThread] # Tails[sourceThread]
         /\  stealingThread # sourceThread
         /\  threadState.State = "Idle"
         /\  Locks[sourceThread] = FALSE
