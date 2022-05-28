@@ -6,6 +6,4 @@ CONSTANT i1, i2, i3, i4, i5
 
 MC_Threads == {t1, t2, t3}
 MC_Items == {i1, i2, i3, i4, i5}
-
-Symmetry == Permutations(MC_Threads) \union Permutations(MC_Items)
 ====

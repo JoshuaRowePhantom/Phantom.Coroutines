@@ -310,14 +310,15 @@ Spec ==
 SpecWithFairness ==
     /\  Spec
     /\  \A thread \in Threads :
+        /\  SF_vars(Enqueue_UpdateHead(thread))
+        /\  WF_vars(Enqueue_UpdateQueue(thread))
         /\  WF_vars(Process_DecrementHead(thread))
         /\  WF_vars(Process_ReadTail(thread))
         /\  WF_vars(Process_IncrementHead(thread))
         /\  WF_vars(Steal_ReadSourceThreadHead(thread))
         /\  WF_vars(Steal_Copy(thread))
         /\  WF_vars(Steal_UpdateHead(thread))
-        /\  WF_vars(Enqueue_UpdateHead(thread))
-        /\  WF_vars(Enqueue_UpdateQueue(thread))
+        /\  WF_vars(Steal_RereadHead(thread))
         /\  WF_vars(Process(thread))
 
 AllItemsGetProcessed ==
@@ -325,5 +326,22 @@ AllItemsGetProcessed ==
 
 NoItemIsProcessedInDuplicate ==
     Cardinality(DOMAIN(ProcessedItems)) = Cardinality(ProcessedItemsSet)
-         
+
+Alias ==
+    [
+        Heads |-> Heads,
+        Tails |-> Tails,
+        PendingItems |-> PendingItems,
+        ProcessedItems |-> ProcessedItems,
+        Queues |-> Queues,
+        ThreadStates |-> ThreadStates,
+        EnabledActions |-> [
+            thread \in Threads |-> [
+                Enqueue_UpdateHead |-> ENABLED(Enqueue_UpdateHead(thread))
+            ]
+        ]
+    ]       
+
+Symmetry == Permutations(Threads) \union Permutations(Items)
+  
 =============================================================================
