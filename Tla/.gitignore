@@ -1,2 +1,6 @@
 *.toolbox/*/*
 *.toolbox/*SnapShot_*.launch
+states/
+*.toolbox/_Snapshot_*
+*.toolbox/_Snapshot_*/
+*.out
