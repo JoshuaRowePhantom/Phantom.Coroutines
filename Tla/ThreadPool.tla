@@ -11,13 +11,26 @@ that item may enqueue items to the current thread.
 Each thread maintains state:
 * A queue of items, some of which are valid to process
 * A head pointer into the queue
-  The head pointer is only modified by the thread owning the state
+  The head pointer is only modified by the thread owning the state.
 * A tail pointer into the queue
-  The tail pointer is modified by other threads executing Steal operations
+  The tail pointer is modified by other threads executing Steal operations.
 * A mutex
   The mutex is used to resolve conflicts when a thread dequeues and
   another thread attempts a steal.
 
+The purpose behind this algorithm is to reduce the use of interlocked
+operations. Most of the time, a thread can enqueue 
+to itself and dequeue from itself with no interlocked operations. 
+
+When a thread runs out of items, it attempts to steal from another thread.
+When stealing, a thread can steal any quantity of items from the
+source thread, but always processes at least one item without
+enqueuing it locally. This guarantees forward progress, so that
+multiple threads will not repeatedly steal from each other.
+The purpose of stealing multiple items is to reduce the number of
+interlocked operations; if a long-running work item is running
+with many short work items queued behind it, the remaining
+workers will contend on the thread with many items queued.
 *)
 EXTENDS Integers, Sequences, FiniteSets, TLC
 
