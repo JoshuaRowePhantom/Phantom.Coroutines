@@ -215,7 +215,7 @@ class thread_pool_scheduler
 			}
 
 			auto otherHead = other.m_head.load(std::memory_order_relaxed);
-			auto otherTail = other.m_head.load(std::memory_order_relaxed);
+			auto otherTail = other.m_tail.load(std::memory_order_relaxed);
 			if (otherHead <= otherTail)
 			{
 				return coroutine_handle<>{};
@@ -229,7 +229,7 @@ class thread_pool_scheduler
 				}
 
 				otherHead = other.m_head.load(std::memory_order_relaxed);
-				otherTail = other.m_head.load(std::memory_order_relaxed);
+				otherTail = other.m_tail.load(std::memory_order_relaxed);
 				if (otherHead <= otherTail)
 				{
 					return coroutine_handle<>{};
@@ -463,24 +463,41 @@ class thread_pool_scheduler
 		}
 	}
 
+	class awaiter
+	{
+		friend class thread_pool_scheduler;
+		thread_pool_scheduler& m_scheduler;
+
+		awaiter(
+			thread_pool_scheduler& scheduler
+		) : m_scheduler { scheduler }
+		{}
+
+	public:
+		bool await_ready() const noexcept
+		{
+			return false;
+		}
+
+		void await_suspend(
+			std::coroutine_handle<> continuation
+		)
+		{
+			auto threadStatesOperation = m_scheduler.m_threadStatesSection.update();
+			auto& threadState = m_scheduler.get_current_thread_state(threadStatesOperation);
+			threadState->enqueue(continuation);
+			m_scheduler.wake_one_thread(threadStatesOperation);
+		}
+
+		void await_resume() const noexcept
+		{}
+	};
+
 public:
-	bool await_ready() const noexcept
+	awaiter operator co_await() noexcept
 	{
-		return false;
+		return awaiter{ *this };
 	}
-
-	void await_suspend(
-		std::coroutine_handle<> continuation
-	)
-	{
-		auto threadStatesOperation = m_threadStatesSection.update();
-		auto& threadState = get_current_thread_state(threadStatesOperation);
-		threadState->enqueue(continuation);
-		wake_one_thread(threadStatesOperation);
-	}
-
-	void await_resume() const noexcept
-	{}
 
 	void process_items(
 		std::stop_token stopToken
