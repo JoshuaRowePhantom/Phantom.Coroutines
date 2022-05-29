@@ -1,12 +1,34 @@
 ----------------------------- MODULE ThreadPool -----------------------------
+(*
+This module describes an algorithm for enqueuing and dequeuing items
+in a thread pool. 
 
+Items can be enqueued to a thread when it is either Remote or
+Processing another item. Remote threads represent external actors
+enqueuing items to the thread pool. During processing of an item,
+that item may enqueue items to the current thread.
+
+Each thread maintains state:
+* A queue of items, some of which are valid to process
+* A head pointer into the queue
+  The head pointer is only modified by the thread owning the state
+* A tail pointer into the queue
+  The tail pointer is modified by other threads executing Steal operations
+* A mutex
+  The mutex is used to resolve conflicts when a thread dequeues and
+  another thread attempts a steal.
+
+*)
 EXTENDS Integers, Sequences, FiniteSets, TLC
 
 CONSTANT Threads, Items
 
 VARIABLE 
+    \* The sequence of items not-yet-enqueued
     PendingItems,
     ThreadStates,
+    \* A sequence of items that have been enqueued.
+    \* Items may be overwritten in the sequence.
     Queues,
     Heads,
     Tails,
@@ -30,14 +52,27 @@ ThreadStatesType == [Threads ->
         State : 
         { 
             "Idle",
-            "Enqueue_UpdateHead",
-            "Process_IncrementHead",
+            "Remote",
             "Process_ReadTail",
             "ProcessInLock",
-            "ProcessInLock_DecrementHead",
             "ProcessInLock_ReadTail",
             "ProcessInLock_IncrementHead"
         }
+    ]
+    \union
+    [
+        State : {
+            "Enqueue_UpdateHead"
+        },
+        PreviousState : 
+        [
+            State : { "Remote" }
+        ]
+        \union
+        [
+            State : { "Process" },
+            Item : Items
+        ]
     ]
     \union
     [
@@ -132,16 +167,46 @@ StartProcessing(thread, item) ==
 
 AddToThreadQueue(thread, item) ==
     /\  Queues' = [Queues EXCEPT ![thread] = Heads[thread] + 1 :> item @@ Queues[thread]]
+    /\  UNCHANGED << Heads, Tails, Locks >>
 
 IncrementHead(thread) ==
     /\  Heads' = [Heads EXCEPT ![thread] = Heads[thread] + 1]
+    /\  UNCHANGED << Tails, Locks >>
 
 DecrementHead(thread) ==
     /\  Heads' = [Heads EXCEPT ![thread] = Heads[thread] - 1]
+    /\  UNCHANGED << Tails, Locks >>
+
+\* Choose subsets of threads for each cardinality from 1..Threads-1
+\* These sets of threads are used as RemoteThreads.
+RemoteThreadsSets ==
+    {
+        CHOOSE threadSet \in SUBSET Threads :
+            Cardinality(threadSet) = count
+        :
+        count \in 1..Cardinality(Threads)-1
+    }
+
+InitialThreadStatesSets ==
+    {
+        [
+            thread \in remoteThreadsSet |-> [
+                State |-> "Remote"
+            ]
+        ]
+        @@
+        [ 
+            thread \in Threads |-> [ 
+                State |-> "Idle"
+            ]
+        ]
+        :
+        remoteThreadsSet \in RemoteThreadsSets
+    }
 
 Init ==
     /\  PendingItems = SetToSequence(Items)
-    /\  ThreadStates = [thread \in Threads |-> [State |-> "Idle"]]
+    /\  ThreadStates \in InitialThreadStatesSets
     /\  Queues = [thread \in Threads |-> << >>]
     /\  Heads = [thread \in Threads |-> 0]
     /\  Tails =  [thread \in Threads |-> 0]
@@ -151,10 +216,11 @@ Init ==
 Enqueue_UpdateQueue(thread) ==
     LET threadState == ThreadStates[thread] IN
     /\  PendingItems # << >>
-    /\  threadState.State = "Idle"
+    /\  threadState.State \in { "Remote", "Process" }
     /\  PendingItems' = Tail(PendingItems)
     /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
-            State |-> "Enqueue_UpdateHead"
+            State |-> "Enqueue_UpdateHead",
+            PreviousState |-> threadState
         ]]
     /\  AddToThreadQueue(thread, Head(PendingItems))
     /\  UNCHANGED << Heads, Tails, ProcessedItems, Locks >>
@@ -162,7 +228,7 @@ Enqueue_UpdateQueue(thread) ==
 Enqueue_UpdateHead(thread) ==
     LET threadState == ThreadStates[thread] IN
         /\  threadState.State = "Enqueue_UpdateHead"
-        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [State |-> "Idle"]]
+        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = threadState.PreviousState]
         /\  IncrementHead(thread)
         /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems, Locks >>
 
@@ -180,21 +246,15 @@ Process_ReadTail(thread) ==
         /\  threadState.State = "Process_ReadTail"
         /\  IF Tails[thread] > Heads[thread]
             THEN
+                \* There is a conflict with a Steal operation.
+                \* To resolve the conflict, we acquire the lock
+                \* and then continue.
                 /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
-                        State |-> "Process_IncrementHead"
+                        State |-> "ProcessInLock"
                     ]]
             ELSE
                 /\  StartProcessing(thread, Queues[thread][Heads[thread] + 1])
         /\  UNCHANGED << PendingItems, Queues, Tails, Heads, ProcessedItems, Locks >>
-
-Process_IncrementHead(thread) ==
-    LET threadState == ThreadStates[thread] IN
-        /\  threadState.State = "Process_IncrementHead"
-        /\  Heads' = [Heads EXCEPT ![thread] = Heads[thread] + 1]
-        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
-                State |-> "ProcessInLock"
-            ]]
-        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems, Locks >>
 
 ProcessInLock(thread) ==
     LET threadState == ThreadStates[thread] IN
@@ -202,18 +262,9 @@ ProcessInLock(thread) ==
         /\  Locks[thread] = FALSE
         /\  Lock(thread)
         /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
-                State |-> "ProcessInLock_DecrementHead"
-            ]]
-        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems >>
-
-ProcessInLock_DecrementHead(thread) ==
-    LET threadState == ThreadStates[thread] IN
-        /\  threadState.State = "ProcessInLock_DecrementHead"
-        /\  DecrementHead(thread)
-        /\  ThreadStates' = [ThreadStates EXCEPT ![thread] = [
                 State |-> "ProcessInLock_ReadTail"
             ]]
-        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems, Locks >>
+        /\  UNCHANGED << PendingItems, Queues, Tails, ProcessedItems >>
 
 ProcessInLock_ReadTail(thread) ==
     LET threadState == ThreadStates[thread] IN
@@ -387,9 +438,7 @@ Next ==
         \/  Enqueue_UpdateHead(thread)
         \/  Process_DecrementHead(thread)
         \/  Process_ReadTail(thread)
-        \/  Process_IncrementHead(thread)
         \/  ProcessInLock(thread)
-        \/  ProcessInLock_DecrementHead(thread)
         \/  ProcessInLock_ReadTail(thread)
         \/  ProcessInLock_IncrementHead(thread)
         \/  Steal_Lock(thread)
@@ -414,9 +463,7 @@ SpecWithFairness ==
         /\  WF_vars(Enqueue_UpdateHead(thread))
         /\  WF_vars(Process_DecrementHead(thread))
         /\  WF_vars(Process_ReadTail(thread))
-        /\  WF_vars(Process_IncrementHead(thread))
         /\  WF_vars(ProcessInLock(thread))
-        /\  WF_vars(ProcessInLock_DecrementHead(thread))
         /\  WF_vars(ProcessInLock_ReadTail(thread))
         /\  WF_vars(ProcessInLock_IncrementHead(thread))
         /\  WF_vars(Steal_ReadSourceThreadTail(thread))
