@@ -23,6 +23,7 @@ operations. Most of the time, a thread can enqueue
 to itself and dequeue from itself with no interlocked operations. 
 
 When a thread runs out of items, it attempts to steal from another thread.
+Stealing requires a lock. 
 When stealing, a thread can steal any quantity of items from the
 source thread, but always processes at least one item without
 enqueuing it locally. This guarantees forward progress, so that
@@ -31,6 +32,8 @@ The purpose of stealing multiple items is to reduce the number of
 interlocked operations; if a long-running work item is running
 with many short work items queued behind it, the remaining
 workers will contend on the thread with many items queued.
+The actual copying of items from the source thread does not require a lock,
+only the adjusting of head and tail pointers.
 *)
 EXTENDS Integers, Sequences, FiniteSets, TLC
 
