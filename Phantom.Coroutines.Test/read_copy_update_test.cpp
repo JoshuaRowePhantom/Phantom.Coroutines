@@ -69,6 +69,17 @@ TEST(read_copy_update_test, can_read_new_value_after_exchange)
 	ASSERT_EQ(operation.value(), "hello world 2");
 }
 
+TEST(read_copy_update_test, can_refresh_to_read_new_value)
+{
+	read_copy_update_section<const std::string> section("hello world 1");
+
+	auto operation = section.update();
+	section.emplace("hello world 2");
+	ASSERT_EQ(operation.value(), "hello world 1");
+	operation.refresh();
+	ASSERT_EQ(operation.value(), "hello world 2");
+}
+
 TEST(read_copy_update_test, can_read_written_value)
 {
 	read_copy_update_section<std::string> section("hello world 1");

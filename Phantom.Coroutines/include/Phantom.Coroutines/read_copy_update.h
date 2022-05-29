@@ -3,7 +3,6 @@
 #include <atomic>
 #include <concepts>
 #include <memory>
-#include <ranges>
 #include <thread>
 #include <unordered_map>
 #include "detail/assert_same_thread.h"
@@ -75,15 +74,51 @@ private immovable_object
 			:
 			m_section{ section }
 		{
+			refresh();
+		}
+
+		~operation()
+		{
+			if (m_threadLocalSoftOperationsEntry != m_threadLocalSoftOperations.end())
+			{
+				m_threadLocalSoftOperations.erase(
+					m_threadLocalSoftOperationsEntry);
+			}
+		}
+
+	public:
+		Value& value()
+		{
+			check_thread();
+			return m_valueHolderSoftReference->m_value;
+		}
+
+		// Read the value of the read_copy_update_section as
+		// of the time the operation was started.
+		Value* operator->()
+		{
+			return &value();
+		}
+
+		// Read the value of the read_copy_update_section as
+		// of the time the operation was started.
+		Value& operator*()
+		{
+			return value();
+		}
+
+		// Refresh the value to the latest stored in the section.
+		void refresh()
+		{
 			// We explicitly don't use try_emplace here
 			// so that we don't incur the expensive shared_ptr load operation
 			// at m_value.load
-			auto threadValueMapEntry = m_threadLocalValues.find(&section);
+			auto threadValueMapEntry = m_threadLocalValues.find(&m_section);
 
 			if (threadValueMapEntry == m_threadLocalValues.end())
 			{
 				threadValueMapEntry = m_threadLocalValues.insert(std::make_pair(
-					&section,
+					&m_section,
 					m_section.m_value.load(
 						std::memory_order_acquire
 					)))
@@ -115,27 +150,12 @@ private immovable_object
 			}
 
 			m_valueHolderSoftReference = threadValueMapEntry->second.get();
+			m_valueHolderHardReference = nullptr;
 			m_threadLocalSoftOperationsEntry = m_threadLocalSoftOperations.insert(
 				std::make_pair(
 					m_valueHolderSoftReference,
 					this
 				));
-		}
-
-		~operation()
-		{
-			if (m_threadLocalSoftOperationsEntry != m_threadLocalSoftOperations.end())
-			{
-				m_threadLocalSoftOperations.erase(
-					m_threadLocalSoftOperationsEntry);
-			}
-		}
-
-	public:
-		Value& value()
-		{
-			check_thread();
-			return m_valueHolderSoftReference->m_value;
 		}
 	};
 
@@ -143,7 +163,7 @@ public:
 
 	class read_operation
 		:
-		private operation
+	public operation
 	{
 	public:
 		read_operation(
@@ -152,26 +172,11 @@ public:
 			operation{ const_cast<read_copy_update_section&>(section) }
 		{}
 
-		using operation::value;
-
-		// Read the value of the read_copy_update_section as
-		// of the time the operation was started.
-		Value* operator->()
-		{
-			return &value();
-		}
-
-		// Read the value of the read_copy_update_section as
-		// of the time the operation was started.
-		Value& operator*()
-		{
-			return value();
-		}
 	};
 
 	class update_operation
 		:
-		private operation
+	public read_operation
 	{
 		value_holder_ptr m_replacementValueHolder = nullptr;
 
@@ -179,10 +184,8 @@ public:
 		update_operation(
 			read_copy_update_section& section
 		) :
-			operation{ section }
+			read_operation{ section }
 		{}
-
-		using operation::value;
 
 		// Set the value to replace with.
 		decltype(auto) operator=(
@@ -330,6 +333,14 @@ public:
 	[[nodiscard]] read_operation operator->() const
 	{
 		return read();
+	}
+
+	// Read the current value stored in the section.
+	// The value is only valid for the duration
+	// of the expression.
+	[[nodiscard]] Value& operator*()
+	{
+		return *read();
 	}
 
 	// Read the current value stored in the section.
