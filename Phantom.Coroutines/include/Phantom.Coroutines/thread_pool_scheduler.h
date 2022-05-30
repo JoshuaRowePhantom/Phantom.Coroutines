@@ -158,15 +158,13 @@ class thread_pool_scheduler
 		[[nodiscard]] bool try_wake()
 		{
 			bool isSleeping = m_isSleeping.load(std::memory_order_acquire);
-			bool result = isSleeping && m_isSleeping.compare_exchange_strong(
-				isSleeping,
+			bool result = isSleeping && m_isSleeping.exchange(
 				false,
-				std::memory_order_release,
-				std::memory_order_relaxed
+				std::memory_order_release
 			);
 			if (result)
 			{
-				m_isSleeping.notify_one();
+				m_isSleeping.notify_all();
 			}
 			return result;
 		}
@@ -177,7 +175,7 @@ class thread_pool_scheduler
 			// Special case, since head is unsigned
 			if (head == 0) { return coroutine_handle<>{}; }
 			head--;
-			m_head.store(head, std::memory_order_release);
+			m_head.store(head, std::memory_order_relaxed);
 
 			auto tail = m_tail.load(std::memory_order_acquire);
 			if (tail > head)
@@ -187,7 +185,7 @@ class thread_pool_scheduler
 				if (tail > head)
 				{
 					head++;
-					m_head.store(head, std::memory_order_release);
+					m_head.store(head, std::memory_order_relaxed);
 					return coroutine_handle<>{};
 				}
 			}
@@ -253,12 +251,13 @@ class thread_pool_scheduler
 			auto newOtherHead = other.m_head.load(std::memory_order_acquire);
 			if (newOtherHead <= otherTail)
 			{
-				// We have to give back all the items.
+				// We have to give back all the items, and do not process anything.
 				other.m_tail.store(otherTail, std::memory_order_release);
 				other.m_outstandingCopyOperationCount.fetch_sub(
 					sizeToSteal,
 					std::memory_order_relaxed
 				);
+				return std::coroutine_handle<>{};
 			} else if (newOtherHead < otherTail + sizeToSteal)
 			{
 				// We have to give back some of the items.
@@ -294,9 +293,11 @@ class thread_pool_scheduler
 				(*thisQueueOperation)[head + itemCounter] = (*otherQueueOperation)[otherTail + itemCounter];
 			}
 			m_head.store(newHead, std::memory_order_release);
-
-			// Now return the item we guarantee to process.
-			return (*otherQueueOperation)[otherTail + sizeToSteal - 1];
+			auto itemToProcess = (*otherQueueOperation)[otherTail + sizeToSteal - 1];
+			
+			other.m_outstandingCopyOperationCount.fetch_sub(sizeToSteal, std::memory_order_relaxed);
+			
+			return itemToProcess;
 		}
 
 		coroutine_handle<> acquire_remote_item()
@@ -341,8 +342,14 @@ class thread_pool_scheduler
 			}
 		}
 		
-		void sleep()
+		void sleep(
+			std::stop_token& stopToken
+		)
 		{
+			if (stopToken.stop_requested())
+			{
+				return;
+			}
 			m_isSleeping.wait(false, std::memory_order_relaxed);
 		}
 
@@ -361,7 +368,8 @@ class thread_pool_scheduler
 				stopToken,
 				[this]
 				{
-					remove_intent_to_sleep();
+					m_isSleeping.exchange(false);
+					m_isSleeping.notify_all();
 				}
 			};
 
@@ -378,7 +386,8 @@ class thread_pool_scheduler
 					routine = acquire_remote_item();
 					if (!routine)
 					{
-						sleep();
+						sleep(
+							stopToken);
 					}
 					remove_intent_to_sleep();
 				}

@@ -41,3 +41,25 @@ TEST(thread_pool_scheduler_test, schedules_on_different_thread)
 		}());
 	sync_wait(scope.join());
 }
+
+TEST(thread_pool_scheduler_test, do_many_work_items)
+{
+	int numberOfItems = 1000;
+	std::vector<std::atomic<bool>> completedItems(numberOfItems);
+
+	static_thread_pool scheduler(
+		std::thread::hardware_concurrency()
+	);
+	async_scope scope;
+
+	for (size_t counter = 0; counter < numberOfItems; counter++)
+	{
+		scope.spawn([&, counter]()->task<>
+			{
+				co_await scheduler;
+				completedItems[counter].store(true, std::memory_order_relaxed);
+			}());
+	}
+
+	sync_wait(scope.join());
+}
