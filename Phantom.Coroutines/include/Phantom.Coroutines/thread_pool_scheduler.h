@@ -274,7 +274,7 @@ class thread_pool_scheduler
 			// We've reserved enough space in the queue via m_outstandingCopyOperationCount that
 			// we can start a read only queue operation in the source to copy the items
 			// into our queue.
-			lock.release();
+			lock.unlock();
 
 			auto otherQueueOperation = other.m_queueReadCopyUpdateSection.read();
 			auto thisQueueOperation = m_queueReadCopyUpdateSection.update();
