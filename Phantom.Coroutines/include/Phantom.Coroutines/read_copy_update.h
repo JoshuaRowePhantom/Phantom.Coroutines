@@ -74,10 +74,16 @@ private immovable_object
 			:
 			m_section{ section }
 		{
+			m_threadLocalSoftOperationsEntry = m_threadLocalSoftOperations.end();
 			refresh();
 		}
 
 		~operation()
+		{
+			remove_from_thread_local_soft_operations_map();
+		}
+
+		void remove_from_thread_local_soft_operations_map()
 		{
 			if (m_threadLocalSoftOperationsEntry != m_threadLocalSoftOperations.end())
 			{
@@ -85,7 +91,6 @@ private immovable_object
 					m_threadLocalSoftOperationsEntry);
 			}
 		}
-
 	public:
 		Value& value()
 		{
@@ -110,6 +115,8 @@ private immovable_object
 		// Refresh the value to the latest stored in the section.
 		void refresh()
 		{
+			remove_from_thread_local_soft_operations_map();
+
 			// We explicitly don't use try_emplace here
 			// so that we don't incur the expensive shared_ptr load operation
 			// at m_value.load
