@@ -25,13 +25,24 @@ class thread_pool_scheduler
 		class queue
 		{
 			std::vector<std::coroutine_handle<>> m_continuations;
-			size_t m_startIndex;
+			size_t m_mask;
+
+			void resize(
+				size_t size
+			)
+			{
+				m_continuations.resize(
+					std::bit_ceil(size)
+				);
+				m_mask = m_continuations.size() - 1;
+			}
+
 		public:
 			queue(
-				size_t size = 1024
-			) : m_startIndex{ 0 }
+				size_t size = 16
+			)
 			{
-				m_continuations.resize(size);
+				resize(size);
 			}
 
 			size_t size()
@@ -41,18 +52,18 @@ class thread_pool_scheduler
 
 			coroutine_handle<>& operator[](size_t index)
 			{
-				return m_continuations[(index - m_startIndex) % m_continuations.size()];
+				return m_continuations[index & m_mask];
 			}
 			
 			queue grow(
 				size_t requiredSize,
-				size_t tail,
-				size_t head
+				size_t outstandingCopyOperationCount,
+				size_t currentTail,
+				size_t currentHead
 			)
 			{
-				queue result(requiredSize * 2);
-				result.m_startIndex = tail;
-				for (auto index = tail; index < head; index++)
+				queue result(requiredSize);
+				for (auto index = currentTail - outstandingCopyOperationCount; index != currentHead; index++)
 				{
 					result[index] = (*this)[index];
 				}
@@ -122,14 +133,14 @@ class thread_pool_scheduler
 				queueOperation.emplace(
 					queueOperation.value().grow(
 						requiredSize,
-						tail - outstandingCopyOperationCount,
+						outstandingCopyOperationCount,
+						tail,
 						m_head.load(std::memory_order_relaxed)
 					)
 				);
 				queueOperation.exchange();
 			}
 
-			// Reserve 1 for the temporary item that processing an item locally requires.
 			m_reservedHead = tail - outstandingCopyOperationCount + queueOperation->size();
 		}
 
@@ -193,8 +204,10 @@ class thread_pool_scheduler
 				}
 			}
 
-			auto coroutine = (*m_queueReadCopyUpdateSection)[head];
-			
+			auto coroutine = copy_and_invalidate(
+				(*m_queueReadCopyUpdateSection)[head]
+			);
+
 			return coroutine;
 		}
 
@@ -293,11 +306,11 @@ class thread_pool_scheduler
 
 			for (auto itemCounter = 0; itemCounter < (sizeToSteal - 1); itemCounter++)
 			{
-				(*thisQueueOperation)[head + itemCounter] = (*otherQueueOperation)[otherTail + itemCounter];
+				(*thisQueueOperation)[head + itemCounter] = copy_and_invalidate((*otherQueueOperation)[otherTail + itemCounter]);
 			}
 			m_head.store(newHead, std::memory_order_release);
-			auto itemToProcess = (*otherQueueOperation)[otherTail + sizeToSteal - 1];
-			
+			auto itemToProcess = copy_and_invalidate((*otherQueueOperation)[otherTail + sizeToSteal - 1]);
+
 			other.m_outstandingCopyOperationCount.fetch_sub(sizeToSteal, std::memory_order_relaxed);
 			
 			return itemToProcess;
@@ -439,6 +452,16 @@ class thread_pool_scheduler
 		)->second;
 	}
 
+	void await_suspend(
+		std::coroutine_handle<> continuation
+	)
+	{
+		auto threadStatesOperation = m_threadStatesSection.update();
+		auto& threadState = get_current_thread_state(threadStatesOperation);
+		threadState->enqueue(continuation);
+		wake_one_thread(threadStatesOperation);
+	}
+
 	void wake_one_thread(
 		thread_states_read_operation_type& threadStatesOperation,
 		thread_state* preferredThread = nullptr
@@ -497,10 +520,7 @@ class thread_pool_scheduler
 			std::coroutine_handle<> continuation
 		)
 		{
-			auto threadStatesOperation = m_scheduler.m_threadStatesSection.update();
-			auto& threadState = m_scheduler.get_current_thread_state(threadStatesOperation);
-			threadState->enqueue(continuation);
-			m_scheduler.wake_one_thread(threadStatesOperation);
+			m_scheduler.await_suspend(continuation);
 		}
 
 		void await_resume() const noexcept

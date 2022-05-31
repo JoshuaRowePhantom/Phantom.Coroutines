@@ -48,7 +48,8 @@ TEST(thread_pool_scheduler_test, do_many_work_items)
 	int numberOfItems = 1000;
 	std::vector<std::thread::id> completedItems(numberOfItems);
 
-	auto threadCount = std::thread::hardware_concurrency();
+	auto threadCount = 1ULL;
+	//auto threadCount = std::thread::hardware_concurrency();
 	static_thread_pool scheduler(
 		threadCount
 	);
@@ -56,12 +57,12 @@ TEST(thread_pool_scheduler_test, do_many_work_items)
 
 	for (size_t counter = 0; counter < numberOfItems; counter++)
 	{
-		scope.spawn([&, counter]()->task<>
+		scope.spawn([&](size_t counter)->task<>
 			{
 				co_await scheduler;
 				EXPECT_EQ(completedItems[counter], std::thread::id{});
 				completedItems[counter] = std::this_thread::get_id();
-			}());
+			}(counter));
 	}
 
 	sync_wait(scope.join());
@@ -73,7 +74,7 @@ TEST(thread_pool_scheduler_test, do_many_work_items)
 	}
 
 	// Asserts that all items were completed.
-	ASSERT_EQ(0, completedItemsByThreadId[std::thread::id{}]);
+	ASSERT_EQ(false, completedItemsByThreadId.contains(std::thread::id{}));
 
 	// Asserts that all threads completed an item.
 	ASSERT_EQ(threadCount, completedItemsByThreadId.size());
