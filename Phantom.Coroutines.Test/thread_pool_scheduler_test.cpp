@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "async_test.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
@@ -45,10 +46,11 @@ TEST(thread_pool_scheduler_test, schedules_on_different_thread)
 TEST(thread_pool_scheduler_test, do_many_work_items)
 {
 	int numberOfItems = 1000;
-	std::vector<std::atomic<bool>> completedItems(numberOfItems);
+	std::vector<std::thread::id> completedItems(numberOfItems);
 
+	auto threadCount = std::thread::hardware_concurrency();
 	static_thread_pool scheduler(
-		std::thread::hardware_concurrency()
+		threadCount
 	);
 	async_scope scope;
 
@@ -57,9 +59,22 @@ TEST(thread_pool_scheduler_test, do_many_work_items)
 		scope.spawn([&, counter]()->task<>
 			{
 				co_await scheduler;
-				completedItems[counter].store(true, std::memory_order_relaxed);
+				EXPECT_EQ(completedItems[counter], std::thread::id{});
+				completedItems[counter] = std::this_thread::get_id();
 			}());
 	}
 
 	sync_wait(scope.join());
+
+	std::map<std::thread::id, size_t> completedItemsByThreadId;
+	for (auto threadId : completedItems)
+	{
+		completedItemsByThreadId[threadId]++;
+	}
+
+	// Asserts that all items were completed.
+	ASSERT_EQ(0, completedItemsByThreadId[std::thread::id{}]);
+
+	// Asserts that all threads completed an item.
+	ASSERT_EQ(threadCount, completedItemsByThreadId.size());
 }
