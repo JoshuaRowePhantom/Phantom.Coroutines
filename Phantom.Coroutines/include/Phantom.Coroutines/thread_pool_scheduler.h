@@ -350,7 +350,9 @@ class thread_pool_scheduler
 			{
 				return;
 			}
-			m_isSleeping.wait(false, std::memory_order_relaxed);
+			m_isSleeping.wait(
+				true, 
+				std::memory_order_acquire);
 		}
 
 		void remove_intent_to_sleep()
@@ -368,7 +370,7 @@ class thread_pool_scheduler
 				stopToken,
 				[this]
 				{
-					m_isSleeping.exchange(false);
+					m_isSleeping.exchange(false, std::memory_order_release);
 					m_isSleeping.notify_all();
 				}
 			};
