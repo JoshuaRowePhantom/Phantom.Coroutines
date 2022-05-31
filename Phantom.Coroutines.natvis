@@ -122,5 +122,46 @@
 		</Expand>
 
 	</Type>
-	
+
+	<Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;">
+		<DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
+		<Expand>
+			<Item Name="current value">
+				m_valueHolderSoftReference->m_value
+			</Item>
+		</Expand>
+	</Type>
+
+	<Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;::update_operation">
+		<DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
+		<Expand>
+			<Item Name="current value">
+				m_valueHolderSoftReference->m_value
+			</Item>
+			<Item Name="replacement value">
+				m_replacementValueHolder._Ptr->m_value
+			</Item>
+		</Expand>
+	</Type>
+
+	<Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;::read_operation">
+		<DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
+		<Expand>
+			<Item Name="current value">
+				m_valueHolderSoftReference->m_value
+			</Item>
+		</Expand>
+	</Type>
+
+	<Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;::write_operation">
+		<DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
+		<Expand>
+			<Item Name="current value">
+				m_valueHolderSoftReference->m_value
+			</Item>
+			<Item Name="replacement value">
+				*m_replacementValueHolder._Ptr->m_value
+			</Item>
+		</Expand>
+	</Type>
 </AutoVisualizer>
