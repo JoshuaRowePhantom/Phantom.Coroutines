@@ -214,26 +214,25 @@ class thread_pool_scheduler
 			auto head = m_head.load(std::memory_order_relaxed);
 			// Special case, since head is unsigned
 			if (head == 0) { return coroutine_handle<>{}; }
-			head--;
-			m_head.store(head, std::memory_order_relaxed);
+			auto newHead = head - 1;
+			m_head.store(newHead, std::memory_order_release);
 
 			auto tail = m_tail.load(std::memory_order_acquire);
-			if (tail > head)
+			if (tail > newHead)
 			{
 				std::scoped_lock lock{ m_mutex };
 				tail = m_tail.load(std::memory_order_acquire);
-				if (tail > head)
+				if (tail > newHead)
 				{
-					head++;
-					m_head.store(head, std::memory_order_relaxed);
+					m_head.store(head, std::memory_order_release);
 					return coroutine_handle<>{};
 				}
 			}
 
 			auto coroutine = copy_and_invalidate(
-				(*m_queueReadCopyUpdateSection)[head]
+				(*m_queueReadCopyUpdateSection)[newHead]
 			);
-
+			assert_is_valid(coroutine);
 			return coroutine;
 		}
 
@@ -248,14 +247,20 @@ class thread_pool_scheduler
 			steal_mode stealMode
 		)
 		{
+			// We can't steal from ourselves!
+			if (&other == this)
+			{
+				return coroutine_handle<>{};
+			}
+
 			std::unique_lock lock{ other.m_mutex, std::defer_lock };
 			if (stealMode == steal_mode::Precise)
 			{
 				lock.lock();
 			}
 
-			auto otherHead = other.m_head.load(std::memory_order_relaxed);
-			auto otherTail = other.m_tail.load(std::memory_order_relaxed);
+			auto otherTail = other.m_tail.load(std::memory_order_acquire);
+			auto otherHead = other.m_head.load(std::memory_order_acquire);
 			if (otherHead <= otherTail)
 			{
 				return coroutine_handle<>{};
@@ -268,22 +273,23 @@ class thread_pool_scheduler
 					return coroutine_handle<>{};
 				}
 
-				otherHead = other.m_head.load(std::memory_order_relaxed);
-				otherTail = other.m_tail.load(std::memory_order_relaxed);
+				otherHead = other.m_head.load(std::memory_order_acquire);
+				otherTail = other.m_tail.load(std::memory_order_acquire);
 				if (otherHead <= otherTail)
 				{
 					return coroutine_handle<>{};
 				}
 			}
 
-			// We are here, that means we can legitemately steal.
+			// We are here, that means we can legitimately steal.
 			// We steal half (rounded up) of the items in the source thread.
 			size_t sizeToSteal = (otherHead - otherTail + 1) / 2;
 			other.m_outstandingCopyOperationCount.fetch_add(
 				sizeToSteal,
 				std::memory_order_relaxed
 			);
-			other.m_tail.store(otherTail + sizeToSteal, std::memory_order_release);
+			auto newOtherTail = otherTail + sizeToSteal;
+			other.m_tail.store(newOtherTail, std::memory_order_release);
 
 			// It's possible that acquire_local_item has raced with this method,
 			// and the other's head is now lower than the tail we published.
@@ -295,19 +301,27 @@ class thread_pool_scheduler
 			{
 				// We have to give back all the items, and do not process anything.
 				other.m_tail.store(otherTail, std::memory_order_release);
+				
+				// As the new value is strictly smaller than the old value, this can be "relaxed".
 				other.m_outstandingCopyOperationCount.fetch_sub(
 					sizeToSteal,
 					std::memory_order_relaxed
 				);
+
 				return std::coroutine_handle<>{};
-			} else if (newOtherHead < otherTail + sizeToSteal)
+			} else if (newOtherHead < newOtherTail)
 			{
 				// We have to give back some of the items.
 				// We'll again target taking 1/2 of the items in the queue, rounded up.
 				auto newSizeToSteal = (newOtherHead - otherTail + 1) / 2;
 				auto countToGiveBack = sizeToSteal - newSizeToSteal;
-				other.m_tail.store(otherTail + newSizeToSteal, std::memory_order_release);
+				newOtherTail = otherTail + newSizeToSteal;
+				
+				other.m_tail.store(newOtherTail, std::memory_order_release);
+
+				// As the new value is strictly smaller than the old value, this can be "relaxed".
 				other.m_outstandingCopyOperationCount.fetch_sub(countToGiveBack, std::memory_order_relaxed);
+
 				sizeToSteal = newSizeToSteal;
 			}
 
@@ -317,6 +331,8 @@ class thread_pool_scheduler
 			// into our queue.
 			lock.unlock();
 
+			// It's important to grab the otherQueueOperation -after- we have acquired other.m_head,
+			// as other.m_head releases the queue update operation.
 			auto otherQueueOperation = other.m_queueReadCopyUpdateSection.read();
 			auto thisQueueOperation = m_queueReadCopyUpdateSection.update();
 
@@ -332,11 +348,20 @@ class thread_pool_scheduler
 
 			for (auto itemCounter = 0; itemCounter < (sizeToSteal - 1); itemCounter++)
 			{
-				(*thisQueueOperation)[head + itemCounter] = copy_and_invalidate((*otherQueueOperation)[otherTail + itemCounter]);
-			}
-			m_head.store(newHead, std::memory_order_release);
-			auto itemToProcess = copy_and_invalidate((*otherQueueOperation)[otherTail + sizeToSteal - 1]);
+				auto coroutine = copy_and_invalidate((*otherQueueOperation)[otherTail + itemCounter]);
 
+				assert_is_valid(coroutine);
+
+				(*thisQueueOperation)[head + itemCounter] = coroutine;
+			}
+
+			// This releases all the copy operations done above.
+			m_head.store(newHead, std::memory_order_release);
+
+			auto itemToProcess = copy_and_invalidate((*otherQueueOperation)[otherTail + sizeToSteal - 1]);
+			assert_is_valid(itemToProcess);
+
+			// Need not be release, as the value will be strictly smaller than what it was before.
 			other.m_outstandingCopyOperationCount.fetch_sub(sizeToSteal, std::memory_order_relaxed);
 			
 			return itemToProcess;
@@ -519,6 +544,13 @@ class thread_pool_scheduler
 		)->second;
 	}
 
+	std::shared_ptr<thread_state> get_current_thread_state()
+	{
+		auto threadStatesOperation = m_threadStatesSection.update();
+		auto threadState = get_current_thread_state(threadStatesOperation);
+		return threadState;
+	}
+
 	void await_suspend(
 		std::coroutine_handle<> continuation
 	)
@@ -604,8 +636,7 @@ public:
 		std::stop_token stopToken
 	)
 	{
-		auto threadStatesOperation = m_threadStatesSection.update();
-		auto threadState = get_current_thread_state(threadStatesOperation);
+		auto threadState = get_current_thread_state();
 		threadState->process_items(
 			stopToken
 		);
