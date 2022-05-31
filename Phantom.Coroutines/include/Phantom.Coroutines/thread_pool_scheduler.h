@@ -158,15 +158,18 @@ class thread_pool_scheduler
 		[[nodiscard]] bool try_wake()
 		{
 			bool isSleeping = m_isSleeping.load(std::memory_order_acquire);
-			bool result = isSleeping && m_isSleeping.exchange(
+			
+			bool doWakeThread = isSleeping && m_isSleeping.exchange(
 				false,
 				std::memory_order_release
 			);
-			if (result)
+			
+			if (doWakeThread)
 			{
 				m_isSleeping.notify_all();
 			}
-			return result;
+
+			return doWakeThread;
 		}
 
 		coroutine_handle<> acquire_local_item()
