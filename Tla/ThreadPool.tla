@@ -310,8 +310,6 @@ Steal_Lock(stealingThread) ==
         /\  threadState.State = "Idle"
         /\  stealingThread # sourceThread
         /\  Heads[stealingThread] = Tails[stealingThread]
-        \* This line isn't implementable, and is just an optimization for state space
-        /\  Heads[sourceThread] # Tails[sourceThread]
         /\  Locks[sourceThread] = FALSE
         /\  Lock(sourceThread)
         /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
@@ -345,7 +343,6 @@ Steal_UpdateTail(stealingThread) ==
     LET threadState == ThreadStates[stealingThread] IN
         /\  threadState.State = "Steal_UpdateTail"
         /\  IF 
-                /\  Tails[threadState.SourceThread] = threadState.SourceThreadTail
                 /\  \E newTail \in (threadState.SourceThreadTail + 1)..(threadState.SourceThreadHead) : TRUE
             THEN 
                 /\  UNCHANGED << Locks >>
@@ -380,21 +377,20 @@ Steal_RereadHead(stealingThread) ==
 Steal_AdjustTail(stealingThread) ==
     LET threadState == ThreadStates[stealingThread] IN
         /\  threadState.State = "Steal_AdjustTail"
-        /\  IF threadState.SourceThreadHead < threadState.SourceThreadCopyEnd
+        /\  IF threadState.SourceThreadHead <= threadState.SourceThreadTail
             THEN
-                /\  IF threadState.SourceThreadHead <= threadState.SourceThreadTail
-                    THEN
-                        /\  Tails' = [Tails EXCEPT ![threadState.SourceThread] = threadState.SourceThreadTail]
-                        /\  GoIdle(stealingThread)
-                    ELSE
-                        /\  Tails' = [Tails EXCEPT ![threadState.SourceThread] = threadState.SourceThreadHead]
-                        /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
-                                    State |-> "Steal_Copy",
-                                    SourceThread |-> threadState.SourceThread,
-                                    SourceThreadTail |-> threadState.SourceThreadTail,
-                                    SourceThreadCopyStart |-> threadState.SourceThreadTail,
-                                    SourceThreadCopyEnd |-> threadState.SourceThreadHead
-                                ]]
+                /\  Tails' = [Tails EXCEPT ![threadState.SourceThread] = threadState.SourceThreadTail]
+                /\  GoIdle(stealingThread)
+            ELSE IF threadState.SourceThreadHead < threadState.SourceThreadCopyEnd
+            THEN
+                /\  Tails' = [Tails EXCEPT ![threadState.SourceThread] = threadState.SourceThreadHead]
+                /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
+                            State |-> "Steal_Copy",
+                            SourceThread |-> threadState.SourceThread,
+                            SourceThreadTail |-> threadState.SourceThreadTail,
+                            SourceThreadCopyStart |-> threadState.SourceThreadTail,
+                            SourceThreadCopyEnd |-> threadState.SourceThreadHead
+                        ]]
             ELSE
                 /\  UNCHANGED << Tails >>
                 /\  ThreadStates' = [ThreadStates EXCEPT ![stealingThread] = [
