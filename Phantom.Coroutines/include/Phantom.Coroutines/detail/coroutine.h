@@ -1,4 +1,5 @@
 #pragma once
+#include <assert.h>
 #include <coroutine>
 
 namespace Phantom::Coroutines
@@ -17,21 +18,19 @@ static inline auto noop_coroutine()
     return std::noop_coroutine();
 }
 
-#ifndef NDEBUG
 // Create a coroutine handle that is not null but isn't valid either,
 // for debugging purposes.
-static inline auto invalid_coroutine_handle()
+static auto invalid_coroutine_handle()
 {
     return coroutine_handle<>::from_address(
         reinterpret_cast<void*>(0x0cfcfcfcfcfcfcfcULL)
     );
 }
-#endif
 
 template<
     typename Promise
 >
-static inline auto copy_and_invalidate(
+static auto copy_and_invalidate(
     coroutine_handle<Promise>& handle
 )
 {
@@ -42,6 +41,19 @@ static inline auto copy_and_invalidate(
     return result;
 }
 
+static bool is_valid(
+    coroutine_handle<> coroutine
+)
+{
+    return coroutine && coroutine != invalid_coroutine_handle();
+}
+
+static void assert_is_valid(
+    coroutine_handle<> coroutine
+)
+{
+    assert(is_valid(coroutine));
+}
 }
 
 using detail::coroutine_handle;
