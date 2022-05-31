@@ -3,6 +3,7 @@
 #include <atomic>
 #include <concepts>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <unordered_map>
 #include "detail/assert_same_thread.h"
@@ -34,7 +35,6 @@ private immovable_object
 
 	struct value_holder
 	{
-		epoch_type m_epoch;
 		mutable_value_type m_value;
 
 		value_holder(
@@ -43,30 +43,56 @@ private immovable_object
 		{}
 	};
 
-	typedef std::shared_ptr<value_holder> value_holder_ptr;
-	typedef std::atomic<value_holder_ptr> atomic_value_holder_ptr;
+	typedef value_holder* soft_reference_type;
+	typedef std::shared_ptr<value_holder> hard_reference_type;
+	typedef std::atomic<soft_reference_type> atomic_soft_reference_type;
 
-	std::atomic<epoch_type> m_epoch;
-	atomic_value_holder_ptr m_value;
+	std::mutex m_mutex;
+	hard_reference_type m_valueHolderHardReference;
+	atomic_soft_reference_type m_valueHolderSoftReference;
 
 	class operation
 		:
 		protected assert_same_thread,
 		private immovable_object
 	{
+		static inline thread_local hard_reference_type m_threadLocalHardReference;
+		static inline thread_local operation* m_operationsHead;
+
+		operation* m_nextOperation = nullptr;
+		operation* m_previousOperation = nullptr;
+
+		void link()
+		{
+			m_nextOperation = m_operationsHead;
+			m_operationsHead = this;
+			if (m_nextOperation)
+			{
+				m_nextOperation->m_previousOperation = this;
+			}
+		}
+
+		void unlink()
+		{
+			if (m_operationsHead == this)
+			{
+				m_operationsHead = this->m_nextOperation;
+			}
+
+			if (m_nextOperation)
+			{
+				m_nextOperation->m_previousOperation = m_previousOperation;
+			}
+			if (m_previousOperation)
+			{
+				m_previousOperation->m_nextOperation = m_nextOperation;
+			}
+		}
 
 	protected:
-		typedef std::unordered_map<read_copy_update_section*, value_holder_ptr> value_map;
-		typedef std::unordered_multimap<value_holder*, operation*> pending_operations_map;
-		inline static thread_local value_map m_threadLocalValues;
-		inline static thread_local pending_operations_map m_threadLocalSoftOperations;
-
 		read_copy_update_section& m_section;
-		
-		pending_operations_map::iterator m_threadLocalSoftOperationsEntry;
-
-		value_holder* m_valueHolderSoftReference;
-		value_holder_ptr m_valueHolderHardReference;
+		soft_reference_type m_valueHolderSoftReference = nullptr;
+		hard_reference_type m_valueHolderHardReference;
 
 		operation(
 			read_copy_update_section& section
@@ -74,23 +100,38 @@ private immovable_object
 			:
 			m_section{ section }
 		{
-			m_threadLocalSoftOperationsEntry = m_threadLocalSoftOperations.end();
+			link();
 			refresh();
 		}
 
 		~operation()
 		{
-			remove_from_thread_local_soft_operations_map();
+			unlink();
 		}
 
-		void remove_from_thread_local_soft_operations_map()
+		void refresh_thread_local_hard_reference_and_update_soft_reference(
+			soft_reference_type threadLocalSoftReference
+		)
 		{
-			if (m_threadLocalSoftOperationsEntry != m_threadLocalSoftOperations.end())
+			// We're going to replace the thread-local hard reference,
+			// so make sure all other operations on the current thread
+			// pointing at the same value holder get a hard reference.
+			for (auto updatedOperation = m_operationsHead; updatedOperation; updatedOperation = updatedOperation->m_nextOperation)
 			{
-				m_threadLocalSoftOperations.erase(
-					m_threadLocalSoftOperationsEntry);
+				if (updatedOperation->m_valueHolderSoftReference == threadLocalSoftReference)
+				{
+					updatedOperation->m_valueHolderHardReference = m_threadLocalHardReference;
+				}
 			}
+
+			{
+				std::scoped_lock lock{ m_section.m_mutex };
+				m_threadLocalHardReference = m_section.m_valueHolderHardReference;
+			}
+
+			m_valueHolderSoftReference = m_threadLocalHardReference.get();
 		}
+
 	public:
 		Value& value()
 		{
@@ -115,54 +156,24 @@ private immovable_object
 		// Refresh the value to the latest stored in the section.
 		void refresh()
 		{
-			remove_from_thread_local_soft_operations_map();
-
-			// We explicitly don't use try_emplace here
-			// so that we don't incur the expensive shared_ptr load operation
-			// at m_value.load
-			auto threadValueMapEntry = m_threadLocalValues.find(&m_section);
-
-			if (threadValueMapEntry == m_threadLocalValues.end())
+			auto sectionSoftReference = m_section.m_valueHolderSoftReference.load(std::memory_order_acquire);
+			if (m_valueHolderSoftReference == sectionSoftReference)
 			{
-				threadValueMapEntry = m_threadLocalValues.insert(std::make_pair(
-					&m_section,
-					m_section.m_value.load(
-						std::memory_order_acquire
-					)))
-					.first;
+				return;
 			}
 
-			// If the current epoch has changed, then the thread local value map contains an obsolete value.
-			if (threadValueMapEntry->second->m_epoch != m_section.m_epoch.load(std::memory_order_acquire))
-			{
-				// The thread local value map contains an obsolete value.
-				// We want to replace it with the up-to-date value, but before we do so
-				// we need to make sure any other pending operations on this thread
-				// are correctly reference counting the value.
-				// So find all the existing operations on the same epoch and grant
-				// them hard references to the value_holder.
-				auto operationsOnThisEpoch = m_threadLocalSoftOperations.equal_range(
-					threadValueMapEntry->second.get()
-				);
-
-				for (auto& operation : std::ranges::subrange(operationsOnThisEpoch.first, operationsOnThisEpoch.second))
-				{
-					operation.second->m_valueHolderHardReference = threadValueMapEntry->second;
-				}
-
-				// Now we can replace the thread-local map entry with a
-				// hard reference to the current value.
-				threadValueMapEntry->second = m_section.m_value.load(
-					std::memory_order_acquire);
-			}
-
-			m_valueHolderSoftReference = threadValueMapEntry->second.get();
 			m_valueHolderHardReference = nullptr;
-			m_threadLocalSoftOperationsEntry = m_threadLocalSoftOperations.insert(
-				std::make_pair(
-					m_valueHolderSoftReference,
-					this
-				));
+			m_valueHolderSoftReference = nullptr;
+
+			soft_reference_type threadLocalSoftReference = m_threadLocalHardReference.get();
+			if (threadLocalSoftReference == sectionSoftReference)
+			{
+				m_valueHolderSoftReference = threadLocalSoftReference;
+				return;
+			}
+
+			refresh_thread_local_hard_reference_and_update_soft_reference(
+				threadLocalSoftReference);
 		}
 	};
 
@@ -170,22 +181,43 @@ public:
 
 	class read_operation
 		:
-	public operation
+		public operation
 	{
 	public:
 		read_operation(
 			const read_copy_update_section& section
 		) :
 			operation{ const_cast<read_copy_update_section&>(section) }
-		{}
-
+		{
+		}
 	};
 
 	class update_operation
 		:
-	public read_operation
+		public read_operation
 	{
-		value_holder_ptr m_replacementValueHolder = nullptr;
+		hard_reference_type	m_replacementValueHolder = nullptr;
+
+		void exchange(
+			std::unique_lock<std::mutex> lock
+		)
+		{
+			this->m_valueHolderSoftReference = m_replacementValueHolder.get();
+
+			std::swap(
+				this->m_section.m_valueHolderHardReference,
+				m_replacementValueHolder);
+
+			this->m_section.m_valueHolderSoftReference.store(
+				this->m_section.m_valueHolderHardReference.get(),
+				std::memory_order_relaxed);
+
+			lock.unlock();
+
+			// Reset the old hard references outside the lock.
+			this->m_valueHolderHardReference.reset();
+			m_replacementValueHolder.reset();
+		}
 
 	public:
 		update_operation(
@@ -212,7 +244,7 @@ public:
 			m_replacementValueHolder = std::make_shared<value_holder>(
 				std::forward<decltype(args)>(args)...
 				);
-			
+
 			return (replacement());
 		}
 
@@ -223,7 +255,9 @@ public:
 		// updated to the new replacement value.
 		void exchange()
 		{
-			while (!compare_exchange_strong()) {}
+			exchange(
+				std::unique_lock{ this->m_section.m_mutex }
+			);
 		}
 
 		// Conditionally perform the exchange.
@@ -237,43 +271,25 @@ public:
 		bool compare_exchange_strong()
 		{
 			operation::check_thread();
-			
-			m_replacementValueHolder->m_epoch = operation::m_section.m_epoch.fetch_add(1, std::memory_order_relaxed);
 
-			// To atomically swap out a shared_ptr,
-			// we need to have one in hand. Unfortunately,
-			// that means locking and acquiring a copy here
-			// before doing the actual compare_exchange_strong.
-			// We'll optimize this another day; writes are expected to
-			// be infrequent in this data structure.
-			if (operation::m_valueHolderHardReference.get() != operation::m_valueHolderSoftReference)
+			if (this->m_section.m_valueHolderSoftReference.load(std::memory_order_acquire) != this->m_valueHolderSoftReference)
 			{
-				operation::m_valueHolderHardReference = operation::m_section.m_value.load(
-					std::memory_order_relaxed
-				);
-
-				if (operation::m_threadLocalSoftOperationsEntry != operation::m_threadLocalSoftOperations.end())
-				{
-					operation::m_threadLocalSoftOperations.erase(
-						operation::m_threadLocalSoftOperationsEntry);
-					operation::m_threadLocalSoftOperationsEntry = operation::m_threadLocalSoftOperations.end();
-				}
+				this->refresh();
+				return false;
 			}
 
-			auto result = operation::m_section.m_value.compare_exchange_strong(
-				operation::m_valueHolderHardReference,
-				m_replacementValueHolder,
-				std::memory_order_acq_rel,
-				std::memory_order_acquire
-			);
-
-			if (result)
+			std::unique_lock lock{ this->m_section.m_mutex };
+			if (this->m_section.m_valueHolderHardReference.get() != this->m_valueHolderSoftReference)
 			{
-				operation::m_valueHolderHardReference = std::move(m_replacementValueHolder);
+				lock.unlock();
+				this->refresh();
+				return false;
 			}
-			operation::m_valueHolderSoftReference = operation::m_valueHolderHardReference.get();
 
-			return result;
+			exchange(
+				std::move(lock));
+
+			return true;
 		}
 
 		// Obtain the value created by the previous operator=
@@ -327,10 +343,10 @@ public:
 	read_copy_update_section(
 		auto&&... args
 	) :
-		m_value
-	{ std::make_shared<value_holder>(
-			std::forward<decltype(args)>(args)...) 
-	}
+		m_valueHolderHardReference{ std::make_shared<value_holder>(
+			std::forward<decltype(args)>(args)...)
+	},
+		m_valueHolderSoftReference{ m_valueHolderHardReference.get() }
 	{
 	}
 
