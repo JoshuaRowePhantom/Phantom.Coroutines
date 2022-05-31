@@ -80,7 +80,21 @@ class thread_pool_scheduler
 
 		// This stores the state of whether the thread is intending
 		// to sleep. While sleeping, the thread waits on this variable.
-		std::atomic<bool> m_isSleeping;
+		enum class ProcessingState
+		{
+			// The thread is inside a call to process_items,
+			// and hasn't been stopped.
+			Processing,
+			// The thread is sleeping.
+			Sleeping,
+			// The thread has been requested to stop while it is sleeping.
+			Sleeping_StopRequested,
+			// The thread has been requested to stop while it is processing.
+			Processing_StopRequested,
+			// The thread has stopped processing, or hasn't started.
+			Stopped
+		};
+		std::atomic<ProcessingState> m_processingState = ProcessingState::Stopped;
 
 		read_copy_update_section<queue> m_queueReadCopyUpdateSection;
 
@@ -168,16 +182,28 @@ class thread_pool_scheduler
 
 		[[nodiscard]] bool try_wake()
 		{
-			bool isSleeping = m_isSleeping.load(std::memory_order_acquire);
+			auto processingState = m_processingState.load(std::memory_order_acquire);
 			
-			bool doWakeThread = isSleeping && m_isSleeping.exchange(
-				false,
-				std::memory_order_release
+			bool wasSleeping =
+				processingState == ProcessingState::Sleeping
+				|| processingState == ProcessingState::Sleeping_StopRequested;
+
+			auto nextState = ProcessingState::Processing;
+			if (processingState == ProcessingState::Sleeping_StopRequested)
+			{
+				nextState = ProcessingState::Processing_StopRequested;
+			}
+
+			bool doWakeThread = wasSleeping && m_processingState.compare_exchange_strong(
+				processingState,
+				nextState,
+				std::memory_order_relaxed,
+				std::memory_order_acquire
 			);
 			
 			if (doWakeThread)
 			{
-				m_isSleeping.notify_all();
+				m_processingState.notify_all();
 			}
 
 			return doWakeThread;
@@ -351,7 +377,22 @@ class thread_pool_scheduler
 
 		void mark_intent_to_sleep()
 		{
-			bool wasSleeping = m_isSleeping.exchange(true, std::memory_order_acquire);
+			auto previousProcessingState = m_processingState.load(
+				std::memory_order_acquire
+			);
+
+			if (previousProcessingState == ProcessingState::Sleeping_StopRequested
+				|| previousProcessingState == ProcessingState::Processing_StopRequested)
+			{
+				return;
+			}
+
+			m_processingState.compare_exchange_strong(
+				previousProcessingState,
+				ProcessingState::Sleeping
+			);
+
+			bool wasSleeping = previousProcessingState == ProcessingState::Sleeping;
 			if (!wasSleeping)
 			{
 				m_scheduler.m_sleepingThreadCount.fetch_add(1, std::memory_order_release);
@@ -366,8 +407,9 @@ class thread_pool_scheduler
 			{
 				return;
 			}
-			m_isSleeping.wait(
-				true, 
+
+			m_processingState.wait(
+				ProcessingState::Sleeping,
 				std::memory_order_acquire);
 		}
 
@@ -377,17 +419,42 @@ class thread_pool_scheduler
 			m_scheduler.wake_one_thread(threadStatesOperation, this);
 		}
 
+		void mark_intent_to_stop_processing()
+		{
+			auto previousState = m_processingState.load(
+				std::memory_order_relaxed
+			);
+			while (true)
+			{
+				auto nextState = ProcessingState::Processing_StopRequested;
+				if (previousState == ProcessingState::Sleeping)
+				{
+					nextState = ProcessingState::Sleeping_StopRequested;
+				}
+
+				if (m_processingState.compare_exchange_weak(
+					previousState,
+					nextState,
+					std::memory_order_release,
+					std::memory_order_relaxed
+				))
+				{
+					break;
+				}
+			}
+			m_processingState.notify_all();
+		}
+
 		void process_items(
 			std::stop_token stopToken
 		)
 		{
-			std::stop_callback
+			std::stop_callback stopCallback
 			{
 				stopToken,
 				[this]
 				{
-					m_isSleeping.exchange(false, std::memory_order_release);
-					m_isSleeping.notify_all();
+					mark_intent_to_stop_processing();
 				}
 			};
 
