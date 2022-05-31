@@ -101,7 +101,8 @@ private immovable_object
 			m_section{ section }
 		{
 			link();
-			refresh();
+			force_refresh(
+				get_section_soft_reference());
 		}
 
 		~operation()
@@ -130,6 +131,29 @@ private immovable_object
 			}
 
 			m_valueHolderSoftReference = m_threadLocalHardReference.get();
+		}
+
+		auto get_section_soft_reference()
+		{
+			return m_section.m_valueHolderSoftReference.load(std::memory_order_acquire);
+		} 
+
+		// Refresh the value to the latest stored in the section.
+		void force_refresh(
+			soft_reference_type	sectionSoftReference)
+		{
+			m_valueHolderHardReference = nullptr;
+			m_valueHolderSoftReference = nullptr;
+
+			soft_reference_type threadLocalSoftReference = m_threadLocalHardReference.get();
+			if (threadLocalSoftReference == sectionSoftReference)
+			{
+				m_valueHolderSoftReference = threadLocalSoftReference;
+				return;
+			}
+
+			refresh_thread_local_hard_reference_and_update_soft_reference(
+				threadLocalSoftReference);
 		}
 
 	public:
@@ -162,18 +186,8 @@ private immovable_object
 				return;
 			}
 
-			m_valueHolderHardReference = nullptr;
-			m_valueHolderSoftReference = nullptr;
-
-			soft_reference_type threadLocalSoftReference = m_threadLocalHardReference.get();
-			if (threadLocalSoftReference == sectionSoftReference)
-			{
-				m_valueHolderSoftReference = threadLocalSoftReference;
-				return;
-			}
-
-			refresh_thread_local_hard_reference_and_update_soft_reference(
-				threadLocalSoftReference);
+			force_refresh(
+				sectionSoftReference);
 		}
 	};
 
