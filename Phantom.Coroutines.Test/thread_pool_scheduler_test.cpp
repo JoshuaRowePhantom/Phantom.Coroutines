@@ -80,6 +80,7 @@ void thread_pool_scheduler_test_do_many_work_items_test(
 	// Asserts that all threads completed an item.
 	ASSERT_EQ(numberOfThreads, completedItemsByThreadId.size());
 }
+
 TEST(thread_pool_scheduler_test, do_many_work_items_1_thread)
 {
 	thread_pool_scheduler_test_do_many_work_items_test(
@@ -91,7 +92,7 @@ TEST(thread_pool_scheduler_test, do_many_work_items_1_thread)
 TEST(thread_pool_scheduler_test, do_many_work_items_concurrent_threads)
 {
 	thread_pool_scheduler_test_do_many_work_items_test(
-		1000000,
+		10000000,
 		std::thread::hardware_concurrency()
 	);
 }

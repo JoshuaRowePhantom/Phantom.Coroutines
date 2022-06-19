@@ -57,13 +57,12 @@ class thread_pool_scheduler
 			
 			queue grow(
 				size_t requiredSize,
-				size_t outstandingCopyOperationCount,
-				size_t currentTail,
+				size_t currentStealingTail,
 				size_t currentHead
 			)
 			{
 				queue result(requiredSize);
-				for (auto index = currentTail - outstandingCopyOperationCount; index != currentHead; index++)
+				for (auto index = currentStealingTail; index != currentHead; index++)
 				{
 					result[index] = (*this)[index];
 				}
@@ -101,15 +100,17 @@ class thread_pool_scheduler
 		// Align the tail, copy count, and lock into a new cache line.
 		alignas(std::hardware_destructive_interference_size)
 			std::atomic<size_t> m_tail;
-		// The number of items being copied from the queue.
-		// This is incremented before m_tail is increased,
-		// and decremented after the copy operation completes.
-		// It is used to allow determining whether enqueue
-		// needs to allocate more space.
-		// Note that it starts at 1, because we always consider
-		// that there is an extra operation stored in temporary
-		// space after "head" is decremented when processing a local item.
-		std::atomic<size_t> m_outstandingCopyOperationCount = 1;
+		
+		// The lowest value that might be in the process of being stolen from.
+		// This value can be set to m_tail any time that m_outstandingStealOperations
+		// becomes zero.
+		std::atomic<size_t> m_stealingTail;
+
+		// The number of outstanding steal operations going on.
+		// When this reaches zero, the value of m_reservedTail can be
+		// raised.
+		alignas(std::hardware_destructive_interference_size)
+			std::atomic<size_t> m_outstandingStealOperations = 0;
 
 		// The lock required for stealing and conflict resolution between
 		// stealing and enqueuing.
@@ -134,28 +135,24 @@ class thread_pool_scheduler
 			read_copy_update_section<queue>::update_operation& queueOperation
 		)
 		{
-			auto tail = m_tail.load(std::memory_order_acquire);
-			// m_outstandingCopyOperationCount can be loaded as relaxed, because its increments are preceded by
-			// increments to tail and then m_outstandingCopyOperationCount decreases in value.
-			// The acquire on tail ensures that we receive the value.
-			auto outstandingCopyOperationCount = m_outstandingCopyOperationCount.load(std::memory_order_relaxed);
-
-			auto requiredSize = newHead - tail + outstandingCopyOperationCount;
+			auto reserve_tail = get_tail_to_reserve_from();
+			// We reserve an extra one for the temporary location that is
+			// used when acquiring a local item.
+			auto requiredSize = newHead - reserve_tail + 1;
 
 			if (queueOperation.value().size() < requiredSize)
 			{
 				queueOperation.emplace(
 					queueOperation.value().grow(
 						requiredSize,
-						outstandingCopyOperationCount,
-						tail,
+						reserve_tail,
 						m_head.load(std::memory_order_relaxed)
 					)
 				);
 				queueOperation.exchange();
 			}
 
-			m_reservedHead = tail - outstandingCopyOperationCount + queueOperation->size();
+			m_reservedHead = reserve_tail - 1 + queueOperation->size();
 		}
 
 	public:
@@ -215,16 +212,16 @@ class thread_pool_scheduler
 			// Special case, since head is unsigned
 			if (head == 0) { return coroutine_handle<>{}; }
 			auto newHead = head - 1;
-			m_head.store(newHead, std::memory_order_release);
+			m_head.store(newHead, std::memory_order_seq_cst);
 
-			auto tail = m_tail.load(std::memory_order_acquire);
+			auto tail = m_tail.load(std::memory_order_seq_cst);
 			if (tail > newHead)
 			{
 				std::scoped_lock lock{ m_mutex };
-				tail = m_tail.load(std::memory_order_acquire);
+				tail = m_tail.load(std::memory_order_seq_cst);
 				if (tail > newHead)
 				{
-					m_head.store(head, std::memory_order_release);
+					m_head.store(head, std::memory_order_seq_cst);
 					return coroutine_handle<>{};
 				}
 			}
@@ -242,11 +239,66 @@ class thread_pool_scheduler
 			Precise
 		};
 
+		size_t get_tail_to_reserve_from()
+		{
+			auto tail = m_tail.load(
+				std::memory_order_acquire
+			);
+			auto outstandingStealOperations = m_outstandingStealOperations.load(
+				std::memory_order_acquire
+			);
+
+			if (outstandingStealOperations == 0)
+			{
+				return tail - 1;
+			}
+
+			auto stealingTail = m_stealingTail.load(
+				std::memory_order_acquire);
+			return stealingTail - 1;
+		}
+
+		void start_stealing_from(
+			size_t tail)
+		{
+			auto outstandingStealOperations = m_outstandingStealOperations.load(
+				std::memory_order_acquire
+			);
+
+			if (outstandingStealOperations == 0)
+			{
+				m_stealingTail.store(
+					tail,
+					std::memory_order_relaxed
+				);
+			}
+
+			m_outstandingStealOperations.fetch_add(
+				1,
+				std::memory_order_release
+			);
+		}
+
+		void stop_stealing_from()
+		{
+			m_outstandingStealOperations.fetch_sub(
+				1,
+				std::memory_order_relaxed
+			);
+		}
+
+		static inline thread_local thread_state* steal_other;
+		static inline thread_local size_t steal_other_tail;
+		static inline thread_local size_t steal_new_other_tail;
+		static inline thread_local size_t steal_newOtherHead;
+
 		coroutine_handle<> try_steal(
 			thread_state& other,
 			steal_mode stealMode
 		)
 		{
+			steal_other = &other;
+
 			// We can't steal from ourselves!
 			if (&other == this)
 			{
@@ -259,8 +311,8 @@ class thread_pool_scheduler
 				lock.lock();
 			}
 
-			auto otherTail = other.m_tail.load(std::memory_order_acquire);
-			auto otherHead = other.m_head.load(std::memory_order_acquire);
+			auto otherTail = other.m_tail.load(std::memory_order_relaxed);
+			auto otherHead = other.m_head.load(std::memory_order_relaxed);
 			if (otherHead <= otherTail)
 			{
 				return coroutine_handle<>{};
@@ -273,8 +325,8 @@ class thread_pool_scheduler
 					return coroutine_handle<>{};
 				}
 
-				otherHead = other.m_head.load(std::memory_order_acquire);
-				otherTail = other.m_tail.load(std::memory_order_acquire);
+				otherHead = other.m_head.load(std::memory_order_relaxed);
+				otherTail = other.m_tail.load(std::memory_order_relaxed);
 				if (otherHead <= otherTail)
 				{
 					return coroutine_handle<>{};
@@ -283,47 +335,37 @@ class thread_pool_scheduler
 
 			// We are here, that means we can legitimately steal.
 			// We steal half (rounded up) of the items in the source thread.
+			other.start_stealing_from(otherTail);
+
 			size_t sizeToSteal = (otherHead - otherTail + 1) / 2;
-			other.m_outstandingCopyOperationCount.fetch_add(
-				sizeToSteal,
-				std::memory_order_relaxed
-			);
 			auto newOtherTail = otherTail + sizeToSteal;
-			other.m_tail.store(newOtherTail, std::memory_order_release);
+			other.m_tail.store(newOtherTail, std::memory_order_seq_cst);
 
 			// It's possible that acquire_local_item has raced with this method,
 			// and the other's head is now lower than the tail we published.
 			// The other instance will acquire the lock before doing any more
 			// processing, and we will adjust the m_outstandingCopyOperationCount
 			// and m_tail accordingly.
-			auto newOtherHead = other.m_head.load(std::memory_order_acquire);
+			auto newOtherHead = other.m_head.load(std::memory_order_seq_cst);
 			if (newOtherHead <= otherTail)
 			{
 				// We have to give back all the items, and do not process anything.
-				other.m_tail.store(otherTail, std::memory_order_release);
-				
-				// As the new value is strictly smaller than the old value, this can be "relaxed".
-				other.m_outstandingCopyOperationCount.fetch_sub(
-					sizeToSteal,
-					std::memory_order_relaxed
-				);
-
+				other.m_tail.store(otherTail, std::memory_order_seq_cst);
+				other.stop_stealing_from();
 				return std::coroutine_handle<>{};
 			} else if (newOtherHead < newOtherTail)
 			{
 				// We have to give back some of the items.
-				// We'll again target taking 1/2 of the items in the queue, rounded up.
-				auto newSizeToSteal = (newOtherHead - otherTail + 1) / 2;
-				auto countToGiveBack = sizeToSteal - newSizeToSteal;
-				newOtherTail = otherTail + newSizeToSteal;
+				auto newSizeToSteal = newOtherHead - otherTail;
+				newOtherTail = newOtherHead;
 				
-				other.m_tail.store(newOtherTail, std::memory_order_release);
-
-				// As the new value is strictly smaller than the old value, this can be "relaxed".
-				other.m_outstandingCopyOperationCount.fetch_sub(countToGiveBack, std::memory_order_relaxed);
+				other.m_tail.store(newOtherTail, std::memory_order_seq_cst);
 
 				sizeToSteal = newSizeToSteal;
 			}
+
+			steal_newOtherHead = newOtherHead;
+			steal_new_other_tail = newOtherTail;
 
 			// We no longer need the lock.
 			// We've reserved enough space in the queue via m_outstandingCopyOperationCount that
@@ -346,11 +388,13 @@ class thread_pool_scheduler
 				thisQueueOperation
 			);
 
+			steal_other_tail = otherTail;
+
 			for (auto itemCounter = 0; itemCounter < (sizeToSteal - 1); itemCounter++)
 			{
+				assert_is_valid((*otherQueueOperation)[otherTail + itemCounter]);
 				auto coroutine = copy_and_invalidate((*otherQueueOperation)[otherTail + itemCounter]);
 
-				assert_is_valid(coroutine);
 
 				(*thisQueueOperation)[head + itemCounter] = coroutine;
 			}
@@ -358,12 +402,12 @@ class thread_pool_scheduler
 			// This releases all the copy operations done above.
 			m_head.store(newHead, std::memory_order_release);
 
+			assert_is_valid((*otherQueueOperation)[otherTail + sizeToSteal - 1]);
 			auto itemToProcess = copy_and_invalidate((*otherQueueOperation)[otherTail + sizeToSteal - 1]);
 			assert_is_valid(itemToProcess);
 
-			// Need not be release, as the value will be strictly smaller than what it was before.
-			other.m_outstandingCopyOperationCount.fetch_sub(sizeToSteal, std::memory_order_relaxed);
-			
+			other.stop_stealing_from();
+
 			return itemToProcess;
 		}
 
@@ -470,6 +514,21 @@ class thread_pool_scheduler
 			m_processingState.notify_all();
 		}
 
+		void mark_as_stopped()
+		{
+			auto previousState = m_processingState.load(
+				std::memory_order_acquire
+			);
+
+			if (previousState == ProcessingState::Processing
+				|| previousState == ProcessingState::Processing_StopRequested)
+			{
+				return;
+			}
+
+			remove_intent_to_sleep();
+		}
+
 		void process_items(
 			std::stop_token stopToken
 		)
@@ -506,6 +565,8 @@ class thread_pool_scheduler
 					routine.resume();
 				}
 			}
+
+			mark_as_stopped();
 		}
 	};
 
