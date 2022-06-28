@@ -90,9 +90,6 @@ Idle:
             goto Idle;
         
     or
-        await Heads[self] > Tails[self];
-
-        Process_DecrementHead:
             Heads[self] := Heads[self] - 1;
         
         Process_ReadTail:
@@ -190,7 +187,7 @@ end process;
 
 end algorithm; *)
 
-\* BEGIN TRANSLATION (chksum(pcal) = "f85f56ad" /\ chksum(tla) = "55d1926f")
+\* BEGIN TRANSLATION (chksum(pcal) = "59238abb" /\ chksum(tla) = "c8200e61")
 VARIABLES PendingItems, Queues, Heads, Tails, ProcessedItems, Locks, pc, 
           ItemToProcess, SourceThread, SourceThreadTail, SourceThreadHead, 
           SourceThreadCopyStart, SourceThreadCopyEnd
@@ -222,9 +219,9 @@ Idle(self) == /\ pc[self] = "Idle"
                     /\ Queues' = [Queues EXCEPT ![self] = (Heads[self] + 1) :> Head(PendingItems) @@ Queues[self]]
                     /\ PendingItems' = Tail(PendingItems)
                     /\ pc' = [pc EXCEPT ![self] = "Enqueue_UpdateHead"]
-                    /\ UNCHANGED <<Locks, SourceThread>>
-                 \/ /\ Heads[self] > Tails[self]
-                    /\ pc' = [pc EXCEPT ![self] = "Process_DecrementHead"]
+                    /\ UNCHANGED <<Heads, Locks, SourceThread>>
+                 \/ /\ Heads' = [Heads EXCEPT ![self] = Heads[self] - 1]
+                    /\ pc' = [pc EXCEPT ![self] = "Process_ReadTail"]
                     /\ UNCHANGED <<PendingItems, Queues, Locks, SourceThread>>
                  \/ /\ \E sourceThread \in (Threads \ { self }):
                          /\ Heads[self] = Tails[self]
@@ -232,8 +229,8 @@ Idle(self) == /\ pc[self] = "Idle"
                          /\ SourceThread' = [SourceThread EXCEPT ![self] = sourceThread]
                          /\ Locks' = [Locks EXCEPT ![sourceThread] = TRUE]
                     /\ pc' = [pc EXCEPT ![self] = "Steal_ReadSourceThreadTail"]
-                    /\ UNCHANGED <<PendingItems, Queues>>
-              /\ UNCHANGED << Heads, Tails, ProcessedItems, ItemToProcess, 
+                    /\ UNCHANGED <<PendingItems, Queues, Heads>>
+              /\ UNCHANGED << Tails, ProcessedItems, ItemToProcess, 
                               SourceThreadTail, SourceThreadHead, 
                               SourceThreadCopyStart, SourceThreadCopyEnd >>
 
@@ -248,17 +245,6 @@ Enqueue_UpdateHead(self) == /\ pc[self] = "Enqueue_UpdateHead"
                             /\ pc' = [pc EXCEPT ![self] = "Idle"]
                             /\ UNCHANGED << PendingItems, Queues, Tails, 
                                             ProcessedItems, Locks >>
-
-Process_DecrementHead(self) == /\ pc[self] = "Process_DecrementHead"
-                               /\ Heads' = [Heads EXCEPT ![self] = Heads[self] - 1]
-                               /\ pc' = [pc EXCEPT ![self] = "Process_ReadTail"]
-                               /\ UNCHANGED << PendingItems, Queues, Tails, 
-                                               ProcessedItems, Locks, 
-                                               ItemToProcess, SourceThread, 
-                                               SourceThreadTail, 
-                                               SourceThreadHead, 
-                                               SourceThreadCopyStart, 
-                                               SourceThreadCopyEnd >>
 
 Process_ReadTail(self) == /\ pc[self] = "Process_ReadTail"
                           /\ IF Tails[self] <= Heads[self]
@@ -453,8 +439,7 @@ ProcessItem(self) == /\ pc[self] = "ProcessItem"
                      /\ UNCHANGED << PendingItems, Queues, Heads, Tails, Locks >>
 
 thread(self) == Idle(self) \/ Enqueue_UpdateHead(self)
-                   \/ Process_DecrementHead(self) \/ Process_ReadTail(self)
-                   \/ ProcessInLock_Lock(self)
+                   \/ Process_ReadTail(self) \/ ProcessInLock_Lock(self)
                    \/ ProcessInLock_ReadTail(self)
                    \/ ProcessInLock_IncrementHead(self)
                    \/ ProcessInLock_UnlockOnIdle(self)
@@ -503,9 +488,9 @@ SpecWithFairness ==
     /\  Spec
     /\  \A self \in Threads :
         /\  SF_vars(Idle(self))
+        /\  SF_vars(Idle(self) /\ Heads'[self] # Heads[self])
         /\  SF_vars(Idle(self) /\ PendingItems' # PendingItems)
         /\  WF_vars(Enqueue_UpdateHead(self))
-        /\  WF_vars(Process_DecrementHead(self))
         /\  WF_vars(Process_ReadTail(self))
         /\  SF_vars(ProcessInLock_Lock(self))
         /\  WF_vars(ProcessInLock_ReadTail(self))
