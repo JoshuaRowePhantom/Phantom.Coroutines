@@ -2,3 +2,5 @@
 /out
 *.coverage
 /.vscode
+Tla/ThreadPool_Wakeup.cfg
+Tla/*.old
