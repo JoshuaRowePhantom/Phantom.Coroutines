@@ -544,25 +544,28 @@ class thread_pool_scheduler
 
 			while (!stopToken.stop_requested())
 			{
-				auto routine = acquire_local_item();
-				if (!routine)
+				auto coroutineToResume = acquire_local_item();
+				if (!coroutineToResume)
 				{
-					routine = acquire_remote_item();
+					coroutineToResume = acquire_remote_item();
 				}
-				if (!routine)
+				if (!coroutineToResume)
 				{
 					mark_intent_to_sleep();
-					routine = acquire_remote_item();
-					if (!routine)
+					coroutineToResume = acquire_remote_item();
+					if (coroutineToResume)
+					{
+						remove_intent_to_sleep();
+					}
+					else
 					{
 						sleep(
 							stopToken);
 					}
-					remove_intent_to_sleep();
 				}
-				if (routine)
+				if (coroutineToResume)
 				{
-					routine.resume();
+					coroutineToResume.resume();
 				}
 			}
 

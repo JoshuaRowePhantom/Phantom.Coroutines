@@ -50,7 +50,6 @@ void thread_pool_scheduler_test_do_many_work_items_test(
 {
 	std::vector<std::thread::id> completedItems(numberOfItems);
 
-	//auto threadCount = std::thread::hardware_concurrency();
 	static_thread_pool scheduler(
 		numberOfThreads
 	);
@@ -92,7 +91,11 @@ TEST(thread_pool_scheduler_test, do_many_work_items_1_thread)
 TEST(thread_pool_scheduler_test, do_many_work_items_concurrent_threads)
 {
 	thread_pool_scheduler_test_do_many_work_items_test(
-		10000000,
+#ifdef NDEBUG
+		1000000,
+#else
+		100000,
+#endif
 		std::thread::hardware_concurrency()
 	);
 }
