@@ -64,10 +64,7 @@ variables
 begin
     Processing:
         UncheckedQueues := Threads;
-        if ItemToProcess > 0 then
-            ItemToProcess := ItemToProcess - 1;
-            goto ProcessItem;
-        elsif Queues[self] # 0 then
+        if Queues[self] # 0 then
             Queues[self] := Queues[self] - 1;
             goto ProcessItem;
         end if;
@@ -119,14 +116,14 @@ begin
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "a9fe21d0" /\ chksum(tla) = "6a7d99ab")
+\* BEGIN TRANSLATION (chksum(pcal) = "c7ce9c92" /\ chksum(tla) = "50dc2c71")
 VARIABLES Queues, PendingItems, ProcessedItems, SleepingThreads, 
           IntentsToSleep, WakeSignals, pc, stack, threadNotToSignal, 
-          ThreadToWake, ItemToProcess, UncheckedQueues
+          ThreadToWake, UncheckedQueues
 
 vars == << Queues, PendingItems, ProcessedItems, SleepingThreads, 
            IntentsToSleep, WakeSignals, pc, stack, threadNotToSignal, 
-           ThreadToWake, ItemToProcess, UncheckedQueues >>
+           ThreadToWake, UncheckedQueues >>
 
 ProcSet == (RemoteThreads) \cup (WorkerThreads)
 
@@ -141,7 +138,6 @@ Init == (* Global variables *)
         /\ threadNotToSignal = [ self \in ProcSet |-> {}]
         /\ ThreadToWake = [ self \in ProcSet |-> {}]
         (* Process workerThread *)
-        /\ ItemToProcess = [self \in WorkerThreads |-> 0]
         /\ UncheckedQueues = [self \in WorkerThreads |-> Threads]
         /\ stack = [self \in ProcSet |-> << >>]
         /\ pc = [self \in ProcSet |-> CASE self \in RemoteThreads -> "RemoteThread"
@@ -163,7 +159,6 @@ WakeThread_CheckSleepingThreads(self) == /\ pc[self] = "WakeThread_CheckSleeping
                                                          ProcessedItems, 
                                                          IntentsToSleep, 
                                                          WakeSignals, 
-                                                         ItemToProcess, 
                                                          UncheckedQueues >>
 
 WakeThread_FindThreadToWake(self) == /\ pc[self] = "WakeThread_FindThreadToWake"
@@ -177,7 +172,6 @@ WakeThread_FindThreadToWake(self) == /\ pc[self] = "WakeThread_FindThreadToWake"
                                                      SleepingThreads, 
                                                      WakeSignals, stack, 
                                                      threadNotToSignal, 
-                                                     ItemToProcess, 
                                                      UncheckedQueues >>
 
 WakeThread_SignalThread(self) == /\ pc[self] = "WakeThread_SignalThread"
@@ -192,7 +186,7 @@ WakeThread_SignalThread(self) == /\ pc[self] = "WakeThread_SignalThread"
                                  /\ UNCHANGED << Queues, PendingItems, 
                                                  ProcessedItems, 
                                                  SleepingThreads, 
-                                                 IntentsToSleep, ItemToProcess, 
+                                                 IntentsToSleep, 
                                                  UncheckedQueues >>
 
 WakeThread(self) == WakeThread_CheckSleepingThreads(self)
@@ -213,22 +207,17 @@ RemoteThread(self) == /\ pc[self] = "RemoteThread"
                       /\ pc' = [pc EXCEPT ![self] = "WakeThread_CheckSleepingThreads"]
                       /\ UNCHANGED << ProcessedItems, SleepingThreads, 
                                       IntentsToSleep, WakeSignals, 
-                                      ItemToProcess, UncheckedQueues >>
+                                      UncheckedQueues >>
 
 remoteThread(self) == RemoteThread(self)
 
 Processing(self) == /\ pc[self] = "Processing"
                     /\ UncheckedQueues' = [UncheckedQueues EXCEPT ![self] = Threads]
-                    /\ IF ItemToProcess[self] > 0
-                          THEN /\ ItemToProcess' = [ItemToProcess EXCEPT ![self] = ItemToProcess[self] - 1]
+                    /\ IF Queues[self] # 0
+                          THEN /\ Queues' = [Queues EXCEPT ![self] = Queues[self] - 1]
                                /\ pc' = [pc EXCEPT ![self] = "ProcessItem"]
+                          ELSE /\ pc' = [pc EXCEPT ![self] = "IntendToSleep_MarkIntent"]
                                /\ UNCHANGED Queues
-                          ELSE /\ IF Queues[self] # 0
-                                     THEN /\ Queues' = [Queues EXCEPT ![self] = Queues[self] - 1]
-                                          /\ pc' = [pc EXCEPT ![self] = "ProcessItem"]
-                                     ELSE /\ pc' = [pc EXCEPT ![self] = "IntendToSleep_MarkIntent"]
-                                          /\ UNCHANGED Queues
-                               /\ UNCHANGED ItemToProcess
                     /\ UNCHANGED << PendingItems, ProcessedItems, 
                                     SleepingThreads, IntentsToSleep, 
                                     WakeSignals, stack, threadNotToSignal, 
@@ -244,7 +233,7 @@ IntendToSleep_MarkIntent(self) == /\ pc[self] = "IntendToSleep_MarkIntent"
                                                   ProcessedItems, 
                                                   SleepingThreads, WakeSignals, 
                                                   stack, threadNotToSignal, 
-                                                  ThreadToWake, ItemToProcess, 
+                                                  ThreadToWake, 
                                                   UncheckedQueues >>
 
 IntendToSleep_IncrementSleepingThreads(self) == /\ pc[self] = "IntendToSleep_IncrementSleepingThreads"
@@ -258,7 +247,6 @@ IntendToSleep_IncrementSleepingThreads(self) == /\ pc[self] = "IntendToSleep_Inc
                                                                 stack, 
                                                                 threadNotToSignal, 
                                                                 ThreadToWake, 
-                                                                ItemToProcess, 
                                                                 UncheckedQueues >>
 
 IntendToSleep_CheckRemoteQueues(self) == /\ pc[self] = "IntendToSleep_CheckRemoteQueues"
@@ -266,18 +254,15 @@ IntendToSleep_CheckRemoteQueues(self) == /\ pc[self] = "IntendToSleep_CheckRemot
                                                THEN /\ \E uncheckedQueue \in UncheckedQueues[self]:
                                                          IF Queues[uncheckedQueue] # 0
                                                             THEN /\ \E itemsToSteal \in 1..Queues[uncheckedQueue]:
-                                                                      /\ ItemToProcess' = [ItemToProcess EXCEPT ![self] = 1]
-                                                                      /\ Queues' = [Queues EXCEPT ![uncheckedQueue] = Queues[uncheckedQueue] - itemsToSteal,
-                                                                                                  ![self] = Queues[self] + itemsToSteal - 1]
+                                                                      Queues' = [Queues EXCEPT ![uncheckedQueue] = Queues[uncheckedQueue] - itemsToSteal,
+                                                                                               ![self] = Queues[self] + itemsToSteal - 1]
                                                                  /\ pc' = [pc EXCEPT ![self] = "Remove_IntentToSleep"]
                                                                  /\ UNCHANGED UncheckedQueues
                                                             ELSE /\ UncheckedQueues' = [UncheckedQueues EXCEPT ![self] = UncheckedQueues[self] \ { uncheckedQueue }]
                                                                  /\ pc' = [pc EXCEPT ![self] = "IntendToSleep_CheckRemoteQueues"]
-                                                                 /\ UNCHANGED << Queues, 
-                                                                                 ItemToProcess >>
+                                                                 /\ UNCHANGED Queues
                                                ELSE /\ pc' = [pc EXCEPT ![self] = "Sleep"]
                                                     /\ UNCHANGED << Queues, 
-                                                                    ItemToProcess, 
                                                                     UncheckedQueues >>
                                          /\ UNCHANGED << PendingItems, 
                                                          ProcessedItems, 
@@ -293,12 +278,12 @@ Sleep(self) == /\ pc[self] = "Sleep"
                /\ pc' = [pc EXCEPT ![self] = "Processing"]
                /\ UNCHANGED << Queues, PendingItems, ProcessedItems, 
                                SleepingThreads, IntentsToSleep, stack, 
-                               threadNotToSignal, ThreadToWake, ItemToProcess, 
+                               threadNotToSignal, ThreadToWake, 
                                UncheckedQueues >>
 
 Remove_IntentToSleep(self) == /\ pc[self] = "Remove_IntentToSleep"
                               /\ /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "WakeThread",
-                                                                          pc        |->  "Processing",
+                                                                          pc        |->  "ProcessItem",
                                                                           ThreadToWake |->  ThreadToWake[self],
                                                                           threadNotToSignal |->  threadNotToSignal[self] ] >>
                                                                       \o stack[self]]
@@ -308,7 +293,7 @@ Remove_IntentToSleep(self) == /\ pc[self] = "Remove_IntentToSleep"
                               /\ UNCHANGED << Queues, PendingItems, 
                                               ProcessedItems, SleepingThreads, 
                                               IntentsToSleep, WakeSignals, 
-                                              ItemToProcess, UncheckedQueues >>
+                                              UncheckedQueues >>
 
 ProcessItem(self) == /\ pc[self] = "ProcessItem"
                      /\ \/ /\ PendingItems > 0
@@ -327,8 +312,7 @@ ProcessItem(self) == /\ pc[self] = "ProcessItem"
                            /\ pc' = [pc EXCEPT ![self] = "Processing"]
                            /\ UNCHANGED <<Queues, PendingItems, stack, threadNotToSignal, ThreadToWake>>
                      /\ UNCHANGED << SleepingThreads, IntentsToSleep, 
-                                     WakeSignals, ItemToProcess, 
-                                     UncheckedQueues >>
+                                     WakeSignals, UncheckedQueues >>
 
 workerThread(self) == Processing(self) \/ IntendToSleep_MarkIntent(self)
                          \/ IntendToSleep_IncrementSleepingThreads(self)
