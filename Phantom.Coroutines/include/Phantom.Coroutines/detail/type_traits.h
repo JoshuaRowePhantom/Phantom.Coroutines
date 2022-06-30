@@ -221,10 +221,6 @@ requires (
 ;
 
 template<
-    typename Awaitable
-> using awaiter_type = decltype(std::declval<Awaitable>().operator co_await());
-
-template<
     typename TAwaitable
 > concept has_co_await = requires(
     TAwaitable awaitable
@@ -247,7 +243,7 @@ decltype(auto) get_awaiter(
     TAwaitable&& awaitable
 )
 {
-    return (std::forward<TAwaitable>(awaitable).operator co_await());
+    return std::forward<TAwaitable>(awaitable).operator co_await();
 }
 
 template<
@@ -257,8 +253,30 @@ decltype(auto) get_awaiter(
     TAwaitable&& awaitable
 )
 {
-    return (awaitable);
+    return std::forward<TAwaitable>(awaitable);
 }
+
+template<
+    typename T
+> struct remove_rvalue_reference
+{
+    typedef T type;
+};
+
+template<
+    typename T
+> struct remove_rvalue_reference<T&&>
+{
+    typedef T type;
+};
+
+template<
+    typename T
+> using remove_rvalue_reference_t = typename remove_rvalue_reference<T>::type;
+
+template<
+    typename Awaitable
+> using awaiter_type = remove_rvalue_reference_t<decltype(get_awaiter(std::declval<Awaitable>()))>;
 
 template<
     is_awaitable TAwaitable

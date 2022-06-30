@@ -60,7 +60,7 @@ class async_manual_reset_event
             auto previousState = compare_exchange_weak_loop(
                 m_event->m_state,
                 nextStateLambda,
-                std::memory_order_acquire,
+                std::memory_order_relaxed,
                 std::memory_order_release,
                 std::memory_order_acquire
             );

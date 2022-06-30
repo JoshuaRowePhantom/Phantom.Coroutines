@@ -30,7 +30,7 @@ add_executable(
 	thread_pool_scheduler_test.cpp
 	
 	when_ready_test.cpp
-   )
+    "async_promise_test.cpp")
 
 target_link_libraries(
 	Phantom.Coroutines.Test

@@ -31,8 +31,6 @@ storage_for<TValue>
     atomic_state_type m_atomicState;
     typedef state<atomic_state_type> state_type;
 
-    TValue* getValue() { return reinterpret_cast<TValue*>(&m_storage); }
-
     class awaiter
     {
         template<
@@ -80,7 +78,7 @@ storage_for<TValue>
         TValue& await_resume()
         {
             assert(m_promise.m_atomicState.load(std::memory_order_relaxed) == CompleteState{});
-            return *m_promise.getValue();
+            return m_promise.as<TValue>();
         }
     };
 
@@ -107,7 +105,7 @@ public:
         :
         m_atomicState(CompleteState{})
     {
-        new (&m_storage) TValue(
+        single_consumer_promise::storage_for::template emplace<TValue>(
             std::forward<TConstructorArguments>(args)...
         );
     }
@@ -120,7 +118,7 @@ public:
 
         if (state == CompleteState{})
         {
-            getValue()->~TValue();
+            single_consumer_promise::storage_for::template destroy<TValue>();
         }
 
         assert(!state.is<WaitingCoroutineState>());
@@ -128,13 +126,12 @@ public:
 
     template<
         typename ... TArguments
-    > single_consumer_promise& emplace(
+    > TValue& emplace(
         TArguments&&... arguments
     )
     {
-        new (&m_storage) TValue(
-            std::forward<TArguments>(arguments)...
-        );
+        single_consumer_promise::storage_for::template emplace<TValue>(
+            std::forward<TArguments>(arguments)...);
 
         auto previousState = m_atomicState.exchange(
             CompleteState{},
@@ -146,7 +143,7 @@ public:
             previousState.as<WaitingCoroutineState>().resume();
         }
 
-        return *this;
+        return this->as<TValue>();
     }
 
     awaiter operator co_await() { return { *this }; }
