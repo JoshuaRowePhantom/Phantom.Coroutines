@@ -45,13 +45,13 @@ public:
 		shutdown();
 	}
 
-	auto operator co_await() noexcept
+	auto schedule() noexcept
 	{
-		return m_scheduler.operator co_await();
+		return m_scheduler.schedule();
 	}
 };
 
-static_assert(scheduler<static_thread_pool>);
+static_assert(is_scheduler<static_thread_pool>);
 
 }
 

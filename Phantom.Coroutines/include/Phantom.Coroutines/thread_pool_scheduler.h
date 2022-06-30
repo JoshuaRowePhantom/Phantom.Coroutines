@@ -691,7 +691,7 @@ class thread_pool_scheduler
 	};
 
 public:
-	awaiter operator co_await() noexcept
+	awaiter schedule() noexcept
 	{
 		return awaiter{ *this };
 	}
@@ -707,8 +707,8 @@ public:
 	}
 };
 
-//inline thread_pool_scheduler::thread_state thread_pool_scheduler::thread_state::m_globalState;
-//inline thread_local thread_pool_scheduler::thread_state thread_pool_scheduler::thread_state::m_threadState;
-
+static_assert(is_scheduler<thread_pool_scheduler>);
 }
+
+using detail::thread_pool_scheduler;
 }

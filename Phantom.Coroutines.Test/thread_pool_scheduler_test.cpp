@@ -9,7 +9,7 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
-static_assert(scheduler<thread_pool_scheduler>);
+static_assert(is_scheduler<thread_pool_scheduler>);
 
 ASYNC_TEST(thread_pool_scheduler_test, schedules_on_calling_process_items_thread)
 {
@@ -19,7 +19,7 @@ ASYNC_TEST(thread_pool_scheduler_test, schedules_on_calling_process_items_thread
 	scope.spawn([&]()->task<>
 		{
 			auto currentThreadId = std::this_thread::get_id();
-			co_await scheduler;
+			co_await scheduler.schedule();
 			auto invokedThreadId = std::this_thread::get_id();
 			EXPECT_EQ(currentThreadId, invokedThreadId);
 			stopSource.request_stop();
@@ -36,7 +36,7 @@ TEST(thread_pool_scheduler_test, schedules_on_different_thread)
 	scope.spawn([&]()->task<>
 		{
 			auto currentThreadId = std::this_thread::get_id();
-			co_await scheduler;
+			co_await scheduler.schedule();
 			auto invokedThreadId = std::this_thread::get_id();
 			EXPECT_NE(currentThreadId, invokedThreadId);
 		}());
@@ -59,7 +59,7 @@ void thread_pool_scheduler_test_do_many_work_items_test(
 	{
 		scope.spawn([&](size_t counter)->task<>
 			{
-				co_await scheduler;
+				co_await scheduler.schedule();
 				EXPECT_EQ(completedItems[counter], std::thread::id{});
 				completedItems[counter] = std::this_thread::get_id();
 			}(counter));

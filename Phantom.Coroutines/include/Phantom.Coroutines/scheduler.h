@@ -8,7 +8,10 @@ namespace detail
 
 template<
 	typename T
-> concept scheduler = is_awaitable<T>;
+> concept is_scheduler = requires (T t)
+{
+	{ t.schedule() } -> is_awaitable;
+};
 
 }
 }
