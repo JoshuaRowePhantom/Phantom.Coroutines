@@ -9,6 +9,22 @@ namespace Phantom::Coroutines
 {
 namespace detail
 {
+// Determine if a given type is an instantiation of a template
+// accepting type arguments.
+template<
+    typename T,
+    template <typename ...> typename Template
+> constexpr bool is_template_instantiation_v = false;
+
+template<
+    typename T,
+    typename... Args,
+    template <typename ...> typename Template
+> constexpr bool is_template_instantiation_v<
+    T,
+    Template
+    > = std::same_as<T, Template<Args...>>;
+
 // Determine if a given type is in a list of other types.
 template<
     typename T,
