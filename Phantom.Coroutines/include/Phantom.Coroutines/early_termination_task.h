@@ -38,6 +38,11 @@ public:
 	}
 };
 
+template<
+	typename T
+> concept is_early_termination_result =
+is_template_instantiation<t, early_termination_result>;
+
 // An early_termination_task converts exceptions and
 // special returns into an early termination of the current coroutine
 // and a resumption of an error-handling coroutine.
@@ -52,15 +57,26 @@ template<
 > class basic_early_termination_promise
 {
 public:
-	void unhandled_exception()
+	coroutine_handle<> resume() noexcept
 	{
+
+	}
+
+	void unhandled_exception() noexcept
+	{
+		set_result(
+			early_termination_result
+			{
+				std::uncaught_exception()
+			}
+		);
 	}
 };
 
 template<
 	typename Promise
 > concept is_basic_early_termination_promise
-= is_template_instantiation_v<Promise, basic_early_termination_promise>;
+= is_template_instantiation<Promise, basic_early_termination_promise>;
 
 template<
 	typename Transformer,
@@ -73,13 +89,14 @@ template<
 > class basic_early_termination_awaiter
 {
 	Promise& m_promise;
+
 protected:
 	template<
 		is_basic_early_termination_await_transformer AwaitTransformer
 	>
 	basic_early_termination_awaiter(
 		AwaitTransformer& transformer
-	)
+	) noexcept
 		: m_promise(static_cast<Promise&>(transformer))
 	{
 	}
@@ -87,15 +104,40 @@ protected:
 	template<
 		typename T
 	> void set_result(
-		early_termination_result<T>&& result);
+		T&& result
+	) noexcept(std::is_nothrow_move_constructible_v<T>)
+	{
+		return m_promise.set_result(
+			std::forward<T>(result)
+		);
+	}
 
+	coroutine_handle<> resume() noexcept
+	{
+		return m_promise.resume();
+	}
+};
+
+template<
+	is_basic_early_termination_promise Promise
+> class basic_early_termination_await_transformer
+{
+public:
 	template<
 		typename T
-	> void set_result(
-		const early_termination_result<T>& result);
+	> decltype(auto) await_transform(
+		T&& awaitable
+	)
+	{
 
-	std::coroutine_handle<> resume() noexcept;
+	}
 };
 
 }
+using detail::basic_early_termination_awaiter;
+using detail::basic_early_termination_promise;
+using detail::basic_early_termination_task;
+using detail::is_early_termination_result;
+using detail::is_basic_early_termination_promise;
+using detail::is_basic_early_termination_await_transformer;
 }

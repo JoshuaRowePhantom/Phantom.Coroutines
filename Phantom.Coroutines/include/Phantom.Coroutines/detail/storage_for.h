@@ -41,7 +41,7 @@ private immovable_object
         typename... Args
     > T& emplace(
         Args&&... args
-    ) noexcept(noexcept(new T[&m_storage](std::forward<Args>(args)...)))
+    ) noexcept(noexcept(new (&m_storage)T(std::forward<Args>(args)...)))
     {
         if constexpr (sizeof(T) == 0)
         {

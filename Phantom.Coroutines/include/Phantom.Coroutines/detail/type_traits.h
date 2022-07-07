@@ -17,13 +17,17 @@ template<
 > constexpr bool is_template_instantiation_v = false;
 
 template<
-    typename T,
     typename... Args,
     template <typename ...> typename Template
 > constexpr bool is_template_instantiation_v<
-    T,
+    Template<Args...>,
     Template
-    > = std::same_as<T, Template<Args...>>;
+    > = true;
+
+template<
+    typename T,
+    template <typename ...> typename Template
+> concept is_template_instantiation = is_template_instantiation_v<T, Template>;
 
 // Determine if a given type is in a list of other types.
 template<

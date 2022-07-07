@@ -708,7 +708,7 @@ auto compare_exchange_weak_loop(
             previousState
         );
 
-        if constexpr (std::same_as<std::optional<TAtomicState::state_type>, decltype(nextState)>)
+        if constexpr (std::same_as<std::optional<typename TAtomicState::state_type>, decltype(nextState)>)
         {
             if (!nextState
                 ||
