@@ -3,6 +3,7 @@
 #include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
 #include "detail/immovable_object.h"
+#include "await_none_await_transform.h"
 #include <concepts>
 #include <exception>
 #include <variant>
@@ -68,6 +69,8 @@ public:
 template<
 	AsyncGeneratorTraits Traits
 > class basic_async_generator_promise
+	:
+await_none_await_transform
 {
 	template<
 		AsyncGeneratorTraits Traits
@@ -168,12 +171,6 @@ public:
 			static_cast<promise_type&>(*this)
 		};
 	}
-
-	template<
-		typename T
-	> void await_transform(
-		T&&
-	) = delete;
 
 	void return_void()
 	{
