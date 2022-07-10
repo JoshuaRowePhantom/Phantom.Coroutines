@@ -1,6 +1,5 @@
-#include <gtest/gtest.h>
-#include "Phantom.Coroutines/async_mutex.h"
-#include "async_test.h"
+import "async_test.h";
+import Phantom.Coroutines.async_mutex;
 
 using namespace Phantom::Coroutines;
 
@@ -98,12 +97,14 @@ TEST(async_mutex_test, lock_acquires_in_order)
 		int expectedOrder
 		)
 	{
-		return as_future([&mutex](int& order, int expectedOrder)->task<>
-			{
-				co_await mutex.lock();
-				EXPECT_EQ(order, expectedOrder);
-				order = expectedOrder + 1;
-			}(order, expectedOrder));
+		auto lambda = [&mutex](int& order, int expectedOrder)->task<>
+		{
+			co_await mutex.lock();
+			EXPECT_EQ(order, expectedOrder);
+			order = expectedOrder + 1;
+		};
+
+		return as_future(lambda(order, expectedOrder));
 	};
 
 	auto future0 = acquire(0);

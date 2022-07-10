@@ -1,10 +1,10 @@
-#include <algorithm>
-#include "async_test.h"
-#include "Phantom.Coroutines/async_scope.h"
-#include "Phantom.Coroutines/static_thread_pool.h"
-#include "Phantom.Coroutines/task.h"
-#include "Phantom.Coroutines/thread_pool_scheduler.h"
-#include <thread>
+import <algorithm>;
+import Phantom.Coroutines.async_test;
+import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.static_thread_pool;
+import Phantom.Coroutines.task;
+import Phantom.Coroutines.thread_pool_scheduler;
+import <thread>;
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;

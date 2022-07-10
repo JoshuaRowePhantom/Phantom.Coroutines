@@ -1,12 +1,12 @@
-#include <gtest/gtest.h>
-#include "Phantom.Coroutines/shared_task.h"
-#include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
-#include "Phantom.Coroutines/sync_wait.h"
-#include "Phantom.Coroutines/task.h"
-#include "detail/awaiters.h"
+import "gtest.h";
+import Phantom.Coroutines.shared_task;
+import Phantom.Coroutines.single_consumer_manual_reset_event;
+import Phantom.Coroutines.sync_wait;
+import Phantom.Coroutines.task;
+import Phantom.Coroutines.Test.awaiters;
+import <type_traits>;
 
 using namespace Phantom::Coroutines;
-using namespace Phantom::Coroutines::detail;
 using namespace std::chrono_literals;
 
 static_assert(std::same_as<std::future<void>, decltype(as_future(typed_awaiter<void>{}))>);

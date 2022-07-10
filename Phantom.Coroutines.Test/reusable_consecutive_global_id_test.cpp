@@ -1,9 +1,9 @@
-#include <optional>
-#include <gtest/gtest.h>
-#include "Phantom.Coroutines/reusable_consecutive_global_id.h"
+import <optional>;
+import "gtest.h";
+import Phantom.Coroutines.reusable_consecutive_global_id;
 
-using namespace Phantom::Coroutines;
-using namespace Phantom::Coroutines::detail;
+namespace Phantom::Coroutines
+{
 
 TEST(reusable_consecutive_global_id_test, starts_at_zero_and_increments)
 {
@@ -75,3 +75,4 @@ static_assert(!std::copy_constructible<reusable_consecutive_global_id<reusable_c
 static_assert(!std::assignable_from<reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&, reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&>);
 static_assert(!std::assignable_from<reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&, const reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&>);
 static_assert(!std::assignable_from<reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>&, const reusable_consecutive_global_id<reusable_consecutive_global_id_test_global_label>>);
+}

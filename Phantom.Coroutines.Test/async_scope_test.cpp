@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-#include "Phantom.Coroutines/async_scope.h"
-#include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
-#include "Phantom.Coroutines/sync_wait.h"
-#include "Phantom.Coroutines/task.h"
+import "gtest.h";
+import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.single_consumer_manual_reset_event;
+import Phantom.Coroutines.sync_wait;
+import Phantom.Coroutines.task;
 
 using namespace Phantom::Coroutines;
 

@@ -37,7 +37,7 @@ Put the ```include/Phantom.Coroutines``` directory in your include path.  Then,
 ```#include``` the header that you desire:
 
 ```
-#include <Phantom.Coroutines/task.h>
+import <Phantom.Coroutines/task.h>;
 ```
 
 The contents of the ```Phantom::Coroutines``` namespace are open for use.  Everything

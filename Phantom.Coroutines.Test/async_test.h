@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include "Phantom.Coroutines/sync_wait.h"
-#include "Phantom.Coroutines/task.h"
+import "gtest.h";
+import Phantom.Coroutines.sync_wait;
+import Phantom.Coroutines.task;
 
 #define ASYNC_TEST_CLASS_NAME(test_suite_name, test_name) test_suite_name ## _ ## test_name ## _AsyncTest
 

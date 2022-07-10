@@ -1,4 +1,4 @@
-#include "Phantom.Coroutines/async_generator.h"
+import Phantom.Coroutines.async_generator;
 
 namespace cppcoro
 {

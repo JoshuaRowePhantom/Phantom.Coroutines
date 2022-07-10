@@ -1,4 +1,4 @@
-#include "Phantom.Coroutines/generator.h"
+import Phantom.Coroutines.generator;
 namespace cppcoro
 {
 template<

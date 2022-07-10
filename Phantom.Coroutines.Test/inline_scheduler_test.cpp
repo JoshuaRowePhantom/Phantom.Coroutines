@@ -1,6 +1,6 @@
-#include "async_test.h"
-#include "Phantom.Coroutines/inline_scheduler.h"
-#include <thread>
+import Phantom.Coroutines.async_test;
+import Phantom.Coroutines.inline_scheduler;
+import <thread>;
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;

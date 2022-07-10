@@ -1,1 +1,1 @@
-#include "Phantom.Coroutines/async_promise.h"
+import Phantom.Coroutines.async_promise;

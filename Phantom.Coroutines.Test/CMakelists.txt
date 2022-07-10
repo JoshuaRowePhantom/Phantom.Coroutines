@@ -2,35 +2,39 @@ cmake_minimum_required (VERSION 3.17)
 
 add_executable(
 	Phantom.Coroutines.Test
-	detail/awaiters.h
-	detail/fibonacci_heap_test.cpp
-	detail/scope_guard_test.cpp
-	detail/type_traits_test.cpp
-	detail/variant_member_test.cpp
-	async_generator_test.cpp
-	async_mutex_test.cpp
-	async_scope_test.cpp
 	async_test.h
-	atomic_state_test.cpp
-	"async_auto_reset_event_test.cpp"
-	
+	gtest.h
+	"awaiters.ixx"
+	"atomic_state_test.cpp"
+    "async_promise_test.cpp"
+	"fibonacci_heap_test.cpp"
+	"lifetime_tracker.ixx"
+	"read_copy_update_test.cpp"
+	"reusable_consecutive_global_id_test.cpp"
+	"scope_guard_test.cpp"
+	#"task_test.cpp"
+	"type_traits_test.cpp"
+	"variant_member_test.cpp"
+#	async_generator_test.cpp
+#	async_mutex_test.cpp
+#	async_scope_test.cpp
+#	"async_auto_reset_event_test.cpp"
+#	
 	generator_test.cpp
-	inline_scheduler_test.cpp
-	"async_manual_reset_event_test.cpp"
-	
-	read_copy_update_test.cpp
-	reusable_consecutive_global_id_test.cpp
-	sequence_barrier_test.cpp
-	shared_task_test.cpp
-	single_consumer_auto_reset_event_test.cpp
-	single_consumer_manual_reset_event_test.cpp
-	single_consumer_promise_test.cpp
-	sync_wait_test.cpp
-	task_test.cpp
-	thread_pool_scheduler_test.cpp
-	
-	when_ready_test.cpp
-    "async_promise_test.cpp")
+#	inline_scheduler_test.cpp
+#	"async_manual_reset_event_test.cpp"
+#	
+#	sequence_barrier_test.cpp
+#	shared_task_test.cpp
+#	single_consumer_auto_reset_event_test.cpp
+#	single_consumer_manual_reset_event_test.cpp
+#	single_consumer_promise_test.cpp
+#	sync_wait_test.cpp
+#	thread_pool_scheduler_test.cpp
+#	
+#	when_ready_test.cpp
+	"stl.h"
+)
 
 target_link_libraries(
 	Phantom.Coroutines.Test
@@ -40,6 +44,11 @@ target_link_libraries(
 	GTest::gtest_main
 )
 
+set_target_properties(
+	Phantom.Coroutines.Test
+	PROPERTIES
+	VS_PROJECT_IMPORT "Phantom.Coroutines.Test.props"
+)
 enable_testing()
 
 gtest_discover_tests(

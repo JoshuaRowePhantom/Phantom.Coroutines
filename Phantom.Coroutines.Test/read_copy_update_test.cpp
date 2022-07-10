@@ -1,9 +1,9 @@
-#include <gtest/gtest.h>
-#include "Phantom.Coroutines/read_copy_update.h"
-#include "lifetime_tracker.h"
+import "gtest.h";
+import Phantom.Coroutines.read_copy_update;
+import Phantom.Coroutines.Test.lifetime_tracker;
 
-using namespace Phantom::Coroutines;
-using namespace Phantom::Coroutines::detail;
+namespace Phantom::Coroutines
+{
 
 TEST(read_copy_update_test, can_read_initial_value)
 {
@@ -25,7 +25,7 @@ TEST(read_copy_update_test, can_read_written_const_value)
 TEST(read_copy_update_test, can_modify_value_before_exchange)
 {
 	read_copy_update_section<const std::string> section("hello world 1");
-	
+
 	auto operation = section.update();
 	operation.emplace("hello world 2")[0] = '2';
 	operation.exchange();
@@ -41,7 +41,7 @@ TEST(read_copy_update_test, can_read_modified_and_replacement_value_after_failed
 	auto operation2 = section.update();
 
 	operation1.emplace("hello world 2");
-	
+
 	ASSERT_EQ(operation1.value(), "hello world 1");
 
 	operation2.emplace("hello world 3");
@@ -101,7 +101,7 @@ TEST(read_copy_update_test, object_released_after_replace_and_reread)
 	read_copy_update_section<lifetime_tracker> section{ statistics1.tracker() };
 
 	ASSERT_EQ(1, statistics1.instance_count);
-	
+
 	lifetime_statistics statistics2;
 	section.write().emplace(statistics2.tracker());
 
@@ -171,3 +171,4 @@ static_assert(std::same_as<std::string&, decltype(*declval_rcu_string.read())>);
 static_assert(std::same_as<std::string&, decltype(*declval_rcu_string.operator->())>);
 static_assert(std::same_as<const std::string&, decltype(*declval_rcu_const_string.read())>);
 static_assert(std::same_as<const std::string&, decltype(*declval_rcu_const_string.operator->())>);
+}

@@ -1,0 +1,7 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<ItemGroup>
+		<ClCompile Include="$(MSBuildThisFileDirectory)async_test.h"/>
+		<ClCompile Include="$(MSBuildThisFileDirectory)gtest.h"/>
+		<ClCompile Include="$(MSBuildThisFileDirectory)stl.h"/>
+	</ItemGroup>
+</Project>

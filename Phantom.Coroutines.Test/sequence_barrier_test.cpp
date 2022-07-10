@@ -1,7 +1,7 @@
-#include "async_test.h"
-#include "Phantom.Coroutines/sequence_barrier.h"
-#include "Phantom.Coroutines/suspend_result.h"
-#include "Phantom.Coroutines/sync_wait.h"
+import Phantom.Coroutines.async_test;
+import Phantom.Coroutines.sequence_barrier;
+import Phantom.Coroutines.suspend_result;
+import Phantom.Coroutines.sync_wait;
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;

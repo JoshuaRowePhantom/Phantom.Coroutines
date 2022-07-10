@@ -1,4 +1,4 @@
-#include "Phantom.Coroutines/inline_scheduler.h"
+import Phantom.Coroutines.inline_scheduler;
 namespace cppcoro
 {
 
