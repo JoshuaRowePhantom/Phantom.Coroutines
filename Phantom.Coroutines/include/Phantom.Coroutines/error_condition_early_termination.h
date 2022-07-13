@@ -1,3 +1,5 @@
+#pragma once
+
 #include "early_termination_task.h"
 #include <system_error>
 
@@ -7,20 +9,19 @@ namespace detail
 {
 
 template<
-	is_basic_early_termination_promise Promise
+	is_early_termination_promise Promise
 >
 class error_condition_early_termination_await_transformer
 {
-	class awaiter : basic_early_termination_awaiter<Promise>
+	class awaiter : basic_early_termination_transformed_awaiter<Promise>
 	{
 		template<
-			is_basic_early_termination_promise Promise
+			is_early_termination_promise Promise
 		>
 		friend class error_condition_early_termination;
 
 		std::error_condition m_errorCondition;
 
-	public:
 		awaiter(
 			error_condition_early_termination_await_transformer& transformer,
 			std::error_condition errorCondition
@@ -28,6 +29,7 @@ class error_condition_early_termination_await_transformer
 			basic_early_termination_awaiter<Promise>{ transformer }
 		{}
 
+	public:
 		bool await_ready() const noexcept
 		{
 			return !m_errorCondition;
@@ -35,14 +37,17 @@ class error_condition_early_termination_await_transformer
 
 		auto await_suspend() noexcept
 		{
-			this->set_result(
+			this->return_value(
 				early_termination_result{ m_errorCondition }
 			);
 			return this->resume();
 		}
 
 		void await_resume() const noexcept
-		{}
+		{
+			// This method will only be called if m_errorCondition
+			// did not contain an error condition.
+		}
 	};
 
 public:

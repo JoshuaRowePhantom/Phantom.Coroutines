@@ -7,17 +7,17 @@ add_executable(
 	detail/scope_guard_test.cpp
 	detail/type_traits_test.cpp
 	detail/variant_member_test.cpp
+	"async_auto_reset_event_test.cpp"
 	async_generator_test.cpp
+	"async_manual_reset_event_test.cpp"
 	async_mutex_test.cpp
+    "async_promise_test.cpp" 
 	async_scope_test.cpp
 	async_test.h
 	atomic_state_test.cpp
-	"async_auto_reset_event_test.cpp"
-	
+	"early_termination_task_test.cpp"
 	generator_test.cpp
 	inline_scheduler_test.cpp
-	"async_manual_reset_event_test.cpp"
-	
 	read_copy_update_test.cpp
 	reusable_consecutive_global_id_test.cpp
 	sequence_barrier_test.cpp
@@ -30,7 +30,7 @@ add_executable(
 	thread_pool_scheduler_test.cpp
 	
 	when_ready_test.cpp
-    "async_promise_test.cpp")
+)
 
 target_link_libraries(
 	Phantom.Coroutines.Test
