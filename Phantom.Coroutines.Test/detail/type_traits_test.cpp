@@ -1,3 +1,4 @@
+#include <gtest/gtest.h>
 #include "Phantom.Coroutines/detail/type_traits.h"
 #include <tuple>
 #include <type_traits>
@@ -181,5 +182,48 @@ static_assert(std::same_as<void, awaitable_result_type_t<typed_awaitable<void, v
 static_assert(std::same_as<long, awaitable_result_type_t<typed_awaitable<int, void, long>&&>>);
 static_assert(std::same_as<long&, awaitable_result_type_t<typed_awaitable<int&, void, long&>&&>>);
 static_assert(std::same_as<long&&, awaitable_result_type_t<typed_awaitable<int&&, void, long&&>&&>>);
+
+TEST(type_traits_test, get_awaiter_returns_awaiter_lvalue_as_itself)
+{
+    generic_awaiter<> awaiter;
+    decltype(auto) result = get_awaiter(awaiter);
+    static_assert(std::same_as<generic_awaiter<>&, decltype(result)>);
+    ASSERT_EQ(&result, &awaiter);
+}
+
+TEST(type_traits_test, get_awaiter_returns_awaiter_rvalue_as_itself)
+{
+    generic_awaiter<> awaiter;
+    decltype(auto) result = get_awaiter(std::move(awaiter));
+    static_assert(std::same_as<generic_awaiter<>&&, decltype(result)>);
+    ASSERT_EQ(&result, &awaiter);
+}
+
+TEST(type_traits_test, get_awaiter_returns_awaitable_lvalue_as_itself)
+{
+    generic_awaitable_lvalue<> awaitable;
+    decltype(auto) result = get_awaiter(awaitable);
+    static_assert(std::same_as<generic_awaiter<>&, decltype(awaitable.operator co_await())>);
+    static_assert(std::same_as<generic_awaiter<>&, decltype(result)>);
+    ASSERT_EQ(&result, &awaitable.m_awaiter);
+}
+
+TEST(type_traits_test, get_awaiter_returns_awaitable_rvalue_as_itself)
+{
+    generic_awaitable_rvalue<> awaitable;
+    decltype(auto) result = get_awaiter(std::move(awaitable));
+    static_assert(std::same_as<generic_awaiter<>&&, decltype(std::move(awaitable).operator co_await())>);
+    static_assert(std::same_as<generic_awaiter<>&&, decltype(result)>);
+    ASSERT_EQ(&result, &awaitable.m_awaiter);
+}
+
+TEST(type_traits_test, get_awaiter_returns_awaitable_value_as_copy)
+{
+    generic_awaitable_value<> awaitable;
+    decltype(auto) result = get_awaiter(std::move(awaitable));
+    static_assert(std::same_as<generic_awaiter<>, decltype(std::move(awaitable).operator co_await())>);
+    static_assert(std::same_as<generic_awaiter<>, decltype(result)>);
+    ASSERT_NE(&result, &awaitable.m_awaiter);
+}
 
 }

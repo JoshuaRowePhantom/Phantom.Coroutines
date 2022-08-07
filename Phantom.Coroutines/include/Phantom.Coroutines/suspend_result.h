@@ -1,6 +1,7 @@
 #include <type_traits>
 #include "detail/coroutine.h"
 #include "type_traits.h"
+#include "detail/awaiter_wrapper.h"
 
 namespace Phantom::Coroutines
 {
@@ -8,78 +9,62 @@ namespace detail
 {
 
 template<
-    is_awaiter Awaiter
+    is_awaitable Awaitable
 >
 class suspend_result_awaiter
+    :
+public awaiter_wrapper<Awaitable>
 {
     friend class suspend_result;
+    using typename awaiter_wrapper<Awaitable>::awaiter_type;
 
     suspend_result& m_suspendResult;
-    Awaiter m_awaiter;
-
+    
     suspend_result_awaiter(
         suspend_result& suspendResult,
-        Awaiter awaiter
+        Awaitable&& awaitable
     ) :
+        awaiter_wrapper<Awaitable>
+    {
+            std::forward<Awaitable>(awaitable)
+    },
         m_suspendResult
     {
             suspendResult
-    },
-        m_awaiter
-    {
-            std::forward<Awaiter>(awaiter)
-    }
-    {
-    }
-
-    template<
-        has_co_await CAwaitable
-    >
-    suspend_result_awaiter(
-        suspend_result& suspendResult,
-        CAwaitable&& awaitable
-    ) :
-        m_suspendResult
-    {
-            suspendResult
-    },
-        m_awaiter
-    {
-            get_awaiter(std::forward<CAwaitable>(awaitable))
     }
     {
     }
 
 public:
     bool await_ready(
-    ) noexcept(noexcept(m_awaiter.await_ready()))
+    ) noexcept(noexcept(this->get_awaiter().await_ready()))
     {
-        return m_awaiter.await_ready();
+        return this->get_awaiter().await_ready();
     }
 
     auto await_suspend(
         coroutine_handle<> continuation
-    ) noexcept(noexcept(m_awaiter.await_suspend(continuation)))
+    ) noexcept(noexcept(this->get_awaiter().await_suspend(continuation)))
     {
-        if constexpr (has_void_await_suspend<Awaiter>)
+        if constexpr (has_void_await_suspend<awaiter_type>)
         {
-            m_awaiter.await_suspend(
+            m_suspendResult.m_didSuspend = true;
+            this->get_awaiter().await_suspend(
                 continuation
             );
-            m_suspendResult.m_didSuspend = true;
             return;
         }
-        else if constexpr (has_bool_await_suspend<Awaiter>)
+        else if constexpr (has_bool_await_suspend<awaiter_type>)
         {
-            return m_suspendResult.m_didSuspend = m_awaiter.await_suspend(
+            return m_suspendResult.m_didSuspend = this->get_awaiter().await_suspend(
                 continuation
             );
         }
         else
         {
-            static_assert(has_symmetric_transfer_await_suspend<Awaiter>);
+            static_assert(has_symmetric_transfer_await_suspend<awaiter_type>);
 
-            auto transferToCoroutine = m_awaiter.await_suspend(
+            auto transferToCoroutine = this->get_awaiter().await_suspend(
                 continuation
             );
 
@@ -90,16 +75,16 @@ public:
     }
 
     decltype(auto) await_resume(
-    ) noexcept(noexcept(m_awaiter.await_resume()))
+    ) noexcept(noexcept(this->get_awaiter().await_resume()))
     {
-        return (m_awaiter.await_resume());
+        return (this->get_awaiter().await_resume());
     }
 };
 
 class suspend_result
 {
     template<
-        is_awaiter Awaiter
+        is_awaitable Awaitable
     > friend class suspend_result_awaiter;
 
     bool m_didSuspend = false;
@@ -111,31 +96,17 @@ public:
     }
 
     template<
-        is_awaiter Awaitable
+        is_awaitable Awaitable
     > auto operator <<(
         Awaitable&& awaitable
         )
     {
         return suspend_result_awaiter<
-            Awaitable&&
-        >
-        {
+            Awaitable
+        >(
             *this,
             std::forward<Awaitable>(awaitable)
-        };
-    }
-
-    template<
-        has_co_await Awaitable
-    > auto operator <<(
-        Awaitable&& awaitable
-        )
-    {
-        return suspend_result_awaiter<awaiter_type<Awaitable>>
-        {
-            *this,
-            std::forward<Awaitable>(awaitable)
-        };
+            );
     }
 };
 
