@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/read_copy_update.h"
 #include "lifetime_tracker.h"
+#include <optional>
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
