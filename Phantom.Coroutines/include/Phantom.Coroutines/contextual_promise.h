@@ -8,7 +8,10 @@ namespace detail
 {
 template<
 	typename Traits
-> concept contextual_promise_traits = true;
+> concept contextual_promise_traits = requires
+{
+	typename Traits::base_promise_type;
+};
 
 template<
 	contextual_promise_traits Traits
@@ -19,9 +22,11 @@ public Traits::base_promise_type
 	typedef Traits::base_promise_type base_promise_type;
 
 	template<
-		is_awaiter Awaiter
+		is_awaitable Awaiter
 	>
 	class base_restore_context_awaiter
+		:
+	private awaiter_wrapper<Awaiter>
 	{
 		Awaiter m_awaiter;
 
@@ -36,8 +41,32 @@ public Traits::base_promise_type
 
 	};
 
+	void enter()
+	{
+
+	}
+
+	void leave()
+	{
+
+	}
+
+	base_promise_type& base_promise();
+
 public:
-	auto initial_suspend() const noexcept(noexcept(base_promise_type::initial_suspend()))
+	auto initial_suspend() const noexcept(noexcept(base_promise().initial_suspend()))
+	{
+
+	}
+
+	template<
+		typename TAwaitable
+	> auto await_transform(
+		TAwaitable&& awaitable
+	) const noexcept
+	{}
+
+	auto final_suspend() const noexcept(noexcept(base_promise().final_suspend()))
 	{
 
 	}
