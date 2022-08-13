@@ -1,6 +1,7 @@
 import "gtest.h";
 import Phantom.Coroutines.read_copy_update;
 import Phantom.Coroutines.Test.lifetime_tracker;
+import<optional>;
 
 namespace Phantom::Coroutines
 {

@@ -12,7 +12,7 @@ add_executable(
 	"read_copy_update_test.cpp"
 	"reusable_consecutive_global_id_test.cpp"
 	"scope_guard_test.cpp"
-	#"task_test.cpp"
+	"task_test.cpp"
 	"type_traits_test.cpp"
 	"variant_member_test.cpp"
 #	async_generator_test.cpp
