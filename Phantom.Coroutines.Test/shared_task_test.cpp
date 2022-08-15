@@ -22,8 +22,8 @@ static_assert(detail::is_awaitable<shared_task<>>);
 static_assert(detail::is_awaitable<shared_task<int>>);
 static_assert(detail::is_awaitable<shared_task<int&>>);
 
-static_assert(detail::has_co_await<shared_task<>&>);
-static_assert(detail::has_co_await<shared_task<>&&>);
+static_assert(detail::has_co_await_member<shared_task<>&>);
+static_assert(detail::has_co_await_member<shared_task<>&&>);
 
 // Assert the type of awaiter returned by co_await.
 static_assert(std::same_as<detail::shared_task_awaiter<shared_task<void>>, decltype(std::declval<shared_task<void>>().operator co_await())>);

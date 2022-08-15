@@ -30,7 +30,7 @@ static_assert(detail::is_awaitable<task<std::string>>);
 static_assert(detail::is_awaitable<task<std::string&>>);
 static_assert(detail::is_awaitable<task<std::string&&>>);
 
-static_assert(detail::has_co_await<task<>&&>);
+static_assert(detail::has_co_await_member<task<>&&>);
 
 static_assert(std::same_as<detail::awaitable_result_type_t<task<>>, void>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);

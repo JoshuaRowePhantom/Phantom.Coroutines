@@ -126,8 +126,8 @@ static_assert(is_awaiter<typed_awaiter<int&>>);
 static_assert(is_awaiter<typed_awaiter<int&&>>);
 static_assert(!is_awaiter<not_awaitable>);
 
-static_assert(has_co_await<typed_awaitable<void>>);
-static_assert(!has_co_await<not_awaitable>);
+static_assert(has_co_await_member<typed_awaitable<void>>);
+static_assert(!has_co_await_member<not_awaitable>);
 
 static_assert(std::same_as<typed_awaiter<void>, awaiter_type<typed_awaiter<void>>>);
 static_assert(std::same_as<typed_awaiter<int>, awaiter_type<typed_awaiter<int>>>);

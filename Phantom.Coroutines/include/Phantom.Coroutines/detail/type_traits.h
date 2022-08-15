@@ -242,7 +242,7 @@ requires (
 
 template<
     typename TAwaitable
-> concept has_co_await = requires(
+> concept has_co_await_member = requires(
     TAwaitable awaitable
     )
 {
@@ -251,19 +251,40 @@ template<
 
 template<
     typename TAwaitable
+> concept has_co_await_non_member = requires(
+    TAwaitable awaitable
+    )
+{
+    requires is_awaiter<decltype(operator co_await(std::forward<TAwaitable>(awaitable)))>;
+};
+
+template<
+    typename TAwaitable
 > concept is_awaitable =
-has_co_await<TAwaitable>
+has_co_await_member<TAwaitable>
+||
+has_co_await_non_member<TAwaitable>
 ||
 is_awaiter<TAwaitable>;
 
 template<
-    has_co_await TAwaitable
+    has_co_await_member TAwaitable
 >
 decltype(auto) get_awaiter(
     TAwaitable&& awaitable
 )
 {
     return std::forward<TAwaitable>(awaitable).operator co_await();
+}
+
+template<
+    has_co_await_non_member TAwaitable
+>
+decltype(auto) get_awaiter(
+    TAwaitable&& awaitable
+)
+{
+    return operator co_await(std::forward<TAwaitable>(awaitable));
 }
 
 template<
@@ -336,7 +357,8 @@ using detail::awaitable_result_type_t;
 using detail::awaitable_result_type;
 using detail::is_awaitable;
 using detail::is_awaiter;
-using detail::has_co_await;
+using detail::has_co_await_member;
+using detail::has_co_await_non_member;
 using detail::get_awaiter;
 
 } // namespace Phantom::Coroutines
