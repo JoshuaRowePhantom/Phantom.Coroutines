@@ -82,6 +82,12 @@ TEST(async_mutex_test, double_release_scoped_lock_does_not_unlock)
 	ASSERT_FALSE(result3);
 }
 
+task<> foo()
+{
+	async_mutex mutex;
+	co_await mutex.lock();
+}
+
 ASYNC_TEST(async_mutex_test, lock_on_unlocked_mutex_acquires_mutex)
 {
 	async_mutex mutex;

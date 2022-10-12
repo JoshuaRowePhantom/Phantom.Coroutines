@@ -10,20 +10,20 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
-static_assert(detail::is_awaiter<task_awaiter<>>);
-static_assert(detail::is_awaiter<task_awaiter<int>>);
-static_assert(detail::is_awaiter<task_awaiter<int&>>);
-static_assert(detail::is_awaiter<task_awaiter<int&&>>);
+static_assert(detail::is_awaiter<task_awaiter<task_promise<>>>);
+static_assert(detail::is_awaiter<task_awaiter<task_promise<int>>>);
+static_assert(detail::is_awaiter<task_awaiter<task_promise<int&>>>);
+static_assert(detail::is_awaiter<task_awaiter<task_promise<int&&>>>);
 
 static_assert(detail::is_awaitable<task<>>);
 static_assert(detail::is_awaitable<task<int>>);
 static_assert(detail::is_awaitable<task<int&>>);
 static_assert(detail::is_awaitable<task<int&&>>);
 
-static_assert(detail::is_awaiter<task_awaiter<>>);
-static_assert(detail::is_awaiter<task_awaiter<std::string>>);
-static_assert(detail::is_awaiter<task_awaiter<std::string&>>);
-static_assert(detail::is_awaiter<task_awaiter<std::string&&>>);
+static_assert(detail::is_awaiter<task_awaiter<task_promise<>>>);
+static_assert(detail::is_awaiter<task_awaiter<task_promise<std::string>>>);
+static_assert(detail::is_awaiter<task_awaiter<task_promise<std::string&>>>);
+static_assert(detail::is_awaiter<task_awaiter<task_promise<std::string&&>>>);
 
 static_assert(detail::is_awaitable<task<>>);
 static_assert(detail::is_awaitable<task<std::string>>);

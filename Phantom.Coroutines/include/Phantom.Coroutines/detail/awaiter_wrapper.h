@@ -1,3 +1,4 @@
+#pragma once
 #include "type_traits.h"
 
 namespace Phantom::Coroutines
@@ -29,6 +30,33 @@ public:
 		AwaiterArg&& awaiter
 	) : m_awaiter(std::forward<AwaiterArg>(awaiter))
 	{}
+
+	auto await_ready(
+		auto&&... args
+	) noexcept(noexcept(get_awaiter().await_ready(std::forward<decltype(args)>(args)...)))
+	{
+		return get_awaiter().await_ready(
+			std::forward<decltype(args)>(args)...
+		);
+	}
+
+	auto await_suspend(
+		auto&&... args
+	) noexcept(
+		noexcept(get_awaiter().await_suspend(std::forward<decltype(args)>(args)...))
+		)
+	{
+		return get_awaiter().await_suspend(std::forward<decltype(args)>(args)...);
+	}
+
+	auto await_resume(
+		auto&&... args
+	) noexcept(
+		noexcept(get_awaiter().await_resume(std::forward<decltype(args)>(args)...))
+		)
+	{
+		return get_awaiter().await_resume(std::forward<decltype(args)>(args)...);
+	}
 
 protected:
 	awaiter_type& get_awaiter()

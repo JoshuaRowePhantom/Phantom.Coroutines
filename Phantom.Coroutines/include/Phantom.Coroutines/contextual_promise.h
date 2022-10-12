@@ -1,74 +1,178 @@
-#include "detail/coroutine.h"
-#include "type_traits.h"
-#include "detail/awaiter_wrapper.h"
+#include "extensible_promise.h"
+#include "thread_local_context.h"
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
+
 template<
-	typename Traits
-> concept contextual_promise_traits = requires
+	typename Promise
+> concept is_contextual_promise = requires (Promise promise)
 {
-	typename Traits::base_promise_type;
+	{ promise.enter() };
+	{ promise.leave() };
 };
 
 template<
-	contextual_promise_traits Traits
+	typename BasePromise,
+	is_contextual_promise ContextualPromise,
+	typename ExtendedPromise = ContextualPromise
 > class contextual_promise
 	:
-public Traits::base_promise_type
+public derived_promise<BasePromise>,
+public extensible_promise<ExtendedPromise>
 {
-	typedef Traits::base_promise_type base_promise_type;
+	class key {};
+
+	const bool DoNotEnterOnResume = false;
+	const bool DoNotLeaveOnSuspend = false;
+	const bool DoEnterOnResume = true;
+	const bool DoLeaveOnSuspend = true;
 
 	template<
-		is_awaitable Awaiter
-	>
-	class base_restore_context_awaiter
-		:
-	private awaiter_wrapper<Awaiter>
+		bool Enter,
+		bool Leave,
+		is_awaiter Awaiter
+	> class awaiter :
+		public awaiter_wrapper<Awaiter>
 	{
-		Awaiter m_awaiter;
+		bool m_bSuspended = false;
+		ExtendedPromise& m_promise;
 
-	protected:
-		base_restore_context_awaiter(
-			Awaiter&& awaiter
-		) :
-			m_awaiter(awaiter)
-		{}
+		using awaiter_wrapper<Awaiter>::get_awaiter;
 
 	public:
+		template<
+			typename AwaiterArg
+		> awaiter(
+			ExtendedPromise& promise,
+			AwaiterArg&& awaiter,
+			key
+		) : 
+			awaiter_wrapper<Awaiter>{ awaiter },
+			m_promise{ promise }
+		{}
 
+		auto await_suspend(
+			auto&&... args
+		) noexcept(
+			noexcept(get_awaiter().await_suspend(std::forward<decltype(args)>(args)...))
+			&& noexcept(m_promise.leave())
+			)
+		{
+			m_bSuspended = true;
+			if (Leave)
+			{
+				m_promise.leave();
+			}
+			return get_awaiter().await_suspend(std::forward<decltype(args)>(args)...);
+		}
+
+		auto await_resume(
+			auto&&... args
+		) noexcept(
+			noexcept(get_awaiter().await_resume(std::forward<decltype(args)>(args)...))
+			&& noexcept(m_promise.enter())
+			)
+		{
+			if (Enter && m_bSuspended)
+			{
+				m_promise.enter();
+			}
+			return get_awaiter().await_resume(std::forward<decltype(args)>(args)...);
+		}
 	};
+
+	template<
+		bool Enter,
+		bool Leave,
+		is_awaiter Awaiter
+	> awaiter(Awaiter&&)->awaiter<Enter, Leave, Awaiter>;
+
+public:
+	using extensible_promise<ExtendedPromise>::extensible_promise;
+
+	auto initial_suspend()
+	{
+		return awaiter<DoEnterOnResume, DoNotLeaveOnSuspend>
+		{
+			*this,
+			wrapper_promise<BasePromise>::initial_suspend(),
+			key()
+		};
+	}
+
+	auto final_suspend()
+	{
+		return awaiter<DoNotEnterOnResume, DoLeaveOnSuspend>
+		{
+			*this,
+				wrapper_promise<BasePromise>::initial_suspend(),
+				key()
+		};
+	}
+
+	auto await_transform(
+		auto&&... args)
+	{
+		return awaiter<DoEnterOnResume, DoLeaveOnSuspend>
+		{
+			*this,
+			wrapper_promise<BasePromise>::await_transform(
+				std::forward<decltype(args)>(args)...),
+			key()
+		};
+	}
+};
+
+template<
+	typename BasePromise,
+	is_thread_local_context ThreadLocalContext,
+	typename ExtendedPromise = thread_local_contextual_promise<BasePromise, ThreadLocalContext>
+> class thread_local_contextual_promise
+	:
+public derived_promise<
+	contextual_promise<
+		BasePromise,
+		thread_local_contextual_promise,
+		ExtendedPromise
+	>>
+{
+	using base_promise = thread_local_contextual_promise::derived_promise;
+	using thread_local_context_scope = thread_local_context_scope<ThreadLocalContext>;
+
+public:
+	using value_type = typename ThreadLocalContext::value_type;
+
+private:
+	std::optional<thread_local_context_scope> m_scope;
+	std::optional<value_type> m_value;
+
+public:
+	template<
+		typename... Args
+	> thread_local_contextual_promise(
+		Args&&... args
+	) :
+		m_value
+	{
+		ThreadLocalContext::current()
+	}
+	{}
+
+	using base_promise::base_promise;
 
 	void enter()
 	{
-
+		m_scope.emplace(thread_local_context_scope{ std::move(*m_value) });
+		m_value.reset();
 	}
 
 	void leave()
 	{
-
-	}
-
-	base_promise_type& base_promise();
-
-public:
-	auto initial_suspend() const noexcept(noexcept(base_promise().initial_suspend()))
-	{
-
-	}
-
-	template<
-		typename TAwaitable
-	> auto await_transform(
-		TAwaitable&& awaitable
-	) const noexcept
-	{}
-
-	auto final_suspend() const noexcept(noexcept(base_promise().final_suspend()))
-	{
-
+		m_value.emplace(std::move(ThreadLocalContext::current()));
+		m_scope.reset();
 	}
 };
 

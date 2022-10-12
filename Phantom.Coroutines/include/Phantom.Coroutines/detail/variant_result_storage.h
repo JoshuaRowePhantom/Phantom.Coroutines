@@ -6,6 +6,34 @@ namespace Phantom::Coroutines::detail
 {
 template<
 	typename T
+> struct variant_return_result
+{
+	void return_value(
+		this auto& self,
+		auto&& value
+	)
+	{
+		return self.return_variant_result(
+			std::forward<decltype(value)>(value)
+		);
+	}
+};
+
+template<
+> struct variant_return_result<void>
+{
+	void return_void(
+		this auto& self
+	)
+	{
+		return self.return_variant_result(
+			std::monostate{}
+		);
+	}
+};
+
+template<
+	typename T
 > struct variant_result_storage
 {
 	typedef T result_type;
@@ -20,7 +48,7 @@ template<
 	template<
 		size_t Index,
 		typename Variant
-	> static get_result_type get(
+	> static get_result_type get_result(
 		Variant& variant
 	)
 	{
@@ -45,7 +73,7 @@ template<
 	template<
 		size_t Index,
 		typename Variant
-	> static void get(
+	> static void get_result(
 		Variant& variant
 	)
 	{
@@ -71,7 +99,7 @@ template<
 	template<
 		size_t Index,
 		typename Variant
-	> static T& get(
+	> static T& get_result(
 		Variant& variant
 	)
 	{
@@ -97,7 +125,7 @@ template<
 	template<
 		size_t Index,
 		typename Variant
-	> static T&& get(
+	> static T&& get_result(
 		Variant& variant
 	)
 	{

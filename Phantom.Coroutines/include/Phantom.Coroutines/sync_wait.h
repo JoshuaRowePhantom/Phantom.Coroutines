@@ -49,26 +49,59 @@ struct as_future_implementation_promise
 };
 
 template<
-    is_awaitable TAwaitable,
-    typename TResult
+    typename T
+> struct as_future_promise_type;
+
+template<
+    is_awaitable Awaitable
+> struct as_future_promise_type<
+    Awaitable
+>
+{
+    using result_type =
+        std::conditional_t<
+        std::is_rvalue_reference_v<awaitable_result_type_t<Awaitable>>,
+        std::remove_reference_t<awaitable_result_type_t<Awaitable>>,
+        awaitable_result_type_t<Awaitable>
+        >;
+    using promise_type = std::promise<result_type>;
+};
+
+template<
+    std::invocable Invocable
+> struct as_future_promise_type<
+    Invocable
+> :
+public as_future_promise_type<
+    std::invoke_result_t<Invocable>
+>
+{
+};
+
+template<
+    std::invocable TInvocable,
+    typename promise_type = as_future_promise_type<TInvocable>::promise_type
 >
 as_future_implementation_awaitable
 as_future_implementation(
-    std::promise<TResult> promise,
-    TAwaitable&& awaitable
+    promise_type promise,
+    TInvocable&& invocable
 )
+requires is_awaitable<std::invoke_result_t<TInvocable>>
 {
+    TInvocable invoked{ invocable };
+
     try
     {
-        if constexpr (std::is_same_v<TResult, void>)
+        if constexpr (std::is_same_v<std::promise<void>, promise_type>)
         {
-            co_await std::forward<TAwaitable>(awaitable);
+            co_await invoked();
             promise.set_value();
         }
         else
         {
             promise.set_value(
-                co_await std::forward<TAwaitable>(awaitable));
+                co_await invoked());
         }
     }
     catch (...)
@@ -79,29 +112,37 @@ as_future_implementation(
     }
 }
 
-// Given an awaitable object, return an std::future representing it.
+// Given a lambda returning an awaitable object, return an std::future representing it.
 template<
-    is_awaitable TAwaitable
-> decltype(auto) as_future(
-    TAwaitable&& awaitable
+    std::invocable TInvocable
+> auto as_future(
+    TInvocable&& invocable
 )
+requires is_awaitable<std::invoke_result_t<TInvocable>>
 {
-    typedef awaitable_result_type_t<TAwaitable&&> awaitable_result_type;
-
-    typedef std::conditional_t<
-        std::is_rvalue_reference_v<awaitable_result_type_t<TAwaitable>>,
-        std::remove_reference_t<awaitable_result_type>,
-        awaitable_result_type
-    > result_type;
-
-    std::promise<result_type> promise;
+    typename as_future_promise_type<TInvocable>::promise_type promise;
     auto future = promise.get_future();
 
     as_future_implementation(
         std::move(promise),
-        std::forward<TAwaitable>(awaitable));
+        std::forward<TInvocable>(invocable));
 
     return future;
+}
+
+// Given an awaitable object, return an std::future representing it.
+template<
+    is_awaitable TAwaitable
+> auto as_future(
+    TAwaitable&& awaitable
+)
+{
+    return as_future(
+        [&]() -> decltype(auto) 
+        { 
+            return awaitable; 
+        }
+    );
 }
 
 // Synchronously wait for the result of an awaitable object and return its result.

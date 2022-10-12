@@ -22,7 +22,7 @@ template<
 > constexpr bool is_template_instantiation_v<
     Template<Args...>,
     Template
-    > = true;
+> = true;
 
 template<
     typename T,
@@ -180,8 +180,8 @@ struct tuple_element_index<
     Type,
     std::tuple<OtherType, RemainingTypes...>,
     std::void_t<
-        std::enable_if_t<!std::is_same_v<Type, OtherType>>,
-        decltype(tuple_element_index<Type, std::tuple<RemainingTypes...>>::value)>
+    std::enable_if_t<!std::is_same_v<Type, OtherType>>,
+    decltype(tuple_element_index<Type, std::tuple<RemainingTypes...>>::value)>
 >
 {
     static const size_t value =
@@ -226,8 +226,8 @@ template<
     typename TAwaiter
 >
 concept is_awaiter =
-requires (
-    TAwaiter awaiter)
+    requires (
+TAwaiter awaiter)
 {
     { awaiter.await_ready() } -> std::same_as<bool>;
     { awaiter.await_resume() };
@@ -235,10 +235,10 @@ requires (
 &&
 (
     has_void_await_suspend<TAwaiter>
-||  has_bool_await_suspend<TAwaiter>
-||  has_symmetric_transfer_await_suspend<TAwaiter>
-)
-;
+    || has_bool_await_suspend<TAwaiter>
+    || has_symmetric_transfer_await_suspend<TAwaiter>
+    )
+    ;
 
 template<
     typename TAwaitable
@@ -350,7 +350,79 @@ template<
     typename T
 > constexpr bool is_optional<std::optional<T>> = true;
 
-} // namespace detail
+struct has_await_transform_conflicted_name
+{
+    int await_transform;
+};
+
+template<
+    typename Promise
+> struct has_await_transform_conflict_detector
+    :
+    public Promise,
+    public has_await_transform_conflicted_name
+{
+    int await_transform;
+};
+
+template<
+    typename Promise,
+    typename = void
+> constexpr bool has_await_transform = true;
+
+template<
+    typename Promise
+> constexpr bool has_await_transform<Promise, std::void_t<decltype(has_await_transform_conflict_detector<Promise>::await_transform)>> = false;
+
+template<
+    typename Promise,
+    typename ... Awaiter
+> concept has_await_transform_for = requires (Promise promise)
+{
+    { promise.await_transform(std::declval<Awaiter>()...) };
+};
+
+struct has_return_void_conflicted_name
+{
+    int return_void;
+};
+
+template<
+    typename Promise
+> struct has_return_void_conflict_detector
+    :
+    public Promise,
+    public has_return_void_conflicted_name
+{
+    int return_void;
+};
+
+template<
+    typename Promise,
+    typename = void
+> constexpr bool has_return_void_v = true;
+
+template<
+    typename Promise
+> constexpr bool has_return_void_v<Promise, std::void_t<decltype(has_return_void_conflict_detector<Promise>::return_void)>> = false;
+
+template<
+    typename Promise
+> concept has_return_void = has_return_void_v<Promise>;
+
+template<
+    typename Promise,
+    typename Awaiter
+> concept has_return_void_for = requires (Promise promise, Awaiter awaiter)
+{
+    { promise.return_void(awaiter) };
+};
+
+template<
+    typename Continuation
+> concept is_coroutine_handle = is_template_instantiation_v<Continuation, std::coroutine_handle>;
+
+}
 
 using detail::awaiter_type;
 using detail::awaitable_result_type_t;

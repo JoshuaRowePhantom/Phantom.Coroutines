@@ -49,7 +49,7 @@ TEST(single_consumer_auto_reset_event_test, Set_after_await_continues_awaiter_an
             stateBeforeWait = event.is_set();
             co_await(suspendResult << event);
             stateAfterWait = event.is_set();
-        }());
+        });
 
     event.set();
     future.get();
@@ -72,7 +72,7 @@ TEST(single_consumer_auto_reset_event_test, Set_before_await_causes_awaiter_to_n
             stateBeforeWait = event.is_set();
             co_await(suspendResult << event);
             stateAfterWait = event.is_set();
-        }());
+        });
 
     future.get();
     ASSERT_EQ(true, stateBeforeWait);

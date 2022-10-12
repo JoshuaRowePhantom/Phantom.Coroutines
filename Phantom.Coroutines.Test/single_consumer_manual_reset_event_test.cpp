@@ -44,12 +44,14 @@ TEST(single_consumer_manual_reset_event_test, Set_after_await_continues_awaiter_
     std::optional<bool> stateAfterWait;
     suspend_result suspendResult;
 
-    auto future = as_future([&]() -> task<>
+    auto lambda = [&]() -> task<>
     {
         stateBeforeWait = event.is_set();
-        co_await (suspendResult << event);
+        co_await(suspendResult << event);
         stateAfterWait = event.is_set();
-    }());
+    };
+
+    auto future = as_future(lambda());
 
     event.set();
     future.get();
@@ -72,7 +74,7 @@ TEST(single_consumer_manual_reset_event_test, Set_before_await_causes_awaiter_to
         stateBeforeWait = event.is_set();
         co_await (suspendResult << event);
         stateAfterWait = event.is_set();
-    }());
+    });
 
     future.get();
     ASSERT_EQ(true, stateBeforeWait);

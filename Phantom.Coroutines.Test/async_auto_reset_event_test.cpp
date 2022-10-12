@@ -63,7 +63,7 @@ TEST(async_auto_reset_event_test, Set_after_await_continues_one_awaiter_in_rever
         {
             co_await asyncScope.join();
             allComplete = true;
-        }());
+        });
 
     ASSERT_EQ(false, complete1);
     ASSERT_EQ(false, complete2);
