@@ -17,7 +17,7 @@ namespace Phantom::Coroutines::detail
 {
 
 template<
-	typename Result,
+	typename Result = void,
 	is_coroutine_handle Continuation = coroutine_handle<>
 > class task_promise;
 
@@ -209,7 +209,7 @@ template<
 {
 	template<
 		typename Result,
-		is_continuation Continuation
+		is_coroutine_handle Continuation
 	> friend class task_promise;
 
 	task(Promise& promise)
@@ -245,6 +245,5 @@ static_assert(std::same_as<task_promise<>, std::coroutine_traits<task<>>::promis
 static_assert(std::same_as<task_awaiter<task_promise<>>, awaiter_type<task<>>>);
 static_assert(detail::has_co_await_member<task<>>);
 static_assert(detail::is_awaitable<task<>>);
-static_assert(std::same_as<std::monostate, task<>::promise_type::result_variant_member_type>);
 
 }

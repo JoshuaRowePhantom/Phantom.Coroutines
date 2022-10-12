@@ -5,7 +5,6 @@
 #include "type_traits.h"
 #include "detail/awaiter_wrapper.h"
 #include "detail/coroutine.h"
-#include "detail/deduce_this_workarounds.h"
 
 namespace Phantom::Coroutines
 {
@@ -122,21 +121,6 @@ public:
 		>::from_promise(self);
 	}
 };
-
-#if PHANTOM_COROUTINES_ICE_DEDUCE_THIS_PROMISE
-template<
-	typename Promise
-> class extended_promise
-	:
-	public deduce_this_promise_workaround<Promise>
-{
-	using extended_promise::deduce_this_promise_workaround::deduce_this_promise_workaround;
-};
-#else
-template<
-	typename Promise
-> using extended_promise = Promise;
-#endif
 
 // An extensible awaitable is an awaitable object that can reference
 // an extensible promise.

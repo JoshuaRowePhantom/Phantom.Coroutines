@@ -9,8 +9,6 @@ if (MSVC)
 	
 	# Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
 	add_compile_options("/DPHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE=1")
-	# Bug https://developercommunity.visualstudio.com/t/Internal-Compiler-Error:-deduce-this-on/10126422
-	add_compile_options("/DPHANTOM_COROUTINES_ICE_DEDUCE_THIS_PROMISE=1")
 endif()
 
 add_subdirectory(Phantom.Coroutines)
