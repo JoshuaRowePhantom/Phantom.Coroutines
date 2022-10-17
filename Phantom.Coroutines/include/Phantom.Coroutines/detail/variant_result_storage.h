@@ -38,6 +38,7 @@ template<
 {
 	typedef T result_type;
 	typedef T& get_result_type;
+	typedef T&& return_result_type;
 
 	static constexpr bool is_void = false;
 	static constexpr bool is_reference = false;
@@ -54,6 +55,16 @@ template<
 	{
 		return std::get<Index>(variant);
 	}
+
+	template<
+		size_t Index,
+		typename Variant
+	> static return_result_type return_result(
+		Variant& variant
+	)
+	{
+		return std::move(std::get<Index>(variant));
+	}
 };
 
 template<
@@ -63,6 +74,7 @@ template<
 {
 	typedef void result_type;
 	typedef void get_result_type;
+	typedef void return_result_type;
 
 	static constexpr bool is_void = true;
 	static constexpr bool is_reference = false;
@@ -79,6 +91,16 @@ template<
 	{
 		return;
 	}
+
+	template<
+		size_t Index,
+		typename Variant
+	> static void return_result(
+		Variant& variant
+	)
+	{
+		return;
+	}
 };
 
 template<
@@ -89,6 +111,7 @@ template<
 {
 	typedef T& result_type;
 	typedef T& get_result_type;
+	typedef T& return_result_type;
 
 	static constexpr bool is_void = false;
 	static constexpr bool is_reference = true;
@@ -105,6 +128,16 @@ template<
 	{
 		return std::get<Index>(variant).get();
 	}
+
+	template<
+		size_t Index,
+		typename Variant
+	> static T& return_result(
+		Variant& variant
+	)
+	{
+		return std::get<Index>(variant).get();
+	}
 };
 
 template<
@@ -115,6 +148,7 @@ template<
 {
 	typedef T&& result_type;
 	typedef T&& get_result_type;
+	typedef T&& return_result_type;
 
 	static constexpr bool is_void = false;
 	static constexpr bool is_reference = true;
@@ -126,6 +160,16 @@ template<
 		size_t Index,
 		typename Variant
 	> static T&& get_result(
+		Variant& variant
+	)
+	{
+		return std::move(std::get<Index>(variant).get());
+	}
+
+	template<
+		size_t Index,
+		typename Variant
+	> static T&& return_result(
 		Variant& variant
 	)
 	{

@@ -96,7 +96,7 @@ public:
 			);
 		}
 
-		return this->get_result<result_index>(
+		return this->return_result<result_index>(
 			m_result);
 	}
 
