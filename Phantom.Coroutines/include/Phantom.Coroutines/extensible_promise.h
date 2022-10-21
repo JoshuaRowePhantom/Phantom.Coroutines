@@ -66,15 +66,21 @@ template<
 protected:
 	typedef Promise base_promise_type;
 
-	decltype(auto) promise(
-		this auto& self,
-		detail::base_promise_tag<Promise> = {}
-	)
+	decltype(auto) base_promise()
 	{
-		return self;
+		return *this;
 	}
 
 public:
+	// These constructors allow the derived promise
+	// to always provide a constructor and delegate to
+	// derived_promise's constructor,
+	// without regard as to whether the base promise
+	// provides a constructor.
+	// 
+	// A derived promise can also use a using declaration
+	// to import derived_promise's constructors.
+
 	// Enable construction by delegating the arguments
 	// to the promise object.
 	// This constructor is enabled only if the promise object
@@ -156,6 +162,112 @@ protected:
 	promise_type& promise() const
 	{
 		return m_coroutineHandle.promise();
+	}
+};
+
+template<
+	typename Promise,
+	is_awaitable Awaitable
+> class extended_awaiter;
+
+template<
+	typename Awaitable,
+	typename Promise
+> constexpr bool is_extended_awaiter_v = false;
+
+template<
+	typename Promise,
+	is_awaitable BaseAwaitable
+> constexpr bool is_extended_awaiter_v<
+	extended_awaiter<Promise, BaseAwaitable>,
+	Promise
+> = true;
+
+template<
+	typename Awaitable,
+	typename Promise
+> concept is_extended_awaiter = is_extended_awaiter_v<Awaitable, Promise>;
+
+template<
+	typename Promise,
+	is_awaitable Awaitable
+> class extended_awaiter
+	:
+public awaiter_wrapper<Awaitable>
+{
+	template<
+		typename Promise,
+		is_awaitable Awaitable
+	> friend class extended_awaiter;
+
+	std::coroutine_handle<Promise> m_handle;
+
+protected:
+
+	template<
+		typename AwaitableArg
+	>
+	extended_awaiter(
+		Promise& promise,
+		AwaitableArg&& awaitable
+	) : 
+		awaiter_wrapper<Awaitable>{ std::forward<AwaitableArg>(awaitable) },
+		m_handle { std::coroutine_handle<Promise>::from_promise(promise) }
+	{}
+
+	std::coroutine_handle<Promise> handle() const noexcept
+	{
+		return m_handle;
+	}
+
+	Promise& promise() const noexcept
+	{
+		return handle().promise();
+	}
+};
+
+// This specialization uses the awaitable object's handle() method
+// to retrieve the handle, instead of storing the handle directly,
+// thus optimizing an extended_awaiter wrapping another extended_awaiter.
+template<
+	typename Promise,
+	is_extended_awaiter<Promise> Awaitable
+> class extended_awaiter<
+	Promise,
+	Awaitable
+>
+	:
+	public awaiter_wrapper<Awaitable>
+{
+	template<
+		typename Promise,
+		is_awaitable Awaitable
+	> friend class extended_awaiter;
+
+protected:
+
+	template<
+		typename AwaitableArg
+	>
+	extended_awaiter(
+		Promise& promise,
+		AwaitableArg&& awaitable
+	) :
+		// Delegate to awaiter_wrapper
+		awaiter_wrapper<Awaitable>{ std::forward<AwaitableArg>(awaitable) }
+
+		// Discard the "promise" argument, since it will have been stored
+		// in the target awaiter.
+	{}
+
+	std::coroutine_handle<Promise> handle() const noexcept
+	{
+		return this->awaiter().handle();
+	}
+
+	Promise& promise() const noexcept
+	{
+		return handle().promise();
 	}
 };
 

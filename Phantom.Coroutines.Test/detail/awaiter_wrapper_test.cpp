@@ -12,49 +12,49 @@ template<
 {
 public:
 	using awaiter_wrapper_test_awaiter::awaiter_wrapper::awaiter_wrapper;
-	using awaiter_wrapper_test_awaiter::awaiter_wrapper::get_awaiter;
+	using awaiter_wrapper_test_awaiter::awaiter_wrapper::awaiter;
 };
 
 TEST(awaiter_wrapper_test, can_wrap_awaiter_value)
 {
 	generic_awaiter<void, void> awaiter;
 	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>> wrapper = std::move(awaiter);
-	ASSERT_NE(&wrapper.get_awaiter(), &awaiter);
+	ASSERT_NE(&wrapper.awaiter(), &awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaiter_lvalue)
 {
 	generic_awaiter<void, void> awaiter;
 	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&> wrapper = awaiter;
-	ASSERT_EQ(&wrapper.get_awaiter(), &awaiter);
+	ASSERT_EQ(&wrapper.awaiter(), &awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaiter_rvalue)
 {
 	generic_awaiter<void, void> awaiter;
 	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&&> wrapper = std::move(awaiter);
-	ASSERT_EQ(&wrapper.get_awaiter(), &awaiter);
+	ASSERT_EQ(&wrapper.awaiter(), &awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaitable_value)
 {
 	generic_awaitable_value<void, void> awaitable;
 	awaiter_wrapper_test_awaiter<generic_awaitable_rvalue<void, void>> wrapper = std::move(awaitable);
-	ASSERT_NE(&wrapper.get_awaiter(), &awaitable.m_awaiter);
+	ASSERT_NE(&wrapper.awaiter(), &awaitable.m_awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaitable_lvalue)
 {
 	generic_awaitable_lvalue<void, void> awaitable;
 	awaiter_wrapper_test_awaiter<generic_awaitable_lvalue<void, void>&> wrapper = awaitable;
-	ASSERT_EQ(&wrapper.get_awaiter(), &awaitable.m_awaiter);
+	ASSERT_EQ(&wrapper.awaiter(), &awaitable.m_awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaitable_rvalue)
 {
 	generic_awaitable_rvalue<void, void> awaitable;
 	awaiter_wrapper_test_awaiter<generic_awaitable_rvalue<void, void>> wrapper = std::move(awaitable);
-	ASSERT_EQ(&wrapper.get_awaiter(), &awaitable.m_awaiter);
+	ASSERT_EQ(&wrapper.awaiter(), &awaitable.m_awaiter);
 }
 
 }

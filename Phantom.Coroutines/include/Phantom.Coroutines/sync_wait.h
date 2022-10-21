@@ -140,7 +140,7 @@ template<
     return as_future(
         [&]() -> decltype(auto) 
         { 
-            return awaitable; 
+            return std::forward<TAwaitable>(awaitable); 
         }
     );
 }

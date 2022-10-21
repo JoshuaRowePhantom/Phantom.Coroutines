@@ -33,9 +33,9 @@ public:
 
 	auto await_ready(
 		auto&&... args
-	) noexcept(noexcept(get_awaiter().await_ready(std::forward<decltype(args)>(args)...)))
+	) noexcept(noexcept(awaiter().await_ready(std::forward<decltype(args)>(args)...)))
 	{
-		return get_awaiter().await_ready(
+		return awaiter().await_ready(
 			std::forward<decltype(args)>(args)...
 		);
 	}
@@ -43,23 +43,23 @@ public:
 	auto await_suspend(
 		auto&&... args
 	) noexcept(
-		noexcept(get_awaiter().await_suspend(std::forward<decltype(args)>(args)...))
+		noexcept(awaiter().await_suspend(std::forward<decltype(args)>(args)...))
 		)
 	{
-		return get_awaiter().await_suspend(std::forward<decltype(args)>(args)...);
+		return awaiter().await_suspend(std::forward<decltype(args)>(args)...);
 	}
 
 	auto await_resume(
 		auto&&... args
 	) noexcept(
-		noexcept(get_awaiter().await_resume(std::forward<decltype(args)>(args)...))
+		noexcept(awaiter().await_resume(std::forward<decltype(args)>(args)...))
 		)
 	{
-		return get_awaiter().await_resume(std::forward<decltype(args)>(args)...);
+		return awaiter().await_resume(std::forward<decltype(args)>(args)...);
 	}
 
 protected:
-	awaiter_type& get_awaiter()
+	awaiter_type& awaiter()
 	{
 		return m_awaiter;
 	}
@@ -70,7 +70,7 @@ template<
 > class awaiter_wrapper
 {
 protected:
-	typedef decltype(get_awaiter(std::declval<Awaitable>())) awaiter_type;
+	typedef decltype(detail::get_awaiter(std::declval<Awaitable>())) awaiter_type;
 	awaiter_type m_awaiter;
 
 public:
@@ -81,12 +81,13 @@ public:
 		AwaitableArg&& awaitable
 	) : m_awaiter
 	{
-		std::forward<AwaitableArg>(awaitable).operator co_await()
+		detail::get_awaiter(
+			std::forward<AwaitableArg>(awaitable))
 	}
 	{}
 
 protected:
-	awaiter_type& get_awaiter()
+	awaiter_type& awaiter()
 	{
 		return m_awaiter;
 	}

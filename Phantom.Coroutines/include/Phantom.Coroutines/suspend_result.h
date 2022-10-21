@@ -37,26 +37,26 @@ public awaiter_wrapper<Awaitable>
 
 public:
     bool await_ready(
-    ) noexcept(noexcept(this->get_awaiter().await_ready()))
+    ) noexcept(noexcept(this->awaiter().await_ready()))
     {
-        return this->get_awaiter().await_ready();
+        return this->awaiter().await_ready();
     }
 
     auto await_suspend(
         coroutine_handle<> continuation
-    ) noexcept(noexcept(this->get_awaiter().await_suspend(continuation)))
+    ) noexcept(noexcept(this->awaiter().await_suspend(continuation)))
     {
         if constexpr (has_void_await_suspend<awaiter_type>)
         {
             m_suspendResult.m_didSuspend = true;
-            this->get_awaiter().await_suspend(
+            this->awaiter().await_suspend(
                 continuation
             );
             return;
         }
         else if constexpr (has_bool_await_suspend<awaiter_type>)
         {
-            return m_suspendResult.m_didSuspend = this->get_awaiter().await_suspend(
+            return m_suspendResult.m_didSuspend = this->awaiter().await_suspend(
                 continuation
             );
         }
@@ -64,7 +64,7 @@ public:
         {
             static_assert(has_symmetric_transfer_await_suspend<awaiter_type>);
 
-            auto transferToCoroutine = this->get_awaiter().await_suspend(
+            auto transferToCoroutine = this->awaiter().await_suspend(
                 continuation
             );
 
@@ -75,9 +75,9 @@ public:
     }
 
     decltype(auto) await_resume(
-    ) noexcept(noexcept(this->get_awaiter().await_resume()))
+    ) noexcept(noexcept(this->awaiter().await_resume()))
     {
-        return (this->get_awaiter().await_resume());
+        return (this->awaiter().await_resume());
     }
 };
 

@@ -268,33 +268,33 @@ has_co_await_non_member<TAwaitable>
 is_awaiter<TAwaitable>;
 
 template<
-    has_co_await_member TAwaitable
+    has_co_await_member CoAwaitMember
 >
 decltype(auto) get_awaiter(
-    TAwaitable&& awaitable
+    CoAwaitMember&& awaitable
 )
 {
-    return std::forward<TAwaitable>(awaitable).operator co_await();
+    return std::forward<CoAwaitMember>(awaitable).operator co_await();
 }
 
 template<
-    has_co_await_non_member TAwaitable
+    has_co_await_non_member CoAwaitNonMember
 >
 decltype(auto) get_awaiter(
-    TAwaitable&& awaitable
+    CoAwaitNonMember&& awaitable
 )
 {
-    return operator co_await(std::forward<TAwaitable>(awaitable));
+    return operator co_await(std::forward<CoAwaitNonMember>(awaitable));
 }
 
 template<
-    is_awaiter TAwaitable
+    is_awaiter Awaiter
 >
 decltype(auto) get_awaiter(
-    TAwaitable&& awaitable
+    Awaiter&& awaitable
 )
 {
-    return std::forward<TAwaitable>(awaitable);
+    return std::forward<Awaiter>(awaitable);
 }
 
 template<
