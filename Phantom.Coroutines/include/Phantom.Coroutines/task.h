@@ -78,7 +78,7 @@ public:
 		return task<Result> { *this };
 	}
 
-	auto continue_with(
+	auto await_suspend(
 		auto continuation
 	)
 	{
@@ -190,7 +190,7 @@ public:
 		auto awaiter
 	) noexcept
 	{
-		return this->promise().continue_with(awaiter);
+		return this->promise().await_suspend(awaiter);
 	}
 
 	decltype(auto) await_resume(
