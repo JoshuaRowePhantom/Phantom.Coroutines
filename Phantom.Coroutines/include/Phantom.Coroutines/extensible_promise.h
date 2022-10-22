@@ -156,7 +156,7 @@ protected:
 
 	decltype(auto) handle()
 	{
-		return m_coroutineHandle;
+		return (m_coroutineHandle);
 	}
 
 	promise_type& promise() const

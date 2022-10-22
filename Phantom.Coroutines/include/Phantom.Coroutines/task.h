@@ -135,7 +135,7 @@ protected:
 	task_awaitable(
 		task_awaitable&& other
 	) :
-		extensible_awaitable<Promise>{ other }
+		extensible_awaitable<Promise>{ std::move(other) }
 	{
 		other.handle() = nullptr;
 	}
