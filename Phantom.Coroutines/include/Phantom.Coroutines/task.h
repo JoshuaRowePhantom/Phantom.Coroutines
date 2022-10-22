@@ -264,10 +264,4 @@ using detail::task;
 using detail::task_awaiter;
 using detail::task_promise;
 
-static_assert(detail::is_awaiter<task_awaiter<task_promise<>>>);
-static_assert(std::same_as<task_promise<>, std::coroutine_traits<task<>>::promise_type>);
-static_assert(std::same_as<task_awaiter<task_promise<>>, awaiter_type<task<>>>);
-static_assert(detail::has_co_await_member<task<>>);
-static_assert(detail::is_awaitable<task<>>);
-
 }
