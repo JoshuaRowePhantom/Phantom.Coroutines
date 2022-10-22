@@ -326,7 +326,8 @@ decltype(auto) get_awaitable_result(
     TAwaitable&& awaitable
 )
 {
-    return (get_awaiter(std::forward<TAwaitable>(awaitable)).await_resume());
+    auto awaiter = get_awaiter(std::forward<TAwaitable>(awaitable));
+    return awaiter.await_resume();
 }
 
 template<

@@ -61,56 +61,75 @@ public:
 	typedef Result result_type;
 
 	auto initial_suspend(
-	) const noexcept
+		this auto& self
+	) noexcept
 	{
 		return suspend_always{};
 	}
 
 	auto final_suspend(
-	) const noexcept
+		this auto& self
+	) noexcept
 	{
-		return final_suspend_transfer{ m_continuation };
+		return final_suspend_transfer{ self.m_continuation };
 	}
 
 	auto get_return_object(
+		this auto& self
 	) noexcept
 	{
-		return task<Result> { *this };
+		return task<Result> { self };
+	}
+
+	auto await_ready(
+		this auto& self,
+		auto& awaiter
+	)
+	{
+		return false;
 	}
 
 	auto await_suspend(
+		this auto& self,
+		auto& awaiter,
 		auto continuation
 	)
 	{
-		m_continuation = continuation;
-		return coroutine_handle<task_promise>::from_promise(*this);
+		self.m_continuation = continuation;
+		return coroutine_handle<task_promise>::from_promise(self);
 	}
 
-	decltype(auto) await_resume()
+	decltype(auto) await_resume(
+		this auto& self,
+		auto& awaiter
+	)
 	{
-		if (m_result.index() == exception_index)
+		if (self.m_result.index() == exception_index)
 		{
 			rethrow_exception(
 				get<exception_index>(
-					m_result)
+					self.m_result)
 			);
 		}
 
-		return this->return_result<result_index>(
-			m_result);
+		return self.return_result<result_index>(
+			self.m_result);
 	}
 
 	void return_variant_result(
+		this auto& self,
 		auto&& value
 	)
 	{
-		m_result.emplace<result_index>(
+		self.m_result.emplace<result_index>(
 			std::forward<decltype(value)>(value));
 	}
 
-	void unhandled_exception()
+	void unhandled_exception(
+		this auto& self
+	)
 	{
-		m_result.emplace<exception_index>(
+		self.m_result.emplace<exception_index>(
 			std::current_exception());
 	}
 };
@@ -181,22 +200,26 @@ task_awaitable<Promise>
 
 public:
 
-	bool await_ready() const noexcept
+	bool await_ready(
+		this auto& self
+	) noexcept
 	{
-		return false;
+		return self.promise().await_ready(self);
 	}
 
 	auto await_suspend(
+		this auto& self,
 		auto awaiter
 	) noexcept
 	{
-		return this->promise().await_suspend(awaiter);
+		return self.promise().await_suspend(self, awaiter);
 	}
 
 	decltype(auto) await_resume(
+		this auto& self
 	)
 	{
-		return this->promise().await_resume();
+		return self.promise().await_resume(self);
 	}
 };
 
@@ -223,11 +246,12 @@ public:
 	{}
 
 	auto operator co_await(
+		this std::movable auto && self
 		)
 	{
 		return task_awaiter<Promise>
 		{
-			std::move(*this),
+			std::move(self),
 		};
 	}
 };
