@@ -36,6 +36,7 @@ template<
 > class task_promise
 	:
 	public variant_return_result<Result>,
+	public extensible_promise,
 	private variant_result_storage<Result>
 {
 	using variant_result_storage<Result>::is_void;
@@ -96,7 +97,7 @@ public:
 	)
 	{
 		self.m_continuation = continuation;
-		return coroutine_handle<task_promise>::from_promise(self);
+		return self.handle();
 	}
 
 	decltype(auto) await_resume(
