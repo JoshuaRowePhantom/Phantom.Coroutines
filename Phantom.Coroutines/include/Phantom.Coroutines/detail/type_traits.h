@@ -29,29 +29,11 @@ template<
     template <typename ...> typename Template
 > concept is_template_instantiation = is_template_instantiation_v<T, Template>;
 
-// Determine if a given type is in a list of other types.
-template<
-    typename T,
-    typename...TTypes
-> constexpr bool is_in_types_v = (std::is_same_v<T, TTypes> || ...);
 
 template<
     typename T,
     typename...TTypes
-> constexpr bool is_not_in_types_v = !is_in_types_v<T, TTypes...>;
-
-template<
-    typename T,
-    typename...TTypes
-> using enable_if_in_types = std::enable_if<
-    is_in_types_v<T, TTypes...>,
-    T>;
-
-template<
-    typename T,
-    typename...Types
->
-using enable_if_in_types_t = typename enable_if_in_types<T, Types...>::type;
+> concept is_in_types = (std::is_same_v<T, TTypes> || ...);
 
 template<
     typename T

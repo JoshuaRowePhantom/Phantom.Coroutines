@@ -124,7 +124,7 @@ struct unusable_task
 
 	unusable_task(
 		unusable_task&& other
-	)
+	) noexcept
 	{
 		m_coroutine = other.m_coroutine;
 		other.m_coroutine = coroutine_handle<>{};
