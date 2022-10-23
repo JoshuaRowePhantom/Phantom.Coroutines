@@ -57,14 +57,14 @@ template<
 // A derived_promise is a promise that wraps another promise type
 // by derivation.
 template<
-	typename Promise
+	typename BasePromise
 > class derived_promise
 	:
-	public Promise
+	public BasePromise
 {
 	struct BasePromiseTag {};
 protected:
-	typedef Promise base_promise_type;
+	typedef BasePromise base_promise_type;
 
 	decltype(auto) base_promise()
 	{
@@ -90,15 +90,14 @@ public:
 	> derived_promise(
 		Args&&... args
 	)
-		requires std::constructible_from<Promise, Args&&...>
+		requires std::constructible_from<BasePromise, Args&&...>
 	:
-	Promise(
+	BasePromise(
 		std::forward<Args>(args)...
 	)
 	{}
 
-	// Enable construction by delegating the arguments
-	// to the promise object.
+	// Enable construction by invoking the default constructor.
 	// This constructor is enabled only if the promise object
 	// does not support the argument set and default-constructs
 	// the promise.
@@ -106,10 +105,11 @@ public:
 		typename ... Args
 	> derived_promise(
 		Args&&... args
-	)
-		requires !std::constructible_from<Promise, Args&&...>
+	) requires 
+		!std::constructible_from<BasePromise, Args&&...>
+		&& std::constructible_from<BasePromise>
 	:
-	Promise()
+	BasePromise()
 	{}
 };
 
@@ -272,4 +272,9 @@ protected:
 };
 
 }
+
+using detail::extensible_promise;
+using detail::extensible_awaitable;
+using detail::extended_awaiter;
+
 }
