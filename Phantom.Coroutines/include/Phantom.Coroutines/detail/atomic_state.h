@@ -685,10 +685,25 @@ public:
     }
 };
 
+template<
+    typename AtomicState
+> concept is_atomic_state_type = is_template_instantiation<AtomicState, basic_atomic_state>;
+
+template<
+    typename Lambda,
+    typename AtomicState
+> concept is_compare_exchange_weak_loop_lambda = 
+is_atomic_state_type<AtomicState>
+&&
+    requires(typename AtomicState::state_type state, Lambda lambda)
+{
+    { lambda(state) } -> std::convertible_to<std::optional<typename AtomicState::state_type>>;
+};
+
 // TNextStateLambda should return either a state_type or an std::optional<state_type>.
 template <
-    typename TAtomicState,
-    typename TNextStateLambda
+    is_atomic_state_type TAtomicState,
+    is_compare_exchange_weak_loop_lambda<TAtomicState> TNextStateLambda
 >
 auto compare_exchange_weak_loop(
     TAtomicState& atomicState,
@@ -704,35 +719,20 @@ auto compare_exchange_weak_loop(
 
     while (true)
     {
-        auto nextState = nextStateLambda(
+        std::optional<typename TAtomicState::state_type> nextState = nextStateLambda(
             previousState
         );
 
-        if constexpr (std::same_as<std::optional<typename TAtomicState::state_type>, decltype(nextState)>)
-        {
-            if (!nextState
-                ||
-                atomicState.compare_exchange_weak(
-                    previousState,
-                    *nextState,
-                    successMemoryOrder,
-                    failureMemoryOrder
-                ))
-            {
-                break;
-            }
-        }
-        else  
-        {
-            if (atomicState.compare_exchange_weak(
+        if (!nextState
+            ||
+            atomicState.compare_exchange_weak(
                 previousState,
-                nextState,
+                *nextState,
                 successMemoryOrder,
                 failureMemoryOrder
             ))
-            {
-                break;
-            }
+        {
+            break;
         }
     }
 
