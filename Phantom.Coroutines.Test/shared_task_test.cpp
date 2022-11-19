@@ -10,25 +10,31 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
-static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<>>>);
-static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<int>>>);
-static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<int&>>>);
+static_assert(detail::is_awaiter<shared_task_promise<void>::awaiter>);
+static_assert(detail::is_awaiter<shared_task_promise<int>::awaiter>);
+static_assert(detail::is_awaiter<shared_task_promise<int&>::awaiter>);
+static_assert(detail::is_awaiter<shared_task_promise<int&&>::awaiter>);
 
-static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<>&>>);
-static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<int>&>>);
-static_assert(detail::is_awaiter<shared_task_awaiter<shared_task<int&>&>>);
+static_assert(detail::is_awaiter<shared_task_promise<void>::final_suspend_awaiter>);
+
+static_assert(detail::is_awaiter<shared_task_promise<void>::awaiter>);
+static_assert(detail::is_awaiter<shared_task_promise<int>::awaiter>);
+static_assert(detail::is_awaiter<shared_task_promise<int&>::awaiter>);
+static_assert(detail::is_awaiter<shared_task_promise<int&&>::awaiter>);
 
 static_assert(detail::is_awaitable<shared_task<>>);
 static_assert(detail::is_awaitable<shared_task<int>>);
 static_assert(detail::is_awaitable<shared_task<int&>>);
+static_assert(detail::is_awaitable<shared_task<int&&>>);
 
+static_assert(detail::has_co_await_member<shared_task<>>);
 static_assert(detail::has_co_await_member<shared_task<>&>);
 static_assert(detail::has_co_await_member<shared_task<>&&>);
 
 // Assert the type of awaiter returned by co_await.
-static_assert(std::same_as<detail::shared_task_awaiter<shared_task<void>>, decltype(std::declval<shared_task<void>>().operator co_await())>);
-static_assert(std::same_as<detail::shared_task_awaiter<shared_task<void>&>, decltype(std::declval<shared_task<void>&>().operator co_await())>);
-static_assert(std::same_as<detail::shared_task_awaiter<shared_task<void>>, decltype(std::declval<shared_task<void>&&>().operator co_await())>);
+static_assert(std::same_as<shared_task_promise<void>::awaiter, decltype(std::declval<shared_task<void>>().operator co_await())>);
+static_assert(std::same_as<shared_task_promise<void>::awaiter, decltype(std::declval<shared_task<void>&>().operator co_await())>);
+static_assert(std::same_as<shared_task_promise<void>::awaiter, decltype(std::declval<shared_task<void>&&>().operator co_await())>);
 
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>&>, void>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>&>, int&>);
@@ -39,9 +45,9 @@ static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>&>, 
 // discards the shared_task before the co_await operation, and therefore
 // there may be zero references to the shared_task before co_await can return.
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>>, void>);
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>>, int>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>>, int&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>>, int&>);
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string>>, std::string>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string>>, std::string&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string&>>, std::string&>);
 
 // These assertions verify that co_awaiting an lvalue reference of a shared_task
@@ -58,9 +64,9 @@ static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::stri
 // discards the shared_task before the co_await operation, and therefore
 // there may be zero references to the shared_task before co_await can return.
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>&&>, void>);
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>&&>, int>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>&&>, int&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int&>&&>, int&>);
-static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string>&&>, std::string>);
+static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string>&&>, std::string&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<std::string&>&&>, std::string&>);
 
 TEST(shared_task_test, Can_await_void_task)
@@ -181,9 +187,8 @@ TEST(shared_task_test, Task_does_destroy_coroutine_if_destroyed_while_suspended)
 
     {
         // Create and suspend a task, then destroy it.
-        auto myTask = [&]() -> shared_task<>
+        auto myTask = [tracker = statistics.tracker(), &event]() -> shared_task<>
         {
-            auto tracker = statistics.tracker();
             co_await event;
         }();
 
@@ -196,7 +201,7 @@ TEST(shared_task_test, Task_does_destroy_coroutine_if_destroyed_while_suspended)
         // This will reach the first suspend point.
         coroutine.resume();
 
-        // This will destroy the task.
+        // This will destroy the task, but not the promise, since it will have started.
     }
 
     ASSERT_EQ(0, statistics.instance_count);
@@ -213,7 +218,7 @@ TEST(shared_task_test, Can_suspend_and_resume)
             stage = 1;
             co_await event;
             stage = 2;
-        }());
+        });
 
     ASSERT_EQ(1, stage);
     event.set();
@@ -250,7 +255,7 @@ TEST(shared_task_test, Destroys_returned_value_when_co_awaited_as_lvalue)
         co_return statistics.tracker();
     };
 
-    sync_wait([&]() -> shared_task<>
+    sync_wait([&]() -> task<>
         {
             {
                 auto task = taskWithReturnValueLambda();

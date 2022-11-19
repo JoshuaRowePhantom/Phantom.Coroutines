@@ -79,7 +79,9 @@ public:
 		this auto& self
 	) noexcept
 	{
-		return task<Result> { self };
+		return task<Result>(
+			self.handle()
+			);
 	}
 
 	auto await_ready(
@@ -147,9 +149,9 @@ protected:
 	{}
 
 	task_awaitable(
-		Promise& promise
+		coroutine_handle<Promise> handle
 	) :
-		extensible_awaitable<Promise>{ promise }
+		extensible_awaitable<Promise>{ handle }
 	{}
 
 	task_awaitable(
@@ -236,8 +238,8 @@ template<
 		is_coroutine_handle Continuation
 	> friend class task_promise;
 
-	task(Promise& promise)
-		: task_awaitable<Promise>{ promise }
+	task(coroutine_handle<Promise> handle)
+		: task_awaitable<Promise>{ handle }
 	{}
 
 public:

@@ -87,7 +87,6 @@ static_assert(is_awaiter<typed_awaiter<void, bool>>);
 static_assert(is_awaiter<typed_awaiter<void, void>>);
 static_assert(is_awaiter<typed_awaiter<void, coroutine_handle<>>>);
 static_assert(is_awaiter<typed_awaiter<void, coroutine_handle<int>>>);
-static_assert(!is_awaiter<typed_awaiter<void, void*>>);
 static_assert(is_awaiter<typed_awaiter<int>>);
 static_assert(is_awaiter<typed_awaiter<int&>>);
 static_assert(is_awaiter<typed_awaiter<int&&>>);

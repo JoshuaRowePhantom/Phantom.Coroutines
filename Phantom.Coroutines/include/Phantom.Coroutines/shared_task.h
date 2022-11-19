@@ -1,3 +1,12 @@
+// shared_task and shared_task_promise implement a reference-counted task
+// that can be co_await multiple times.
+// A shared_task<> itself can be copied or moved. 
+// When a shared_task<> completes, the result of the await operation
+// is a reference to the return value of the task.
+// If the shared_task<>'s reference count reaches zero,
+// the task is destroyed: this will likely lead to undefined behavior
+// if the task is still executing, so don't do this.
+
 #pragma once
 
 #include <variant>
@@ -6,584 +15,350 @@
 #include "detail/final_suspend_transfer.h"
 #include "detail/immovable_object.h"
 #include "detail/variant_result_storage.h"
+#include "extensible_promise.h"
 
 namespace Phantom::Coroutines
 {
 
-namespace detail
+struct shared_task_states
 {
-
-// The Traits parameter to basic_shared_task, basic_shared_task_promise must satisfy this concept.
-template<
-    typename Traits
-> concept SharedTaskTraits = requires
-{
-    // The basic_task_promise-derived class that implements the promise type.
-    typename Traits::promise_type;
-
-    // The basic_task-derived class that implements the future type.
-    typename Traits::future_type;
-
-    // The result type of the task.
-    typename Traits::result_type;
-
-    // The awaiter type,
-    // which must be a template accepting the future_type or future_type&.
-    typename Traits::template awaiter_type<typename Traits::future_type>;
-    typename Traits::template awaiter_type<typename Traits::future_type&>;
-};
-
-// A specialization of SharedTaskTraits to detect void-returning tasks.
-template<
-    typename Traits
-> concept VoidSharedTaskTraits =
-SharedTaskTraits<Traits>
-&&
-std::same_as<void, typename Traits::result_type>;
-
-// A specialization of SharedTaskTraits to detect reference-returning tasks.
-template<
-    typename Traits
-> concept ReferenceSharedTaskTraits =
-SharedTaskTraits<Traits>
-&&
-std::is_reference_v<typename Traits::result_type>;
-
-template<
-    SharedTaskTraits Traits
->
-class basic_shared_task_promise;
-
-class shared_task_awaiter_list_entry
-{
-    template<
-        SharedTaskTraits Traits
-    > friend class basic_shared_task_promise_base;
-
-    shared_task_awaiter_list_entry* m_nextAwaiter;
-    coroutine_handle<> m_continuation;
+	struct Completed {};
+	struct Running {};
 };
 
 template<
-    SharedTaskTraits Traits,
-    typename FutureType
-> class basic_shared_task_awaiter
-    :
-    private shared_task_awaiter_list_entry,
-    private immovable_object
-{
-    template<
-        SharedTaskTraits Traits
-    > friend class basic_shared_task_promise_base;
-
-    template<
-        SharedTaskTraits Traits
-    > friend class basic_shared_task_promise;
-
-    template<
-        SharedTaskTraits Traits
-    > friend class basic_shared_task;
-
-    using promise_type = typename Traits::promise_type;
-    using future_type = typename Traits::future_type;
-    using result_type = typename Traits::result_type;
-
-    FutureType m_future;
-
-    promise_type* promise()
-    {
-        return m_future.m_promise;
-    }
-
-protected:
-    basic_shared_task_awaiter(
-        FutureType&& future
-    ) :
-        m_future
-    {
-        std::forward<FutureType>(future)
-    }
-    {}
-
-public:
-    bool await_ready()
-    {
-        return promise()->await_ready();
-    }
-
-    auto await_suspend(
-        coroutine_handle<> continuation)
-    {
-        return promise()->await_suspend(
-            this,
-            continuation);
-    }
-
-    decltype(auto) await_resume()
-    {
-        if constexpr (
-            std::is_lvalue_reference_v<FutureType>
-            ||
-            std::is_lvalue_reference_v<result_type>
-            ||
-            std::is_void_v<result_type>
-            )
-        {
-            return (promise()->await_resume());
-        }
-        else
-        {
-            return static_cast<std::remove_reference_t<result_type>>(
-                promise()->await_resume()
-                );
-        }
-    }
-};
-
-template<
-    SharedTaskTraits Traits
->
-class basic_shared_task_promise;
-
-template<
-    SharedTaskTraits Traits
->
-class basic_shared_task_promise_base
-    :
-private variant_result_storage<
-    typename Traits::result_type
->
-{
-public:
-    using promise_type = typename Traits::promise_type;
-    using future_type = typename Traits::future_type;
-    using result_type = typename Traits::result_type;
-
-private:
-
-    template<
-        SharedTaskTraits Traits
-    > friend class basic_shared_task;
-
-    template<
-        SharedTaskTraits Traits
-    > friend class basic_shared_task_promise;
-
-    template<
-        SharedTaskTraits Traits,
-        typename FutureType
-    > friend class basic_shared_task_awaiter;
-
-    struct CompletedState {};
-    struct WaitingCoroutineState;
-
-    typedef atomic_state<
-        SingletonState<CompletedState>,
-        StateSet<WaitingCoroutineState, shared_task_awaiter_list_entry*>
-    > atomic_state_type;
-    typedef atomic_state_type::state_type state_type;
-
-    static const inline state_type NotStartedState = state_type{ nullptr };
-    atomic_state_type m_atomicState = NotStartedState;
-
-    // Reference count starts at 1 to avoid an atomic increment operation
-    std::atomic<size_t> m_referenceCount = 1;
-
-    using typename basic_shared_task_promise_base::variant_result_storage::result_variant_member_type;
-    using basic_shared_task_promise_base::variant_result_storage::is_void;
-    using basic_shared_task_promise_base::variant_result_storage::is_reference;
-    using basic_shared_task_promise_base::variant_result_storage::is_rvalue_reference;
-
-    static_assert(!is_rvalue_reference);
-
-    // While we -could- use extra states in m_atomicState to store
-    // the result object state, this has some disadvantages.
-    // In order to implement symmetric transfer in final_suspend,
-    // we would have to have storage for another variable for the coroutine_handle
-    // to continue, or we would need to perform multiple operations on the
-    // atomic state object to set its state to the result type while preserving
-    // the chain of awaiters and then again set its state to completed.
-    // Since we need extra space anyway, we leave
-    // m_atomicState to store the linked list of continuations or
-    // the terminal state, and store the terminal state's value
-    // in a variant.
-    typedef std::variant<
-        std::monostate,
-        result_variant_member_type,
-        std::exception_ptr
-    > result_variant_type;
-
-    static const size_t return_value_index = 1;
-    static const size_t unhandled_exception_index = 2;
-
-    result_variant_type m_result;
-
-    promise_type& get_promise() { return static_cast<promise_type&>(*this); }
-    auto get_coroutine_handle() { return coroutine_handle<promise_type>::from_promise(get_promise()); }
-
-    void increment_reference_count()
-    {
-        m_referenceCount.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    void decrement_reference_count()
-    {
-        if (1 != m_referenceCount.fetch_sub(1, std::memory_order_acq_rel))
-        {
-            return;
-        }
-
-        get_coroutine_handle().destroy();
-    }
-
-    bool is_ready(
-        state_type state)
-    {
-        return state == CompletedState{};
-    }
-
-    bool await_ready()
-    {
-        return is_ready(m_atomicState.load(std::memory_order_acquire));
-    }
-
-    coroutine_handle<> await_suspend(
-        shared_task_awaiter_list_entry* awaiter,
-        coroutine_handle<> continuation
-    )
-    {
-        awaiter->m_continuation = continuation;
-        
-        auto previousState = compare_exchange_weak_loop(
-            m_atomicState,
-            [=](state_type previousState) -> std::optional<state_type>
-        {
-            if (is_ready(previousState))
-            {
-                return std::nullopt;
-            }
-
-            awaiter->m_nextAwaiter = previousState.as<WaitingCoroutineState>();
-            return state_type{ awaiter };
-        }
-        );
-
-        // The first awaiter triggers the coroutine to start execution.
-        if (previousState == NotStartedState)
-        {
-            return get_coroutine_handle();
-        }
-
-        // If the task is already ready, just continue.
-        if (is_ready(previousState))
-        {
-            return continuation;
-        }
-
-        // Otherwise, there is a "join" operation here;
-        // this is not the first co_await on the shared_task, so
-        // there's nothing to start,
-        // but the task is not complete so there's nothing to resume.
-        return noop_coroutine();
-    }
-
-    decltype(auto) await_resume()
-    {
-        if (m_result.index() == unhandled_exception_index)
-        {
-            std::rethrow_exception(
-                get<unhandled_exception_index>(m_result)
-            );
-        }
-
-        if constexpr (is_void)
-        {
-            return;
-        }
-        else if constexpr (is_reference)
-        {
-            return get<return_value_index>(m_result).get();
-        }
-        else
-        {
-            return (get<return_value_index>(m_result));
-        }
-    }
-
-    template<
-        typename TReturnValue
-    > void set_result(
-        TReturnValue&& returnValue
-    )
-    {
-        m_result.emplace<return_value_index>(
-            std::forward<TReturnValue>(returnValue)
-            );
-    }
-
-public:
-    suspend_always initial_suspend() const { return {}; }
-
-    future_type get_return_object()
-    {
-        return future_type{ &get_promise() };
-    }
-
-    final_suspend_transfer final_suspend() noexcept
-    {
-        auto state = m_atomicState.exchange(
-            CompletedState{},
-            std::memory_order_acq_rel
-        );
-
-        // This will be non-null, because we required there to be at
-        // least one awaiter to start the shared_task.
-        auto awaiter = state.as<WaitingCoroutineState>();
-
-        // For every awaiter except the last, resume those awaiters.
-        while (awaiter->m_nextAwaiter)
-        {
-            auto nextAwaiter = awaiter->m_nextAwaiter;
-            awaiter->m_continuation.resume();
-            awaiter = nextAwaiter;
-        }
-
-        // For the last awaiter (which would've been the first that
-        // co_await'ed the shared_task), use symmetric transfer
-        // to resume it.
-        return { awaiter->m_continuation };
-    }
-
-    void unhandled_exception()
-    {
-        m_result.emplace<unhandled_exception_index>(
-            std::current_exception());
-    }
-};
-
-template<
-    SharedTaskTraits Traits
-> class basic_shared_task_promise
-    :
-public basic_shared_task_promise_base<Traits>
-{
-public:
-    using basic_shared_task_promise::basic_shared_task_promise_base::basic_shared_task_promise_base;
-
-    template<
-        typename TReturnValue
-    >
-        void return_value(
-            TReturnValue&& value
-        )
-    {
-        basic_shared_task_promise::basic_shared_task_promise_base::set_result(
-            std::forward<TReturnValue>(value)
-        );
-    }
-};
-
-template<
-    VoidSharedTaskTraits Traits
-> 
-class basic_shared_task_promise<
-    Traits
->
-    :
-public basic_shared_task_promise_base<
-    Traits
->
-{
-public:
-    using basic_shared_task_promise::basic_shared_task_promise_base::basic_shared_task_promise_base;
-
-    void return_void()
-    {
-        basic_shared_task_promise::basic_shared_task_promise_base::set_result(
-            std::monostate{}
-        );
-    }
-};
-
-template<
-    SharedTaskTraits Traits
-> class basic_shared_task
-{
-    template<
-        SharedTaskTraits Traits,
-        typename FutureType
-    > friend class basic_shared_task_awaiter;
-
-public:
-    using promise_type = typename Traits::promise_type;
-    using future_type = typename Traits::future_type;
-    using result_type = typename Traits::result_type;
-
-private:
-    promise_type* m_promise;
-
-    void release_reference()
-    {
-        if (m_promise)
-        {
-            m_promise->decrement_reference_count();
-        }
-    }
-
-    void acquire_reference()
-    {
-        if (m_promise)
-        {
-            m_promise->increment_reference_count();
-        }
-    }
-
-public:
-
-    basic_shared_task(
-        promise_type* promise
-    ) :
-        m_promise{ promise }
-    {
-        // Do not acquire here.
-        // The promise is constructed with a reference count that
-        // includes the first shared_task's reference.
-    }
-
-    basic_shared_task(
-        const basic_shared_task& other
-    ) :
-        m_promise{ other.m_promise }
-    {
-        acquire_reference();
-    }
-
-    basic_shared_task(
-        basic_shared_task&& other
-    ) :
-        m_promise{ other.m_promise }
-    {
-        other.m_promise = nullptr;
-    }
-
-    basic_shared_task& operator = (
-        const basic_shared_task& other
-        )
-    {
-        release_reference();
-        m_promise = other.m_promise;
-        acquire_reference();
-        return *this;
-    }
-
-    basic_shared_task& operator = (
-        basic_shared_task&& other
-        )
-    {
-        release_reference();
-        m_promise = other.m_promise;
-        other.m_promise = nullptr;
-        return *this;
-    }
-
-    ~basic_shared_task()
-    {
-        release_reference();
-    }
-
-    basic_shared_task()
-        : m_promise{ nullptr }
-    {}
-
-    auto operator co_await() &
-    {
-        return typename Traits::template awaiter_type<future_type&>{ static_cast<future_type&>(*this) };
-    }
-
-    auto operator co_await() &&
-    {
-        return typename Traits::template awaiter_type<future_type>{ static_cast<future_type&&>(*this) };
-    }
-};
-
-template<
-    typename TResult
+	typename Result,
+	is_coroutine_handle Continuation = std::coroutine_handle<>
 > class shared_task_promise;
 
 template<
-    typename TResult = void
-> class shared_task;
+	typename Result = void,
+	typename Promise = shared_task_promise<Result>
+> class shared_task
+	:
+	public extensible_awaitable<Promise>
+{
+	using shared_task::extensible_awaitable::coroutine_handle_type;
+
+	friend class shared_task_promise<Result, typename Promise::continuation_type>;
+protected:
+	shared_task(
+		coroutine_handle<Promise> handle
+	) noexcept 
+		: shared_task::extensible_awaitable(handle)
+	{}
+
+	void acquire_reference() noexcept
+	{
+		if (*this)
+		{
+			this->promise().acquire_reference();
+		}
+	}
+
+	void release_reference() noexcept
+	{
+		if (*this)
+		{
+			this->promise().release_reference();
+		}
+	}
+
+public:
+	typedef Promise promise_type;
+
+	shared_task(
+		const shared_task& other
+	)  noexcept 
+		: shared_task::extensible_awaitable(other)
+	{
+		acquire_reference();
+	}
+
+	~shared_task() noexcept
+	{
+		release_reference();
+	}
+
+	shared_task(
+		shared_task&& other
+	)  noexcept 
+		: shared_task::extensible_awaitable(other)
+	{
+		other.handle() = nullptr;
+	}
+
+	shared_task& operator=(const shared_task& other) noexcept
+	{
+		if (*this != other)
+		{
+			release_reference();
+			this->handle() = other.handle();
+			acquire_reference();
+		}
+
+		return *this;
+	}
+
+	shared_task& operator=(
+		shared_task&& other
+		) noexcept
+	{
+		if (*this != other)
+		{
+			release_reference();
+			this->handle() = other.handle();
+			other.handle() = nullptr;
+		}
+
+		return *this;
+	}
+
+	auto operator co_await(
+		this auto&& self
+		) noexcept
+	{
+		return typename Promise::awaiter{ self.handle() };
+	}
+};
 
 template<
-    typename FutureType
-> class shared_task_awaiter;
-
-template<
-    typename TResult
->
-struct shared_task_traits
-{
-    typedef shared_task_promise<TResult> promise_type;
-    typedef shared_task<TResult> future_type;
-    typedef TResult result_type;
-    template<
-        typename FutureType
-    >
-    using awaiter_type = shared_task_awaiter<FutureType>;
-};
-
-template <
-    typename TResult
-> class shared_task_promise :
-    public basic_shared_task_promise<
-        shared_task_traits<TResult>
-    >
+	typename Result,
+	is_coroutine_handle Continuation
+> class shared_task_promise
+	:
+	public extensible_promise,
+	protected detail::variant_result_storage<Result>,
+	private shared_task_states,
+	public detail::variant_return_result<Result>
 {
 public:
-    using shared_task_promise::basic_shared_task_promise::basic_shared_task_promise;
-};
+	typedef Continuation continuation_type;
 
-template <
-    typename TResult
-> class shared_task :
-    public basic_shared_task<
-        shared_task_traits<TResult>
-    >
-{
+private:
+	friend class shared_task<Result, shared_task_promise>;
+
+	struct final_suspend_awaiter
+		:
+		private shared_task_states
+	{
+		shared_task_promise& m_promise;
+
+		final_suspend_awaiter(
+			shared_task_promise& promise
+		) : m_promise{ promise }
+		{}
+
+		bool await_ready(
+			this const auto& self
+		) noexcept
+		{
+			return false;
+		}
+
+		coroutine_handle<> await_suspend(
+			this auto& self,
+			coroutine_handle<>
+		) noexcept
+		{
+			auto previousState = self.m_promise.m_state.exchange(
+				Completed{},
+				std::memory_order_acq_rel
+			);
+
+			// In-line resume each awaiter except the last,
+			// which we will resume via symmetric transfer.
+			// Remember that we have to capture the next pointer
+			// before resuming, because resuming will destroy the awaiter.
+			// Note that there will always be at least one awaiter,
+			// otherwise the promise would not have been started.
+			auto awaiter = previousState.as<Running>();
+			while (true)
+			{
+				auto nextAwaiter = awaiter->m_nextAwaiter;
+				if (!nextAwaiter)
+				{
+					// This waiter should be resumed via symmetric transfer.
+					return awaiter->m_continuation;
+				}
+
+				// Otherwise the awaiter should be resume()'d
+				awaiter->m_continuation.resume();
+				awaiter = nextAwaiter;
+			}
+		}
+
+		[[noreturn]]
+		void await_resume(
+			this auto& self
+		) noexcept
+		{
+			// This should never be called.
+			assert(false);
+		}
+	};
+
+	class awaiter
+		:
+		public extensible_awaitable<shared_task_promise>,
+		private shared_task_states
+	{
+		friend class final_suspend_awaiter;
+		using typename awaiter::extensible_awaitable::coroutine_handle_type;
+		using continuation_type = Continuation;
+
+		continuation_type m_continuation;
+		awaiter* m_nextAwaiter = nullptr;
+
+	public:
+		awaiter(
+			coroutine_handle_type handle
+		) noexcept : awaiter::extensible_awaitable(handle)
+		{}
+
+		bool await_ready(
+			this auto& self
+		) noexcept
+		{
+			return self.promise().m_state.load(std::memory_order_acquire)
+				== Completed{};
+		}
+
+		coroutine_handle<> await_suspend(
+			this auto& self,
+			continuation_type continuation
+		) noexcept
+		{
+			self.m_continuation = continuation;
+
+			auto previousState = compare_exchange_weak_loop(
+				self.promise().m_state,
+				[&self](auto state) -> std::optional<state_type>
+				{
+					if (state.is<Completed>())
+					{
+						return {};
+					}
+
+			self.m_nextAwaiter = state.as<Running>();
+			return &self;
+				});
+
+			if (previousState == Completed{})
+			{
+				return continuation;
+			}
+
+			if (previousState == NotStarted)
+			{
+				return self.handle();
+			}
+
+			return noop_coroutine();
+		}
+
+		decltype(auto) await_resume(
+			this auto& self
+		)
+		{
+			return self.promise().await_resume();
+		}
+	};
+
+	typedef atomic_state<
+		SingletonState<Completed>,
+		StateSet<Running, awaiter*>
+	> atomic_state_type;
+	using state_type = typename atomic_state_type::state_type;
+	static inline const auto NotStarted = state_type{ nullptr };
+
+	atomic_state_type m_state = NotStarted;
+
+	using typename shared_task_promise::variant_result_storage::result_variant_member_type;
+	using variant_type = std::variant<
+		std::monostate,
+		result_variant_member_type,
+		std::exception_ptr
+	>;
+
+	variant_type m_resultVariant;
+	static constexpr size_t ResultIndex = 1;
+	static constexpr size_t ExceptionIndex = 2;
+
+	// We start with a reference count of 1: 
+	// one for the initial reference count of the
+	// shared_task returned by get_return_object.
+	std::atomic<size_t> m_referenceCount = 1;
+
+	void acquire_reference(
+		this auto& self
+	) noexcept
+	{
+		self.m_referenceCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	void release_reference(
+		this auto& self
+	) noexcept
+	{
+		auto previousReferenceCount = self.m_referenceCount.fetch_sub(1, std::memory_order_acquire);
+		if (previousReferenceCount == 1)
+		{
+			self.handle().destroy();
+		}
+	}
+
+	decltype(auto) await_resume()
+	{
+		if (m_resultVariant.index() == ExceptionIndex)
+		{
+			rethrow_exception(
+				get<ExceptionIndex>(m_resultVariant));
+		}
+
+		return shared_task_promise::variant_result_storage::get_result<ResultIndex>(
+			m_resultVariant);
+	}
+
 public:
-    using shared_task::basic_shared_task::basic_shared_task;
-};
+	auto get_return_object(
+		this auto& self
+	) noexcept
+	{
+		return shared_task<Result>{ self.handle() };
+	}
 
-template<
-    typename TResult
-> class shared_task_awaiter<
-    shared_task<TResult>
->
-    :
-public basic_shared_task_awaiter<
-    shared_task_traits<TResult>,
-    shared_task<TResult>
->
-{
-public:
-    using shared_task_awaiter::basic_shared_task_awaiter::basic_shared_task_awaiter;
-};
+	auto initial_suspend(
+		this auto& self
+	) noexcept
+	{
+		return suspend_always{};
+	}
 
-template<
-    typename TResult
-> class shared_task_awaiter<
-    shared_task<TResult>&
->
-    :
-public basic_shared_task_awaiter<
-    shared_task_traits<TResult>,
-    shared_task<TResult>&
->
-{
-public:
-    using shared_task_awaiter::basic_shared_task_awaiter::basic_shared_task_awaiter;
-};
+	auto final_suspend(
+		this auto& self
+	) noexcept
+	{
+		return final_suspend_awaiter{ self };
+	}
 
-}
-using detail::shared_task;
+	void unhandled_exception(
+		this auto& self
+	) noexcept
+	{
+		self.m_resultVariant.emplace<ExceptionIndex>(
+			std::current_exception());
+	}
+
+	void return_variant_result(
+		this auto& self,
+		auto&& result
+	) noexcept(noexcept(
+		self.m_resultVariant.emplace<ResultIndex>(
+			std::forward<decltype(result)>(result))))
+	{
+		self.m_resultVariant.emplace<ResultIndex>(
+			std::forward<decltype(result)>(result));
+	}
+};
 }

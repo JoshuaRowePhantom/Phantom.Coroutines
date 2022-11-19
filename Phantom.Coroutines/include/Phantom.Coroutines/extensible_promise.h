@@ -123,7 +123,7 @@ public:
 	) noexcept
 	{
 		return std::coroutine_handle<
-			std::remove_cv_t<decltype(self)>
+			std::remove_cvref_t<decltype(self)>
 		>::from_promise(self);
 	}
 };
@@ -154,15 +154,27 @@ protected:
 		m_coroutineHandle { coroutineHandle }
 	{}
 
-	decltype(auto) handle()
+	decltype(auto) handle(
+		this auto& self)
 	{
-		return (m_coroutineHandle);
+		return (self.m_coroutineHandle);
 	}
 
 	promise_type& promise() const
 	{
 		return m_coroutineHandle.promise();
 	}
+
+public:
+	operator bool() const noexcept
+	{
+		return handle().operator bool();
+	}
+
+	friend auto operator <=> (
+		const extensible_awaitable<Promise>&,
+		const extensible_awaitable<Promise>&
+		) noexcept = default;
 };
 
 template<

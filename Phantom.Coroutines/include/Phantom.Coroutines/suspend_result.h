@@ -42,11 +42,13 @@ public:
         return this->awaiter().await_ready();
     }
 
-    auto await_suspend(
-        coroutine_handle<> continuation
+    template<
+        is_coroutine_handle Continuation
+    > auto await_suspend(
+        Continuation continuation
     ) noexcept(noexcept(this->awaiter().await_suspend(continuation)))
     {
-        if constexpr (has_void_await_suspend<awaiter_type>)
+        if constexpr (has_void_await_suspend<awaiter_type, Continuation>)
         {
             m_suspendResult.m_didSuspend = true;
             this->awaiter().await_suspend(
@@ -54,7 +56,7 @@ public:
             );
             return;
         }
-        else if constexpr (has_bool_await_suspend<awaiter_type>)
+        else if constexpr (has_bool_await_suspend<awaiter_type, Continuation>)
         {
             return m_suspendResult.m_didSuspend = this->awaiter().await_suspend(
                 continuation
@@ -62,7 +64,7 @@ public:
         }
         else
         {
-            static_assert(has_symmetric_transfer_await_suspend<awaiter_type>);
+            static_assert(has_symmetric_transfer_await_suspend<awaiter_type, Continuation>);
 
             auto transferToCoroutine = this->awaiter().await_suspend(
                 continuation
