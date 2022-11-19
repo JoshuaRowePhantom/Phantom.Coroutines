@@ -177,35 +177,70 @@ template<
     typename Tuple
 > constexpr size_t tuple_element_index_v = tuple_element_index<Type, Tuple>::value;
 
+struct has_await_suspend_conflicted_name
+{
+    int await_suspend;
+};
+
 template<
-    typename TAwaiter
+    typename T
+> concept class_concept = std::is_class_v<T>;
+
+template<
+    class_concept Promise
+> struct has_await_suspend_conflict_detector
+    :
+    public Promise,
+    public has_await_suspend_conflicted_name
+{
+};
+
+template<
+    typename Promise,
+    typename = void
+> constexpr bool has_await_suspend_v = true;
+
+template<
+    typename Promise
+> constexpr bool has_await_suspend_v<Promise, std::void_t<decltype(has_await_suspend_conflict_detector<Promise>::await_suspend)>> = false;
+
+template<
+    typename Promise
+> concept has_await_suspend = has_await_suspend_v<Promise>;
+
+template<
+    typename TAwaiter,
+    typename CoroutineHandle = coroutine_handle<>
 > concept has_void_await_suspend = requires (
     TAwaiter awaiter,
-    coroutine_handle<> continuation)
+    CoroutineHandle continuation)
 {
     { awaiter.await_suspend(continuation) } -> std::same_as<void>;
 };
 
 template<
-    typename TAwaiter
+    typename TAwaiter,
+    typename CoroutineHandle = coroutine_handle<>
 > concept has_bool_await_suspend = requires (
     TAwaiter awaiter,
-    coroutine_handle<> continuation)
+    CoroutineHandle continuation)
 {
     { awaiter.await_suspend(continuation) } -> std::same_as<bool>;
 };
 
 template<
-    typename TAwaiter
+    typename TAwaiter,
+    typename CoroutineHandle = coroutine_handle<>
 > concept has_symmetric_transfer_await_suspend = requires (
     TAwaiter awaiter,
-    coroutine_handle<> continuation)
+    CoroutineHandle continuation)
 {
     { awaiter.await_suspend(continuation) } -> std::convertible_to<coroutine_handle<>>;
 };
 
 template<
-    typename TAwaiter
+    typename TAwaiter,
+    typename CoroutineHandle = coroutine_handle<>
 >
 concept is_awaiter =
     requires (
@@ -214,13 +249,7 @@ TAwaiter awaiter)
     { awaiter.await_ready() } -> std::same_as<bool>;
     { awaiter.await_resume() };
 }
-&&
-(
-    has_void_await_suspend<TAwaiter>
-    || has_bool_await_suspend<TAwaiter>
-    || has_symmetric_transfer_await_suspend<TAwaiter>
-    )
-    ;
+&& has_await_suspend<TAwaiter>;
 
 template<
     typename TAwaitable
@@ -228,16 +257,16 @@ template<
     TAwaitable awaitable
     )
 {
-    requires is_awaiter<decltype(std::forward<TAwaitable>(awaitable).operator co_await())>;
+    { std::forward<TAwaitable>(awaitable).operator co_await() } -> is_awaiter;
 };
 
 template<
     typename TAwaitable
 > concept has_co_await_non_member = requires(
-    TAwaitable awaitable
+    TAwaitable&& awaitable
     )
 {
-    requires is_awaiter<decltype(operator co_await(std::forward<TAwaitable>(awaitable)))>;
+    { operator co_await(std::forward(awaitable)) } -> is_awaiter;
 };
 
 template<
@@ -263,7 +292,7 @@ template<
     has_co_await_non_member CoAwaitNonMember
 >
 decltype(auto) get_awaiter(
-    CoAwaitNonMember&& awaitable
+    CoAwaitNonMember awaitable
 )
 {
     return operator co_await(std::forward<CoAwaitNonMember>(awaitable));
@@ -345,7 +374,6 @@ template<
     public Promise,
     public has_await_transform_conflicted_name
 {
-    int await_transform;
 };
 
 template<
@@ -415,5 +443,6 @@ using detail::is_awaiter;
 using detail::has_co_await_member;
 using detail::has_co_await_non_member;
 using detail::get_awaiter;
+using detail::is_coroutine_handle;
 
 } // namespace Phantom::Coroutines
