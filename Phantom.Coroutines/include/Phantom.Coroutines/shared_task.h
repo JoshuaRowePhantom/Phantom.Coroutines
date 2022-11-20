@@ -67,6 +67,10 @@ protected:
 public:
 	typedef Promise promise_type;
 
+	shared_task()
+		: shared_task::extensible_awaitable(nullptr)
+	{}
+
 	shared_task(
 		const shared_task& other
 	)  noexcept 

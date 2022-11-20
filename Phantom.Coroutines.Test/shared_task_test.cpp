@@ -1,6 +1,7 @@
 #include <string>
 #include <type_traits>
 #include <gtest/gtest.h>
+#include "async_test.h"
 #include "Phantom.Coroutines/detail/type_traits.h"
 #include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
 #include "Phantom.Coroutines/shared_task.h"
@@ -326,4 +327,162 @@ TEST(shared_task_test, Destroys_thrown_exception)
     // could have either 1 or 2 as the reference count.
     ASSERT_TRUE(instanceCountBeforeDestruction == 1 || instanceCountBeforeDestruction == 2);
     ASSERT_EQ(0, instanceCountAfterDestruction);
+}
+
+ASYNC_TEST(shared_task_test, Result_not_destroyed_until_last_reference_released)
+{
+    lifetime_statistics statistics;
+
+    auto taskLambda = [&]() -> shared_task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    shared_task<lifetime_tracker> task1 = taskLambda();
+    shared_task<lifetime_tracker> task2 = task1;
+    shared_task<lifetime_tracker> task3 = task2;
+
+    auto tracker1 = co_await task1;
+    auto tracker2 = co_await task2;
+    auto tracker3 = co_await task3;
+    EXPECT_EQ(4, statistics.instance_count);
+
+    task1 = shared_task<lifetime_tracker>();
+    EXPECT_EQ(4, statistics.instance_count);
+    task2 = shared_task<lifetime_tracker>();
+    EXPECT_EQ(4, statistics.instance_count);
+    task3 = shared_task<lifetime_tracker>();
+    EXPECT_EQ(3, statistics.instance_count);
+}
+
+ASYNC_TEST(shared_task_test, Move_construct_of_task_leaves_old_task_invalid_and_doesnt_increment_reference_count)
+{
+    lifetime_statistics statistics;
+
+    auto taskLambda = [&]() -> shared_task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    shared_task<lifetime_tracker> task1 = taskLambda();
+    auto tracker = co_await task1;
+    EXPECT_EQ(2, statistics.instance_count);
+
+    EXPECT_TRUE(task1);
+    auto task2 = std::move(task1);
+
+    EXPECT_FALSE(task1);
+    EXPECT_TRUE(task2);
+    EXPECT_EQ(2, statistics.instance_count);
+
+    task2 = task1;
+    EXPECT_EQ(1, statistics.instance_count);
+}
+
+ASYNC_TEST(shared_task_test, Move_assign_of_task_leaves_old_task_invalid_and_doesnt_increment_reference_count)
+{
+    lifetime_statistics statistics;
+
+    auto taskLambda = [&]() -> shared_task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    shared_task<lifetime_tracker> task1 = taskLambda();
+    auto tracker = co_await task1;
+    EXPECT_EQ(2, statistics.instance_count);
+
+    EXPECT_TRUE(task1);
+    shared_task<lifetime_tracker> task2;
+    EXPECT_TRUE(task1);
+    EXPECT_FALSE(task2);
+
+    task2 = std::move(task1);
+    EXPECT_FALSE(task1);
+    EXPECT_TRUE(task2);
+
+    EXPECT_EQ(2, statistics.instance_count);
+
+    task2 = shared_task<lifetime_tracker>();
+    EXPECT_EQ(1, statistics.instance_count);
+}
+
+ASYNC_TEST(shared_task_test, Copy_asign_reduces_reference_count_of_destination_Task)
+{
+    lifetime_statistics statistics;
+
+    auto taskLambda = [&]() -> shared_task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    shared_task<lifetime_tracker> task1 = taskLambda();
+    auto tracker = co_await task1;
+    EXPECT_EQ(2, statistics.instance_count);
+
+    shared_task<lifetime_tracker> task2;
+    task1 = task2;
+
+    EXPECT_EQ(1, statistics.instance_count);
+}
+
+ASYNC_TEST(shared_task_test, Move_asign_reduces_reference_count_of_destination_Task)
+{
+    lifetime_statistics statistics;
+
+    auto taskLambda = [&]() -> shared_task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    shared_task<lifetime_tracker> task1 = taskLambda();
+    auto tracker = co_await task1;
+    EXPECT_EQ(2, statistics.instance_count);
+
+    shared_task<lifetime_tracker> task2;
+    task1 = std::move(task2);
+
+    EXPECT_EQ(1, statistics.instance_count);
+}
+
+ASYNC_TEST(shared_task_test, Copy_asign_doesnt_modify_itself)
+{
+    lifetime_statistics statistics;
+
+    auto taskLambda = [&]() -> shared_task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    shared_task<lifetime_tracker> task1 = taskLambda();
+    auto tracker = co_await task1;
+    EXPECT_EQ(2, statistics.instance_count);
+
+    task1 = task1;
+
+    EXPECT_EQ(2, statistics.instance_count);
+}
+
+ASYNC_TEST(shared_task_test, Move_asign_doesnt_modify_itself)
+{
+    lifetime_statistics statistics;
+
+    auto taskLambda = [&]() -> shared_task<lifetime_tracker>
+    {
+        co_return statistics.tracker();
+    };
+
+    shared_task<lifetime_tracker> task1 = taskLambda();
+    auto tracker = co_await task1;
+    EXPECT_EQ(2, statistics.instance_count);
+
+    task1 = std::move(task1);
+
+    EXPECT_EQ(2, statistics.instance_count);
+}
+
+TEST(shared_task_test, Default_constructor_produces_invalid_task)
+{
+    shared_task<> task;
+    ASSERT_FALSE(task);
 }
