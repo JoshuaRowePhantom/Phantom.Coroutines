@@ -23,8 +23,13 @@ template<
 > class basic_task_promise;
 
 template<
+	typename Policy
+> concept is_task_promise_policy =
+is_continuation_type_policy<Policy>;
+
+template<
 	typename Result,
-	typename ... Policies
+	is_task_promise_policy ... Policies
 > 
 using task_promise = basic_task_promise<
 	Result,
