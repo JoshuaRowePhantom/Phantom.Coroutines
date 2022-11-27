@@ -12,19 +12,34 @@
 #include <type_traits>
 #include <variant>
 #include "extensible_promise.h"
+#include "policies.h"
 
 namespace Phantom::Coroutines::detail
 {
 
 template<
-	typename Result = void,
-	is_coroutine_handle Continuation = coroutine_handle<>
-> class task_promise;
+	typename Result,
+	is_continuation Continuation
+> class basic_task_promise;
 
 template<
-	typename Result = void,
-	typename Promise = task_promise<Result>
-> class task;
+	typename Result,
+	typename ... Policies
+> 
+using task_promise = basic_task_promise<
+	Result,
+	select_continuation_type<
+		Policies..., 
+	    continuation_type<coroutine_handle<>>>
+>;
+
+template<
+	typename Promise
+> class basic_task;
+
+template<
+	typename Result = void
+> using task = basic_task<task_promise<Result>>;
 
 template<
 	typename Promise
@@ -32,8 +47,8 @@ template<
 
 template<
 	typename Result,
-	is_coroutine_handle Continuation
-> class task_promise
+	is_continuation Continuation
+> class basic_task_promise
 	:
 	public variant_return_result<Result>,
 	public extensible_promise,
@@ -41,10 +56,7 @@ template<
 {
 	using variant_result_storage<Result>::is_void;
 
-	template<
-		typename Result,
-		typename Promise
-	> friend class task;
+	friend class basic_task<basic_task_promise>;
 
 	typedef std::variant<
 		std::monostate,
@@ -190,18 +202,12 @@ template<
 	:
 task_awaitable<Promise>
 {
-	template<
-		typename Result,
-		typename Promise
-	> friend class task;
-
+public:
 	task_awaiter(
 		task_awaitable<Promise>&& other
 	) :
 		task_awaitable<Promise>{ std::move(other) }
 	{}
-
-public:
 
 	bool await_ready(
 		this auto& self
@@ -227,25 +233,19 @@ public:
 };
 
 template<
-	typename Result,
 	typename Promise
-> class task
+> class basic_task
 	:
 	task_awaitable<Promise>
 {
-	template<
-		typename Result,
-		is_coroutine_handle Continuation
-	> friend class task_promise;
-
-	task(coroutine_handle<Promise> handle)
+public:
+	basic_task(coroutine_handle<Promise> handle)
 		: task_awaitable<Promise>{ handle }
 	{}
 
-public:
-	typedef Promise promise_type;
+	using promise_type = Promise;
 
-	task()
+	basic_task()
 	{}
 
 	auto operator co_await(

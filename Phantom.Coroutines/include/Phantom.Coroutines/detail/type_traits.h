@@ -433,6 +433,61 @@ template<
     typename Continuation
 > concept is_coroutine_handle = is_template_instantiation_v<Continuation, std::coroutine_handle>;
 
+template<
+    typename Continuation
+> concept is_continuation = 
+std::constructible_from<Continuation>
+&& requires (Continuation c)
+{
+    { c.resume() };
+};
+
+template<
+    template<typename T> typename PolicySelector,
+    typename ... Policies
+> struct select_policy;
+
+template<
+    template<typename T> typename PolicySelector
+> struct select_policy<PolicySelector>
+{
+    static_assert(std::same_as<void, PolicySelector>, "Policy list does not contain desired policy.");
+};
+
+template<
+    template<typename T> typename PolicySelector,
+    typename MatchingPolicy,
+    typename ... Policies
+>
+requires (PolicySelector<MatchingPolicy>::value)
+struct select_policy<
+    PolicySelector,
+    MatchingPolicy,
+    Policies...
+>
+{
+    using type = MatchingPolicy;
+};
+
+template<
+    template<typename T> typename PolicySelector,
+    typename NotMatchingPolicy,
+    typename ... Policies
+>
+    requires (!PolicySelector<NotMatchingPolicy>::value)
+struct select_policy<
+    PolicySelector,
+    NotMatchingPolicy,
+    Policies...
+> : public select_policy<PolicySelector, Policies...>
+{
+};
+
+template<
+    template<typename T> typename PolicySelector,
+    typename ... Policies
+> using select_policy_t = typename select_policy<PolicySelector, Policies...>::type;
+
 }
 
 using detail::awaiter_type;

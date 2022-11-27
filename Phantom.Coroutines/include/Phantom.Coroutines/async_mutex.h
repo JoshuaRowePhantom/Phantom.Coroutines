@@ -4,6 +4,7 @@
 #include "detail/coroutine.h"
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
+#include "awaiter_list.h"
 #include <type_traits>
 
 namespace Phantom::Coroutines
@@ -11,31 +12,57 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
-class async_mutex_lock;
+template<
+	typename T
+> concept is_async_mutex_policy =
+is_wait_cancellation_policy<T>
+|| is_continuation_type_policy<T>;
 
-class async_mutex
+template<
+	is_wait_cancellation_policy WaitCancellationPolicy,
+	is_continuation Continuation
+>
+class basic_async_mutex;
+
+template<
+	is_async_mutex_policy ... Policy
+> using async_mutex = basic_async_mutex<
+	select_wait_cancellation_policy<Policy..., wait_is_not_cancellable>,
+	select_continuation_type<Policy..., default_continuation_type>
+>;
+
+template<
+	is_wait_cancellation_policy WaitCancellationPolicy,
+	is_continuation Continuation
+>
+class basic_async_mutex
 	:
-private immovable_object
+private immovable_object,
+private awaiter_list_mutex<WaitCancellationPolicy>
 {
+public:
+	using lock_type = std::unique_lock<basic_async_mutex>;
+
+private:
 	struct UnlockedState {};
 	struct LockedState;
 
-	class async_mutex_lock_operation
+	class [[nodiscard]] async_mutex_lock_operation
 		:
 		private immovable_object
 	{
-		friend class async_mutex;
+		friend class basic_async_mutex;
 
 		union
 		{
-			async_mutex* m_mutex;
+			basic_async_mutex* m_mutex;
 			async_mutex_lock_operation* m_nextAwaiter;
 		};
 
 		coroutine_handle<> m_continuation;
 
 		async_mutex_lock_operation(
-			async_mutex* mutex
+			basic_async_mutex* mutex
 		) :
 			m_mutex(mutex)
 		{}
@@ -45,22 +72,51 @@ private immovable_object
 
 		bool await_suspend(
 			coroutine_handle<> continuation
-		) noexcept;
+		) noexcept
+		{
+			m_continuation = continuation;
+
+			// We destroy m_mutex when we set m_nextAwaiter,
+			// so copy it here.
+			basic_async_mutex* mutex = m_mutex;
+
+			auto nextStateLambda = [&](
+				state_type previousState
+				) -> state_type
+			{
+				if (previousState == UnlockedState{})
+				{
+					return LockedNoWaitersState;
+				}
+
+				m_nextAwaiter = previousState.as<LockedState>();
+				return this;
+			};
+
+			auto previousState = compare_exchange_weak_loop(
+				mutex->m_state,
+				nextStateLambda
+			);
+
+			return previousState != UnlockedState{};
+		}
 
 		void await_resume() noexcept 
 		{
 		}
 	};
 
-	class async_mutex_scoped_lock_operation
+	class [[nodiscard]] async_mutex_scoped_lock_operation
+		:
+		private immovable_object
 	{
-		friend class async_mutex;
+		friend class basic_async_mutex;
 
-		async_mutex* m_mutex;
+		basic_async_mutex& m_mutex;
 		async_mutex_lock_operation m_lockOperation;
 
 		async_mutex_scoped_lock_operation(
-			async_mutex* mutex
+			basic_async_mutex& mutex
 		) :
 			m_mutex{mutex},
 			m_lockOperation{mutex}
@@ -80,7 +136,10 @@ private immovable_object
 				continuation);
 		}
 
-		async_mutex_lock await_resume() noexcept;
+		[[nodiscard]] lock_type await_resume() noexcept
+		{
+			return { std::adopt_lock, m_mutex };
+		}
 	};
 
 	typedef atomic_state<
@@ -105,7 +164,17 @@ public:
 		);
 	}
 
-	async_mutex_lock try_scoped_lock() noexcept;
+	[[nodiscard]] lock_type try_scoped_lock() noexcept
+	{
+		if (try_lock())
+		{
+			return lock_type{ *this };
+		}
+		else
+		{
+			return lock_type{};
+		}
+	}
 
 	async_mutex_lock_operation lock()  noexcept
 	{
@@ -174,118 +243,8 @@ public:
 	}
 };
 
-class async_mutex_lock
-	:
-private noncopyable
-{
-	friend class async_mutex;
-	async_mutex* m_mutex;
-
-	async_mutex_lock(
-		async_mutex* mutex
-	)
-		: m_mutex { mutex }
-	{}
-
-public:
-	async_mutex_lock(
-	)  noexcept :
-		m_mutex { nullptr }
-	{}
-
-	async_mutex_lock(
-		async_mutex_lock&& other
-	) noexcept
-	{
-		m_mutex = other.m_mutex;
-		other.m_mutex = nullptr;
-	}
-
-	async_mutex_lock& operator =(
-		async_mutex_lock&& other
-		) noexcept
-	{
-		if (this == &other)
-		{
-			return *this;
-		}
-
-		release();
-		m_mutex = other.m_mutex;
-		other.m_mutex = nullptr;
-		return *this;
-	}
-
-	void release() noexcept
-	{
-		if (m_mutex)
-		{
-			m_mutex->unlock();
-			m_mutex = nullptr;
-		}
-	}
-
-	explicit operator bool() const
-	{
-		return m_mutex;
-	}
-
-	~async_mutex_lock() noexcept
-	{
-		release();
-	}
-};
-
-inline bool async_mutex::async_mutex_lock_operation::await_suspend(
-	coroutine_handle<> continuation
-	) noexcept
-{
-	m_continuation = continuation;
-
-	// We destroy m_mutex when we set m_nextAwaiter,
-	// so copy it here.
-	async_mutex* mutex = m_mutex;
-
-	auto nextStateLambda = [&](
-		state_type previousState
-		) -> state_type
-	{
-		if (previousState == UnlockedState{})
-		{
-			return LockedNoWaitersState;
-		}
-
-		m_nextAwaiter = previousState.as<LockedState>();
-		return this;
-	};
-
-	auto previousState = compare_exchange_weak_loop(
-		mutex->m_state,
-		nextStateLambda
-	);
-
-	return previousState != UnlockedState{};
-}
-
-inline async_mutex_lock async_mutex::async_mutex_scoped_lock_operation::await_resume() noexcept
-{
-	return async_mutex_lock{ m_mutex };
-}
-
-inline async_mutex_lock async_mutex::try_scoped_lock() noexcept
-{
-	if (try_lock())
-	{
-		return async_mutex_lock{ this };
-	}
-	else
-	{
-		return async_mutex_lock{};
-	}
-}
 }
 
 using detail::async_mutex;
-using detail::async_mutex_lock;
 
 }
