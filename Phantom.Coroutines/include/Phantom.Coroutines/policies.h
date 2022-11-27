@@ -6,31 +6,31 @@
 namespace Phantom::Coroutines
 {
 
-struct wait_is_cancellable;
-struct wait_is_not_cancellable;
-struct wait_is_not_destroyable;
+struct await_is_cancellable;
+struct await_is_not_cancellable;
+struct await_is_not_destroyable;
 
 template<
 	typename T
-> concept is_wait_cancellation_policy = detail::is_in_types<
-	wait_is_cancellable,
-	wait_is_cancellable,
-	wait_is_not_destroyable
+> concept is_await_cancellation_policy = detail::is_in_types<
+	await_is_cancellable,
+	await_is_cancellable,
+	await_is_not_destroyable
 >;
 
 template<
 	typename T
-> struct is_wait_cancellation_policy_selector :
+> struct is_await_cancellation_policy_selector :
 	std::integral_constant<
 		bool,
-		is_wait_cancellation_policy<T>
+		is_await_cancellation_policy<T>
 	>
 {};
 
 template<
 	typename ... Policies
-> using select_wait_cancellation_policy = detail::select_policy_t<
-	is_wait_cancellation_policy_selector,
+> using select_await_cancellation_policy = detail::select_policy_t<
+	is_await_cancellation_policy_selector,
 	Policies...
 >;
 
@@ -65,24 +65,24 @@ struct noop_on_destroy;
 
 template<
 	typename T
-> concept is_wait_result_on_destruction_policy = detail::is_in_types<
+> concept is_await_result_on_destruction_policy = detail::is_in_types<
 	throw_on_destroy,
 	noop_on_destroy
 >;
 
 template<
 	typename T
-> struct is_wait_result_on_destruction_policy_selector:
+> struct is_await_result_on_destruction_policy_selector:
 	std::integral_constant<
 		bool,
-		is_wait_result_on_destruction_policy<T>
+		is_await_result_on_destruction_policy<T>
 	>
 {};
 
 template<
 	typename ... Policies
-> using select_wait_result_on_destruction_policy = detail::select_policy_t<
-	is_wait_result_on_destruction_policy_selector,
+> using select_await_result_on_destruction_policy = detail::select_policy_t<
+	is_await_result_on_destruction_policy_selector,
 	Policies...
 >;
 

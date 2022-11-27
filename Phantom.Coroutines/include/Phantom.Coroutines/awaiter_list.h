@@ -12,7 +12,7 @@ template<
 > class awaiter_list_entry;
 
 template<
-	is_wait_cancellation_policy WaitCancellationPolicy,
+	is_await_cancellation_policy WaitCancellationPolicy,
 	typename Awaiter,
 	detail::is_atomic_state_type State
 > class awaiter_list;
@@ -70,12 +70,12 @@ template<
 };
 
 template<
-	is_wait_cancellation_policy WaitCancellationPolicy
+	is_await_cancellation_policy AwaitCancellationPolicy
 > class awaiter_list_mutex;
 
 template<
 > class awaiter_list_mutex<
-	wait_is_cancellable
+	await_is_cancellable
 >
 {
 	std::mutex m_mutex;
@@ -91,7 +91,7 @@ protected:
 
 template<
 > class awaiter_list_mutex<
-	wait_is_not_cancellable
+	await_is_not_cancellable
 >
 {
 protected:

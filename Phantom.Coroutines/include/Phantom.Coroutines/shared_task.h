@@ -1,5 +1,5 @@
 // shared_task and shared_task_promise implement a reference-counted task
-// that can be co_await multiple times.
+// that can be co_await'ed multiple times.
 // A shared_task<> itself can be copied or moved. 
 // When a shared_task<> completes, the result of the await operation
 // is a reference to the return value of the task.

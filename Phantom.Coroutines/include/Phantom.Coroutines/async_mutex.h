@@ -13,32 +13,34 @@ namespace detail
 {
 
 template<
-	typename T
-> concept is_async_mutex_policy =
-is_wait_cancellation_policy<T>
-|| is_continuation_type_policy<T>;
-
-template<
-	is_wait_cancellation_policy WaitCancellationPolicy,
+	is_await_cancellation_policy WaitCancellationPolicy,
 	is_continuation Continuation
 >
 class basic_async_mutex;
 
 template<
+	typename T
+> concept is_async_mutex_policy =
+is_await_cancellation_policy<T>
+|| is_await_result_on_destruction_policy<T>
+|| is_awaiter_cardinality_policy<T>
+|| is_continuation_type_policy<T>;
+
+template<
 	is_async_mutex_policy ... Policy
 > using async_mutex = basic_async_mutex<
-	select_wait_cancellation_policy<Policy..., wait_is_not_cancellable>,
+	select_await_cancellation_policy<Policy..., await_is_not_cancellable>,
 	select_continuation_type<Policy..., default_continuation_type>
 >;
 
 template<
-	is_wait_cancellation_policy WaitCancellationPolicy,
+	is_await_cancellation_policy AwaitCancellationPolicy,
 	is_continuation Continuation
 >
 class basic_async_mutex
 	:
 private immovable_object,
-private awaiter_list_mutex<WaitCancellationPolicy>
+private awaiter_list_mutex<AwaitCancellationPolicy>
 {
 public:
 	using lock_type = std::unique_lock<basic_async_mutex>;
@@ -138,7 +140,7 @@ private:
 
 		[[nodiscard]] lock_type await_resume() noexcept
 		{
-			return { std::adopt_lock, m_mutex };
+			return lock_type { m_mutex, std::adopt_lock };
 		}
 	};
 
@@ -168,7 +170,7 @@ public:
 	{
 		if (try_lock())
 		{
-			return lock_type{ *this };
+			return lock_type{ *this, std::adopt_lock };
 		}
 		else
 		{
