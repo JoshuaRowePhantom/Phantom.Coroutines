@@ -167,4 +167,13 @@ ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_causes_awaiters_to_get_
 	co_return;
 }
 
+ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_no_awaiters_works_fine)
+{
+	std::optional<async_mutex<throw_on_destroy>> mutex{ std::in_place };
+	co_await mutex->lock();
+	mutex.reset();
+
+	co_return;
+}
+
 }
