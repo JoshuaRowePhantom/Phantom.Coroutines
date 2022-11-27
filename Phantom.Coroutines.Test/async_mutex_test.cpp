@@ -1,8 +1,13 @@
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/async_mutex.h"
+#include "Phantom.Coroutines/async_scope.h"
 #include "async_test.h"
+#include <chrono>
 
-using namespace Phantom::Coroutines;
+namespace Phantom::Coroutines
+{
+
+using namespace std::chrono_literals;
 
 TEST(async_mutex_test, try_lock_returns_true_for_unlocked_mutex)
 {
@@ -129,4 +134,37 @@ TEST(async_mutex_test, lock_acquires_in_order)
 	ASSERT_EQ(4, order);
 	mutex.unlock();
 	ASSERT_EQ(5, order);
+}
+
+ASYNC_TEST(async_mutex_test, noop_on_destroy_destructor_does_nothing)
+{
+	std::optional<async_mutex<noop_on_destroy>> mutex{std::in_place};
+	co_await mutex->lock();
+
+	auto future = as_future([&]() -> task<>
+		{
+			co_await mutex->lock();
+			EXPECT_TRUE(false);
+		});
+
+	mutex.reset();
+	EXPECT_EQ(std::future_status::timeout, future.wait_for(0s));
+}
+
+ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_causes_awaiters_to_get_exception)
+{
+	std::optional<async_mutex<throw_on_destroy>> mutex{ std::in_place };
+	co_await mutex->lock();
+
+	auto future = as_future([&]() -> task<>
+		{
+			co_await mutex->lock();
+			EXPECT_TRUE(false);
+		});
+	mutex.reset();
+
+	EXPECT_THROW(future.get(), std::future_error);
+	co_return;
+}
+
 }

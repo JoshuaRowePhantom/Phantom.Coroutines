@@ -445,13 +445,9 @@ std::constructible_from<Continuation>
 template<
     template<typename T> typename PolicySelector,
     typename ... Policies
-> struct select_policy;
-
-template<
-    template<typename T> typename PolicySelector
-> struct select_policy<PolicySelector>
+> struct select_policy
 {
-    static_assert(std::same_as<void, PolicySelector>, "Policy list does not contain desired policy.");
+    static_assert(std::same_as<void, PolicySelector<void>>, "Policy list does not contain desired policy.");
 };
 
 template<
@@ -474,7 +470,7 @@ template<
     typename NotMatchingPolicy,
     typename ... Policies
 >
-    requires (!PolicySelector<NotMatchingPolicy>::value)
+requires (!PolicySelector<NotMatchingPolicy>::value)
 struct select_policy<
     PolicySelector,
     NotMatchingPolicy,

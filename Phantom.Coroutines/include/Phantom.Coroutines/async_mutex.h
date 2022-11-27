@@ -13,8 +13,10 @@ namespace detail
 {
 
 template<
-	is_await_cancellation_policy WaitCancellationPolicy,
-	is_continuation Continuation
+	is_await_cancellation_policy AwaitCancellationPolicy,
+	is_continuation Continuation,
+	is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
+	is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
 >
 class basic_async_mutex;
 
@@ -23,19 +25,27 @@ template<
 > concept is_async_mutex_policy =
 is_await_cancellation_policy<T>
 || is_await_result_on_destruction_policy<T>
-|| is_awaiter_cardinality_policy<T>
+// It might appear that allowing only a single awaiter for a mutex
+// wouldn't be useful, but actually it is:
+// a common case is that there only two threads of control vying
+// for the mutex, and therefore only one of them can be awaiting.
+|| is_awaiter_cardinality_policy<T> 
 || is_continuation_type_policy<T>;
 
 template<
 	is_async_mutex_policy ... Policy
 > using async_mutex = basic_async_mutex<
 	select_await_cancellation_policy<Policy..., await_is_not_cancellable>,
-	select_continuation_type<Policy..., default_continuation_type>
+	select_continuation_type<Policy..., default_continuation_type>,
+	select_awaiter_cardinality_policy<Policy..., multiple_awaiters>,
+	select_await_result_on_destruction_policy<Policy..., noop_on_destroy>
 >;
 
 template<
 	is_await_cancellation_policy AwaitCancellationPolicy,
-	is_continuation Continuation
+	is_continuation Continuation,
+	is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
+	is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
 >
 class basic_async_mutex
 	:
@@ -47,21 +57,19 @@ public:
 
 private:
 	struct UnlockedState {};
+	struct DestroyedState {};
 	struct LockedState;
 
 	class [[nodiscard]] async_mutex_lock_operation
 		:
-		private immovable_object
+		private immovable_object,
+		public awaiter_list_entry<AwaiterCardinalityPolicy, async_mutex_lock_operation>
 	{
 		friend class basic_async_mutex;
 
-		union
-		{
-			basic_async_mutex* m_mutex;
-			async_mutex_lock_operation* m_nextAwaiter;
-		};
+		basic_async_mutex* m_mutex;
 
-		coroutine_handle<> m_continuation;
+		Continuation m_continuation;
 
 		async_mutex_lock_operation(
 			basic_async_mutex* mutex
@@ -73,14 +81,10 @@ private:
 		bool await_ready() const noexcept { return false; }
 
 		bool await_suspend(
-			coroutine_handle<> continuation
+			Continuation continuation
 		) noexcept
 		{
 			m_continuation = continuation;
-
-			// We destroy m_mutex when we set m_nextAwaiter,
-			// so copy it here.
-			basic_async_mutex* mutex = m_mutex;
 
 			auto nextStateLambda = [&](
 				state_type previousState
@@ -91,20 +95,35 @@ private:
 					return LockedNoWaitersState;
 				}
 
-				m_nextAwaiter = previousState.as<LockedState>();
+				this->set_next(previousState.as<LockedState>());
 				return this;
 			};
 
 			auto previousState = compare_exchange_weak_loop(
-				mutex->m_state,
+				m_mutex->m_state,
 				nextStateLambda
 			);
 
 			return previousState != UnlockedState{};
 		}
 
-		void await_resume() noexcept 
+		void resume()
 		{
+			m_continuation.resume();
+		}
+
+		void resume_on_mutex_destruction()
+		{
+			m_mutex = nullptr;
+			m_continuation.resume();
+		}
+
+		void await_resume() noexcept(noexcept(resume_from_destruction_of_awaitable_object(AwaitResultOnDestructionPolicy{})))
+		{
+			if (!m_mutex)
+			{
+				resume_from_destruction_of_awaitable_object(AwaitResultOnDestructionPolicy{});
+			}
 		}
 	};
 
@@ -146,6 +165,7 @@ private:
 
 	typedef atomic_state<
 		SingletonState<UnlockedState>,
+		SingletonState<DestroyedState>,
 		StateSet<LockedState, async_mutex_lock_operation*>
 	> atomic_state_type;
 	typedef atomic_state_type::state_type state_type;
@@ -153,7 +173,7 @@ private:
 	static inline const state_type LockedNoWaitersState = nullptr;
 
 	atomic_state_type m_state = UnlockedState{};
-	async_mutex_lock_operation* m_waiters = nullptr;
+	async_mutex_lock_operation* m_awaiters = nullptr;
 
 public:
 	bool try_lock() noexcept
@@ -192,13 +212,13 @@ public:
 	{
 		// We desire to service awaiters in order that they requested awaiting.
 		// This prevents starvation.
-		// We maintain the ordered list in m_waiters;
+		// We maintain the ordered list in m_awaiters;
 		// when that empties out, we copy the atomically added awaiters into
-		// m_waiters.
+		// m_awaiters.
 
 		// Question: do we have to memory_order_acquire something here
-		// to ensure m_waiters is correct?
-		if (!m_waiters)
+		// to ensure m_awaiters is correct?
+		if (!m_awaiters)
 		{
 			state_type previousState = LockedNoWaitersState;
 
@@ -214,34 +234,65 @@ public:
 				return;
 			}
 
-			// Otherwise, grab all the current waiters and put them in m_waiters in reverse order.
+			// Otherwise, grab all the current waiters and put them in m_awaiters in reverse order.
 			// No other thread will be attempting to do an unlock at the same time, so
 			// we'll gain exclusive ownership of the linked list of waiters.
-			auto waiter = m_state.exchange(
+			auto awaiter = m_state.exchange(
 				LockedNoWaitersState,
 				std::memory_order_acquire
 			).as<LockedState>();
 
-			while (waiter)
-			{
-				auto nextWaiter = waiter->m_nextAwaiter;
-				waiter->m_nextAwaiter = m_waiters;
-				m_waiters = waiter;
-				waiter = nextWaiter;
-			}
+			invoke_on_awaiters(
+				awaiter,
+				[&](auto awaiter)
+				{
+					awaiter->set_next(m_awaiters);
+					m_awaiters = awaiter;
+				});
 		}
 
-		auto waiter = m_waiters;
-		assert(waiter != nullptr);
-		m_waiters = m_waiters->m_nextAwaiter;
+		auto awaiter = m_awaiters;
+		assert(awaiter != nullptr);
+		m_awaiters = m_awaiters->next();
 
 		// Question: do we have to memory_order_release something here
-		// to ensure m_waiters is correct?
+		// to ensure m_awaiters is correct?
 
 		// This has the potential to overflow the stack.
 		// We expect callers to be using suspend_result.
-		waiter->m_continuation.resume();
+		awaiter->resume();
 		return;
+	}
+
+	~basic_async_mutex()
+		requires std::same_as<noop_on_destroy, AwaitResultOnDestructionPolicy>
+	= default;
+
+	~basic_async_mutex()
+		requires !std::same_as<noop_on_destroy, AwaitResultOnDestructionPolicy>
+	{
+		invoke_on_awaiters(
+			m_awaiters,
+			[](auto awaiter)
+			{
+				awaiter->resume_on_mutex_destruction();
+			}
+		);
+
+		auto previousState = m_state.exchange(
+			DestroyedState{},
+			std::memory_order_acq_rel);
+
+		if (previousState.is<LockedState>())
+		{
+			invoke_on_awaiters(
+				previousState.as<LockedState>(),
+				[](auto awaiter)
+				{
+					awaiter->resume_on_mutex_destruction();
+				}
+			);
+		}
 	}
 };
 

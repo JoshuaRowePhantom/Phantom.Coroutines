@@ -6,16 +6,15 @@
 namespace Phantom::Coroutines
 {
 
-struct await_is_cancellable;
-struct await_is_not_cancellable;
-struct await_is_not_destroyable;
+struct await_is_cancellable {};
+struct await_is_not_cancellable {};
 
 template<
 	typename T
 > concept is_await_cancellation_policy = detail::is_in_types<
+	T,
 	await_is_cancellable,
-	await_is_cancellable,
-	await_is_not_destroyable
+	await_is_not_cancellable
 >;
 
 template<
@@ -34,12 +33,13 @@ template<
 	Policies...
 >;
 
-struct single_awaiter;
-struct multiple_awaiters;
+struct single_awaiter {};
+struct multiple_awaiters {};
 
 template<
 	typename T
 > concept is_awaiter_cardinality_policy = detail::is_in_types<
+	T,
 	single_awaiter,
 	multiple_awaiters
 >;
@@ -60,14 +60,17 @@ template<
 	Policies...
 >;
 
-struct throw_on_destroy;
-struct noop_on_destroy;
+struct throw_on_destroy {};
+struct noop_on_destroy {};
+struct fail_on_destroy_with_awaiters {};
 
 template<
 	typename T
 > concept is_await_result_on_destruction_policy = detail::is_in_types<
+	T,
 	throw_on_destroy,
-	noop_on_destroy
+	noop_on_destroy,
+	fail_on_destroy_with_awaiters
 >;
 
 template<

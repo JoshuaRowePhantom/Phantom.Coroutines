@@ -1,4 +1,5 @@
 #include "policies.h"
+#include <future>
 #include <mutex>
 #include <concepts>
 #include "detail/atomic_state.h"
@@ -123,4 +124,24 @@ template<
 	}
 }
 
+inline void resume_from_destruction_of_awaitable_object(
+	noop_on_destroy
+) noexcept
+{}
+
+inline void resume_from_destruction_of_awaitable_object(
+	throw_on_destroy
+) 
+{
+	throw std::future_error(
+		std::future_errc::broken_promise
+	);
+}
+
+inline void resume_from_destruction_of_awaitable_object(
+	fail_on_destroy_with_awaiters
+)
+{
+	assert(false);
+}
 }

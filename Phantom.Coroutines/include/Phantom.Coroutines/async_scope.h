@@ -127,10 +127,10 @@ class async_scope
 	};
 
 	future await_impl(
-		is_awaitable auto&& awaiter
+		std::invocable<> auto function
 	)
 	{
-		co_await std::forward<decltype(awaiter)>(awaiter);
+		co_await std::invoke(function);
 		if (m_outstandingTasks.fetch_sub(1) == 1)
 		{
 			co_await join_resumer{ *this };
@@ -142,12 +142,23 @@ public:
 		is_awaitable auto&& awaiter
 		)
 	{
+		return spawn(
+			[&awaiter]() -> decltype(auto)
+			{
+				return std::forward<decltype(awaiter)>(awaiter);
+			});
+	}
+
+	void spawn(
+		std::invocable<> auto&& function
+	)
+	{
 		m_outstandingTasks.fetch_add(
-			1, 
+			1,
 			std::memory_order_relaxed);
 
 		await_impl(
-			std::forward<decltype(awaiter)>(awaiter)
+			std::forward<decltype(function)>(function)
 		);
 	}
 
