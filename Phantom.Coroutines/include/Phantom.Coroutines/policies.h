@@ -6,15 +6,15 @@
 namespace Phantom::Coroutines
 {
 
-struct await_is_cancellable {};
-struct await_is_not_cancellable {};
+struct await_cancellation_policy {};
+struct await_is_cancellable : public await_cancellation_policy {};
+struct await_is_not_cancellable : public await_cancellation_policy {};
 
 template<
 	typename T
-> concept is_await_cancellation_policy = detail::is_in_types<
-	T,
-	await_is_cancellable,
-	await_is_not_cancellable
+> concept is_await_cancellation_policy = std::is_base_of_v<
+	await_cancellation_policy,
+	T
 >;
 
 template<
@@ -33,15 +33,15 @@ template<
 	Policies...
 >;
 
-struct single_awaiter {};
-struct multiple_awaiters {};
+struct awaiter_cardinality_policy {};
+struct single_awaiter : public awaiter_cardinality_policy {};
+struct multiple_awaiters : public awaiter_cardinality_policy {};
 
 template<
 	typename T
-> concept is_awaiter_cardinality_policy = detail::is_in_types<
-	T,
-	single_awaiter,
-	multiple_awaiters
+> concept is_awaiter_cardinality_policy = std::is_base_of_v<
+	awaiter_cardinality_policy,
+	T
 >;
 
 template<
@@ -60,17 +60,16 @@ template<
 	Policies...
 >;
 
-struct throw_on_destroy {};
-struct noop_on_destroy {};
-struct fail_on_destroy_with_awaiters {};
+struct await_result_on_destruction_policy {};
+struct throw_on_destroy : public await_result_on_destruction_policy {};
+struct noop_on_destroy : public await_result_on_destruction_policy {};
+struct fail_on_destroy_with_awaiters : public await_result_on_destruction_policy {};
 
 template<
 	typename T
-> concept is_await_result_on_destruction_policy = detail::is_in_types<
-	T,
-	throw_on_destroy,
-	noop_on_destroy,
-	fail_on_destroy_with_awaiters
+> concept is_await_result_on_destruction_policy = std::is_base_of_v<
+	await_result_on_destruction_policy,
+	T
 >;
 
 template<
