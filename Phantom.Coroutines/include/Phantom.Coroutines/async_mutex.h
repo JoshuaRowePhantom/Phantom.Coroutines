@@ -265,11 +265,11 @@ public:
 	}
 
 	~basic_async_mutex()
-		requires std::same_as<noop_on_destroy, AwaitResultOnDestructionPolicy>
+		requires std::derived_from<AwaitResultOnDestructionPolicy, noop_on_destroy>
 	= default;
 
 	~basic_async_mutex()
-		requires !std::same_as<noop_on_destroy, AwaitResultOnDestructionPolicy>
+		requires !std::derived_from<AwaitResultOnDestructionPolicy, noop_on_destroy>
 	{
 		invoke_on_awaiters(
 			m_awaiters,
@@ -281,7 +281,7 @@ public:
 
 		auto previousState = m_state.exchange(
 			DestroyedState{},
-			std::memory_order_acq_rel);
+			std::memory_order_acq);
 
 		if (previousState.is<LockedState>())
 		{
