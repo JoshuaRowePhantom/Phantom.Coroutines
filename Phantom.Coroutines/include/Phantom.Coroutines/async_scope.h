@@ -3,14 +3,49 @@
 #include <atomic>
 #include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
-#include "Phantom.Coroutines/type_traits.h"
+#include "policies.h"
+#include "type_traits.h"
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
 
-class async_scope
+template<
+	is_await_cancellation_policy AwaitCancellationPolicy,
+	is_continuation Continuation,
+	is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
+	is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy,
+	is_use_after_join_policy AwaitAfterJoinPolicy
+>
+class basic_async_scope;
+
+template<
+	typename T
+> concept is_async_scope_policy =
+is_await_cancellation_policy<T>
+|| is_await_result_on_destruction_policy<T>
+|| is_awaiter_cardinality_policy<T>
+|| is_continuation_type_policy<T>;
+
+template<
+	is_async_scope_policy ... Policy
+> using async_scope = basic_async_scope<
+	select_await_cancellation_policy<Policy..., await_is_not_cancellable>,
+	select_continuation_type<Policy..., default_continuation_type>,
+	select_awaiter_cardinality_policy<Policy..., single_awaiter>,
+	select_await_result_on_destruction_policy<Policy..., noop_on_destroy>,
+	select_use_after_join_policy<Policy..., fail_on_use_after_join>
+>;
+
+template<
+	is_await_cancellation_policy AwaitCancellationPolicy,
+	is_continuation Continuation,
+	is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
+	is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy,
+	is_use_after_join_policy AwaitAfterJoinPolicy
+>
+class basic_async_scope
 {
 	std::atomic<size_t> m_outstandingTasks = 1;
 	coroutine_handle<> m_continuation;
@@ -18,12 +53,12 @@ class async_scope
 
 	class join_awaiter
 	{
-		friend class async_scope;
+		friend class basic_async_scope;
 
-		async_scope& m_asyncScope;
+		basic_async_scope& m_asyncScope;
 
 		join_awaiter(
-			async_scope& asyncScope
+			basic_async_scope& asyncScope
 		) : 
 			m_asyncScope { asyncScope }
 		{}
@@ -64,11 +99,11 @@ class async_scope
 
 	class promise
 	{
-		async_scope& m_asyncScope;
+		basic_async_scope& m_asyncScope;
 
 	public:
 		promise(
-			async_scope& asyncScope,
+			basic_async_scope& asyncScope,
 			auto& awaiter
 		) :
 			m_asyncScope{ asyncScope }
@@ -106,7 +141,7 @@ class async_scope
 	// Implemented here instead of promise::final_suspend due to bug in code gen for symmetric transfer.
 	struct join_resumer
 	{
-		async_scope& m_asyncScope;
+		basic_async_scope& m_asyncScope;
 
 		bool await_ready() const noexcept
 		{

@@ -41,7 +41,7 @@ TEST(async_auto_reset_event_test, Can_be_reset_after_set)
 TEST(async_auto_reset_event_test, Set_after_await_continues_one_awaiter_in_reverse_order_and_leaves_reset)
 {
     async_auto_reset_event<> event;
-    async_scope asyncScope;
+    async_scope<> asyncScope;
     bool complete1 = false;
     bool complete2 = false;
     bool complete3 = false;

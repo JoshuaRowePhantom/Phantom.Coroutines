@@ -134,4 +134,30 @@ template<
 	typename ... Policies
 > using select_continuation_type = typename select_continuation_type_policy<Policies...>::type;
 
+struct use_after_join_policy {};
+struct throw_on_use_after_join : use_after_join_policy, concrete_policy {};
+struct fail_on_use_after_join : use_after_join_policy, concrete_policy {};
+struct noop_on_use_after_join : use_after_join_policy, concrete_policy {};
+
+template<
+	typename T
+> concept is_use_after_join_policy =
+is_concrete_policy<T, use_after_join_policy>;
+
+template<
+	typename T
+> struct is_use_after_join_policy_selector :
+	std::integral_constant<
+	bool,
+	is_use_after_join_policy<T>
+	>
+{};
+
+template<
+	typename ... Policies
+> using select_use_after_join_policy = detail::select_policy_t<
+	is_use_after_join_policy_selector,
+	Policies...
+>;
+
 }

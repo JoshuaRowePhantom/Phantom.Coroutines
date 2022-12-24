@@ -8,7 +8,7 @@ using namespace Phantom::Coroutines;
 
 TEST(async_scope_test, Joining_empty_completes_immediately)
 {
-	async_scope scope;
+	async_scope<> scope;
 	sync_wait([&]() -> task<>
 		{
 			co_await scope.join();
@@ -17,7 +17,7 @@ TEST(async_scope_test, Joining_empty_completes_immediately)
 
 TEST(async_scope_test, Joining_waits_for_incomplete_tasks)
 {
-	async_scope scope;
+	async_scope<> scope;
 	single_consumer_manual_reset_event event1;
 	single_consumer_manual_reset_event event2;
 	single_consumer_manual_reset_event event3;
@@ -44,7 +44,7 @@ TEST(async_scope_test, Joining_waits_for_incomplete_tasks)
 
 TEST(async_scope_test, Joining_completes_immediately_if_all_tasks_already_complete)
 {
-	async_scope scope;
+	async_scope<> scope;
 	single_consumer_manual_reset_event event1;
 	single_consumer_manual_reset_event event2;
 	single_consumer_manual_reset_event event3;
@@ -73,7 +73,7 @@ TEST(async_scope_test, Joining_completes_immediately_if_all_tasks_already_comple
 
 TEST(async_scope_test, Can_await_immovable_task)
 {
-	async_scope scope;
+	async_scope<> scope;
 	bool completeTask1 = false;
 	bool complete = false;
 

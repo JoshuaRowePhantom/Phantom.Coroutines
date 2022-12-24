@@ -1,5 +1,5 @@
 #include "Phantom.Coroutines/async_scope.h"
 namespace cppcoro
 {
-using ::Phantom::Coroutines::async_scope;
+using async_scope = ::Phantom::Coroutines::async_scope<>;
 }

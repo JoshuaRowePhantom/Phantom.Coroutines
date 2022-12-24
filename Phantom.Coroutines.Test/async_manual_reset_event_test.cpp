@@ -41,7 +41,7 @@ TEST(manual_reset_event_test, Can_be_reset_after_set)
 TEST(manual_reset_event_test, Set_after_await_continues_awaiters_and_leaves_set)
 {
     async_manual_reset_event<> event;
-    async_scope asyncScope;
+    async_scope<> asyncScope;
     bool complete = false;
 
     auto waitLambda = [&]() -> task<>

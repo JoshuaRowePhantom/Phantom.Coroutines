@@ -14,7 +14,7 @@ static_assert(is_scheduler<thread_pool_scheduler>);
 ASYNC_TEST(thread_pool_scheduler_test, schedules_on_calling_process_items_thread)
 {
 	thread_pool_scheduler scheduler;
-	async_scope scope;
+	async_scope<> scope;
 	std::stop_source stopSource;
 	scope.spawn([&]()->task<>
 		{
@@ -32,7 +32,7 @@ ASYNC_TEST(thread_pool_scheduler_test, schedules_on_calling_process_items_thread
 TEST(thread_pool_scheduler_test, schedules_on_different_thread)
 {
 	static_thread_pool scheduler(1);
-	async_scope scope;
+	async_scope<> scope;
 	scope.spawn([&]()->task<>
 		{
 			auto currentThreadId = std::this_thread::get_id();
@@ -53,7 +53,7 @@ void thread_pool_scheduler_test_do_many_work_items_test(
 	static_thread_pool scheduler(
 		numberOfThreads
 	);
-	async_scope scope;
+	async_scope<> scope;
 
 	for (size_t counter = 0; counter < numberOfItems; counter++)
 	{
