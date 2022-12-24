@@ -23,10 +23,6 @@ template<
 > concept is_async_auto_reset_event_policy =
 is_await_cancellation_policy<T>
 || is_await_result_on_destruction_policy<T>
-// It might appear that allowing only a single awaiter for a mutex
-// wouldn't be useful, but actually it is:
-// a common case is that there only two threads of control vying
-// for the mutex, and therefore only one of them can be awaiting.
 || is_awaiter_cardinality_policy<T>
 || is_continuation_type_policy<T>;
 
