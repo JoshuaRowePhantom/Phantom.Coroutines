@@ -7,14 +7,29 @@ namespace Phantom::Coroutines
 {
 namespace detail
 {
+
 template<
-	typename T
-> class async_promise
+	typename Value,
+	is_template_instantiation<basic_async_manual_reset_event> Event
+> class basic_async_promise;
+
+template<
+	typename Value,
+	is_async_manual_reset_event_policy... Policy
+> using async_promise = basic_async_promise<
+	Value,
+	async_manual_reset_event<Policy...>
+>;
+
+template<
+	typename Value,
+	is_template_instantiation<basic_async_manual_reset_event> Event
+> class basic_async_promise
 	:
-	storage_for<T>,
+	storage_for<Value>,
 	immovable_object
 {
-	async_manual_reset_event<> m_event;
+	Event m_event;
 
 	typedef awaiter_type<async_manual_reset_event<>> manual_reset_event_awaiter_type;
 
@@ -22,12 +37,12 @@ template<
 
 	class awaiter
 	{
-		async_promise& m_promise;
+		basic_async_promise& m_promise;
 		manual_reset_event_awaiter_type m_manualResetEventAwaiter;
 
 	public:
 		awaiter(
-			async_promise& promise,
+			basic_async_promise& promise,
 			awaiter_key = {}
 		) :
 			m_promise(promise),
@@ -44,19 +59,19 @@ template<
 			return m_manualResetEventAwaiter.await_suspend(coroutine);
 		}
 
-		T& await_resume() const noexcept
+		Value& await_resume() const noexcept
 		{
-			return m_promise->as<T>();
+			return m_promise->as<Value>();
 		}
 	};
 
 public:
-	async_promise()
+	basic_async_promise()
 	{}
 
 	template<
 		typename... Args
-	> async_promise(
+	> basic_async_promise(
 		Args&&... args
 	)
 	{
@@ -65,11 +80,11 @@ public:
 		);
 	}
 
-	~async_promise()
+	~basic_async_promise()
 	{
 		if (m_event.is_set())
 		{
-			this->destroy<T>();
+			this->destroy<Value>();
 		}
 	}
 
@@ -80,13 +95,13 @@ public:
 
 	template<
 		typename ... Args
-	> T& emplace(
+	> Value& emplace(
 		Args&&... args
 	)
 	{
 		assert(!m_event.is_set());
 
-		auto& result = async_promise::storage_for::emplace(
+		auto& result = basic_async_promise::storage_for::emplace(
 			std::forward<Args>(args)...
 		);
 
@@ -96,4 +111,7 @@ public:
 	}
 };
 }
+
+using detail::async_promise;
+
 }
