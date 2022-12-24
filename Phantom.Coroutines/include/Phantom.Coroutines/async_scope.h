@@ -26,7 +26,8 @@ template<
 is_await_cancellation_policy<T>
 || is_await_result_on_destruction_policy<T>
 || is_awaiter_cardinality_policy<T>
-|| is_continuation_type_policy<T>;
+|| is_continuation_type_policy<T>
+|| is_use_after_join_policy<T>;
 
 template<
 	is_async_scope_policy ... Policy
@@ -34,7 +35,7 @@ template<
 	select_await_cancellation_policy<Policy..., await_is_not_cancellable>,
 	select_continuation_type<Policy..., default_continuation_type>,
 	select_awaiter_cardinality_policy<Policy..., single_awaiter>,
-	select_await_result_on_destruction_policy<Policy..., noop_on_destroy>,
+	select_await_result_on_destruction_policy<Policy..., fail_on_destroy_with_awaiters>,
 	select_use_after_join_policy<Policy..., fail_on_use_after_join>
 >;
 
