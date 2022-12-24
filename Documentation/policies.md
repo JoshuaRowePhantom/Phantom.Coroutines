@@ -9,7 +9,22 @@ Only the first matching policy is used: others are ignored.
 For example:
 
 ```
-async_mutex<await_is_cancellable> m_mutex;
+// async_mutex<> uses await_is_not_cancellable by default.
+async_mutex<> awaitIsNotCancellableMutex;
+
+// Uses await_is_cancellable
+async_mutex<await_is_cancellable> awaitIsCancellableMutex;
+
+
+// Uses await_is_not_cancellable
+async_mutex<await_is_not_cancellable, await_is_cancellable> awaitIsCancellableMutex;
+
+// Uses await_is_cancellable, single_awaiter, fail_on_destroy_with_awaiters
+using my_single_awaiter_mutex = async_mutex<
+    await_is_cancellible,
+    single_awaiter,
+    fail_on_destroy_with_awaiters
+>;
 ```
 
 ## ```await_cancellation_policy```
