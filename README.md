@@ -34,7 +34,7 @@ includes, and type aliases are provided.
 The library also aims to support different behavior axes that are convenient for certain use cases.
 It does so via pol[policies.h](Documentation/policies.md)icies.
 
-The #1 goal of the library at all times is high performance. All defaults are oriented towards
+The #1 goal of the library is high performance. Most defaults are oriented towards
 high performance operation. 
 
 ## Using 

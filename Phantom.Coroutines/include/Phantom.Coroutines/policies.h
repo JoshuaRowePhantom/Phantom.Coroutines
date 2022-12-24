@@ -6,16 +6,24 @@
 namespace Phantom::Coroutines
 {
 
+struct concrete_policy {};
+
+template<
+	typename TPolicy,
+	typename TBasePolicy
+> concept is_concrete_policy =
+std::is_base_of_v<TBasePolicy, TPolicy>
+&&
+std::is_base_of_v<concrete_policy, TPolicy>;
+
 struct await_cancellation_policy {};
-struct await_is_cancellable : public await_cancellation_policy {};
-struct await_is_not_cancellable : public await_cancellation_policy {};
+struct await_is_cancellable : public await_cancellation_policy, public concrete_policy {};
+struct await_is_not_cancellable : public await_cancellation_policy, public concrete_policy {};
 
 template<
 	typename T
-> concept is_await_cancellation_policy = std::is_base_of_v<
-	await_cancellation_policy,
-	T
->;
+> concept is_await_cancellation_policy =
+is_concrete_policy<T, await_cancellation_policy>;
 
 template<
 	typename T
@@ -34,14 +42,15 @@ template<
 >;
 
 struct awaiter_cardinality_policy {};
-struct single_awaiter : public awaiter_cardinality_policy {};
-struct multiple_awaiters : public awaiter_cardinality_policy {};
+struct single_awaiter : public awaiter_cardinality_policy, public concrete_policy {};
+struct multiple_awaiters : public awaiter_cardinality_policy, public concrete_policy {};
 
 template<
 	typename T
-> concept is_awaiter_cardinality_policy = std::is_base_of_v<
-	awaiter_cardinality_policy,
-	T
+> concept is_awaiter_cardinality_policy = 
+is_concrete_policy<
+	T,
+	awaiter_cardinality_policy
 >;
 
 template<
@@ -61,15 +70,16 @@ template<
 >;
 
 struct await_result_on_destruction_policy {};
-struct throw_on_destroy : public await_result_on_destruction_policy {};
-struct noop_on_destroy : public await_result_on_destruction_policy {};
-struct fail_on_destroy_with_awaiters : public await_result_on_destruction_policy {};
+struct throw_on_destroy : public await_result_on_destruction_policy, public concrete_policy {};
+struct noop_on_destroy : public await_result_on_destruction_policy, public concrete_policy {};
+struct fail_on_destroy_with_awaiters : public await_result_on_destruction_policy, public concrete_policy {};
 
 template<
 	typename T
-> concept is_await_result_on_destruction_policy = std::is_base_of_v<
-	await_result_on_destruction_policy,
-	T
+> concept is_await_result_on_destruction_policy =
+is_concrete_policy<
+	T,
+	await_result_on_destruction_policy
 >;
 
 template<
