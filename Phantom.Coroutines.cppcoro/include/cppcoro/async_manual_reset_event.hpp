@@ -1,5 +1,5 @@
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 namespace cppcoro
 {
-using ::Phantom::Coroutines::async_manual_reset_event;
+using async_manual_reset_event = ::Phantom::Coroutines::async_manual_reset_event<>;
 }
