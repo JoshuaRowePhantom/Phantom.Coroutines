@@ -3,32 +3,72 @@
 #include <atomic>
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
+#include "policies.h"
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
 
-class async_manual_reset_event
+template<
+    std::derived_from<await_is_not_cancellable> AwaitCancellationPolicy,
+    is_continuation Continuation,
+    is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
+    is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
+>
+class basic_async_manual_reset_event;
+
+template<
+    typename T
+> concept is_async_manual_reset_event_policy =
+std::derived_from<T, await_is_not_cancellable>
+|| is_await_result_on_destruction_policy<T>
+|| is_awaiter_cardinality_policy<T>
+|| is_continuation_type_policy<T>;
+
+template<
+    is_async_manual_reset_event_policy ... Policy
+> using async_manual_reset_event = basic_async_manual_reset_event<
+    select_await_cancellation_policy<Policy..., await_is_not_cancellable>,
+    select_continuation_type<Policy..., default_continuation_type>,
+    select_awaiter_cardinality_policy<Policy..., multiple_awaiters>,
+    select_await_result_on_destruction_policy<Policy..., noop_on_destroy>
+>;
+
+template<
+    std::derived_from<await_is_not_cancellable> AwaitCancellationPolicy,
+    is_continuation Continuation,
+    is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
+    is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
+> class basic_async_manual_reset_event
 {
+    // Since there is no user-visible behavior change except in debug builds,
+    // we support single_awaiter cardinality, so don't explicitly require it here.
+    // static_assert(std::is_base_of_v<multiple_awaiters, AwaiterCardinalityPolicy>);
+    static_assert(
+        std::is_base_of_v<noop_on_destroy, AwaitResultOnDestructionPolicy>
+        ||
+        std::is_base_of_v<fail_on_destroy_with_awaiters, AwaitResultOnDestructionPolicy>
+        );
+
     class awaiter;
     struct SignalledState {};
     struct WaitingCoroutineState {};
 
     class awaiter
     {
-        friend class async_manual_reset_event;
+        friend class basic_async_manual_reset_event;
 
         union
         {
             awaiter* m_nextAwaiter;
-            async_manual_reset_event* m_event;
+            basic_async_manual_reset_event* m_event;
         };
 
         coroutine_handle<> m_continuation;
 
         awaiter(
-            async_manual_reset_event* event
+            basic_async_manual_reset_event* event
         ) :
             m_event{ event }
         {}
@@ -84,7 +124,7 @@ class async_manual_reset_event
     atomic_state_type m_state;
 
 public:
-    async_manual_reset_event(
+    basic_async_manual_reset_event(
         bool isSignalled = false
         ) noexcept
         :

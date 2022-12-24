@@ -14,9 +14,9 @@ template<
 	storage_for<T>,
 	immovable_object
 {
-	async_manual_reset_event m_event;
+	async_manual_reset_event<> m_event;
 
-	typedef awaiter_type<async_manual_reset_event> manual_reset_event_awaiter_type;
+	typedef awaiter_type<async_manual_reset_event<>> manual_reset_event_awaiter_type;
 
 	struct awaiter_key {};
 
