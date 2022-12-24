@@ -3,7 +3,7 @@
 #include <atomic>
 #include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
-#include "detail/type_traits.h"
+#include "Phantom.Coroutines/type_traits.h"
 
 namespace Phantom::Coroutines
 {

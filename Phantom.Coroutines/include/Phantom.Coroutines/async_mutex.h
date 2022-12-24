@@ -281,7 +281,7 @@ public:
 
 		auto previousState = m_state.exchange(
 			DestroyedState{},
-			std::memory_order_acq);
+			std::memory_order_acquire);
 
 		if (previousState.is<LockedState>())
 		{

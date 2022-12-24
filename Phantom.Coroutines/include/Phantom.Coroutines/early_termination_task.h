@@ -1,6 +1,6 @@
 #pragma once
 
-#include "detail/type_traits.h"
+#include "Phantom.Coroutines/type_traits.h"
 #include <concepts>
 #include <exception>
 #include <type_traits>

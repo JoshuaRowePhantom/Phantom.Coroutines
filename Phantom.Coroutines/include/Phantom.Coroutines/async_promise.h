@@ -1,6 +1,6 @@
 #include "detail/immovable_object.h"
 #include "detail/storage_for.h"
-#include "detail/type_traits.h"
+#include "Phantom.Coroutines/type_traits.h"
 #include "async_manual_reset_event.h"
 
 namespace Phantom::Coroutines

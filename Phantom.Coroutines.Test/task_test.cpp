@@ -1,7 +1,7 @@
 #include <string>
 #include <type_traits>
 #include <gtest/gtest.h>
-#include "Phantom.Coroutines/detail/type_traits.h"
+#include "Phantom.Coroutines/type_traits.h"
 #include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/sync_wait.h"

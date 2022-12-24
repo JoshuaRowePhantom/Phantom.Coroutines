@@ -1,7 +1,7 @@
 #pragma once
 
 #include "detail/coroutine.h"
-#include "detail/type_traits.h"
+#include "Phantom.Coroutines/type_traits.h"
 #include <exception>
 #include <future>
 #ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE

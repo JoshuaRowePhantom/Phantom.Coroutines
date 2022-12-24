@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "Phantom.Coroutines/detail/type_traits.h"
+#include "Phantom.Coroutines/type_traits.h"
 #include <tuple>
 #include <type_traits>
-#include "awaiters.h"
+#include "detail/awaiters.h"
 
 namespace Phantom::Coroutines::detail
 {

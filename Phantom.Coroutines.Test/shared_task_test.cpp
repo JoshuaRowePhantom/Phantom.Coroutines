@@ -2,10 +2,10 @@
 #include <type_traits>
 #include <gtest/gtest.h>
 #include "async_test.h"
-#include "Phantom.Coroutines/detail/type_traits.h"
 #include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
 #include "Phantom.Coroutines/shared_task.h"
 #include "Phantom.Coroutines/sync_wait.h"
+#include "Phantom.Coroutines/type_traits.h"
 #include "lifetime_tracker.h"
 
 using namespace Phantom::Coroutines;
