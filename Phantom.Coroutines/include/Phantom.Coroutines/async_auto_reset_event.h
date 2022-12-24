@@ -40,9 +40,19 @@ template<
     is_continuation Continuation,
     is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
     is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
->
-class basic_async_auto_reset_event
+> class basic_async_auto_reset_event
 {
+    // We don't actually support every policy yet.
+    static_assert(std::is_base_of_v<await_is_not_cancellable, AwaitCancellationPolicy>);
+    // Since there is no user-visible behavior change except in debug builds,
+    // we support single_awaiter cardinality, so don't explicitly require it here.
+    // static_assert(std::is_base_of_v<multiple_awaiters, AwaiterCardinalityPolicy>);
+    static_assert(
+        std::is_base_of_v<noop_on_destroy, AwaitResultOnDestructionPolicy>
+        ||
+        std::is_base_of_v<fail_on_destroy_with_awaiters, AwaitResultOnDestructionPolicy>
+        );
+
     // This class follows the algorithm in AutoResetEvent.tla
 
     class awaiter;
