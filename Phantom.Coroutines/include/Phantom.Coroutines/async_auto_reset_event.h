@@ -61,7 +61,7 @@ class basic_async_auto_reset_event
             basic_async_auto_reset_event* m_event;
         };
 
-        coroutine_handle<> m_continuation;
+        Continuation m_continuation;
 
         awaiter(
             basic_async_auto_reset_event* event
@@ -80,7 +80,7 @@ class basic_async_auto_reset_event
         }
 
         bool await_suspend(
-            coroutine_handle<> continuation
+            Continuation continuation
         ) noexcept
         {
             auto nextStateLambda = [&](auto previousState) -> state_type
