@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <type_traits>
 #include "immovable_object.h"
+#include "../type_traits.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -37,7 +38,7 @@ private immovable_object
     using storage_for::storage_for_impl::m_storage;
 
     template<
-        typename T,
+        is_in_types<TValues...> T,
         typename... Args
     > T& emplace(
         Args&&... args
@@ -55,14 +56,14 @@ private immovable_object
     }
 
     template<
-        typename T
+        is_in_types<TValues...> T
     > T& as() noexcept
     {
         return *reinterpret_cast<T*>(&m_storage);
     }
 
     template<
-        typename T
+        is_in_types<TValues...> T
     > void destroy()
     {
         if constexpr (sizeof(T) == 0)
