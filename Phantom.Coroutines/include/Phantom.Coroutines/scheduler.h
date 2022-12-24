@@ -14,4 +14,7 @@ template<
 };
 
 }
+
+using detail::is_scheduler;
+
 }
