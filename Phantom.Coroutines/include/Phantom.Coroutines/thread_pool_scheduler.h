@@ -2,7 +2,9 @@
 
 #include "detail/coroutine.h"
 #include "read_copy_update.h"
+#include "policies.h"
 #include "scheduler.h"
+#include "type_traits.h"
 #include "task.h"
 #include <algorithm>
 #include <atomic>
@@ -16,15 +18,35 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
-// The thread_pool_scheduler implements the algorithms in ThreadPool.tla
+template<
+	is_continuation Continuation
+>
+class basic_thread_pool_scheduler;
+
+template<
+	typename Policy
+> concept is_thread_pool_scheduler_policy
+=
+is_continuation_type_policy<Policy>;
+
+template<
+	is_thread_pool_scheduler_policy ... Policy
+> using thread_pool_scheduler = basic_thread_pool_scheduler<
+	select_continuation_type<Policy..., default_continuation_type>
+>;
+
+// The basic_thread_pool_scheduler implements the algorithms in ThreadPool.tla
 // and ThreadPool_Wakeup.tla.
-class thread_pool_scheduler
+template<
+	is_continuation Continuation
+>
+class basic_thread_pool_scheduler
 {
 	class thread_state
 	{
 		class queue
 		{
-			std::vector<std::coroutine_handle<>> m_continuations;
+			std::vector<Continuation> m_continuations;
 			size_t m_mask;
 
 			void resize(
@@ -50,7 +72,7 @@ class thread_pool_scheduler
 				return m_continuations.size();
 			}
 
-			coroutine_handle<>& operator[](size_t index)
+			Continuation& operator[](size_t index)
 			{
 				return m_continuations[index & m_mask];
 			}
@@ -75,7 +97,7 @@ class thread_pool_scheduler
 		// The maximum value that m_head may contain without recalcuating 
 		// both this value and possibly regrowing the queue.
 		size_t m_reservedHead = 0;
-		thread_pool_scheduler& m_scheduler;
+		basic_thread_pool_scheduler& m_scheduler;
 
 		// This stores the state of whether the thread is intending
 		// to sleep. While sleeping, the thread waits on this variable.
@@ -157,12 +179,12 @@ class thread_pool_scheduler
 
 	public:
 		thread_state(
-			thread_pool_scheduler& scheduler
+			basic_thread_pool_scheduler& scheduler
 		) : m_scheduler{ scheduler }
 		{}
 
 		void enqueue(
-			std::coroutine_handle<> continuation
+			Continuation continuation
 		)
 		{
 			auto queueOperation = m_queueReadCopyUpdateSection.update();
@@ -206,11 +228,11 @@ class thread_pool_scheduler
 			return doWakeThread;
 		}
 
-		coroutine_handle<> acquire_local_item()
+		Continuation acquire_local_item()
 		{
 			auto head = m_head.load(std::memory_order_relaxed);
 			// Special case, since head is unsigned
-			if (head == 0) { return coroutine_handle<>{}; }
+			if (head == 0) { return Continuation{}; }
 			auto newHead = head - 1;
 			m_head.store(newHead, std::memory_order_seq_cst);
 
@@ -222,7 +244,7 @@ class thread_pool_scheduler
 				if (tail > newHead)
 				{
 					m_head.store(head, std::memory_order_seq_cst);
-					return coroutine_handle<>{};
+					return Continuation{};
 				}
 			}
 
@@ -292,7 +314,7 @@ class thread_pool_scheduler
 		static inline thread_local size_t steal_new_other_tail;
 		static inline thread_local size_t steal_newOtherHead;
 
-		coroutine_handle<> try_steal(
+		Continuation try_steal(
 			thread_state& other,
 			steal_mode stealMode
 		)
@@ -302,7 +324,7 @@ class thread_pool_scheduler
 			// We can't steal from ourselves!
 			if (&other == this)
 			{
-				return coroutine_handle<>{};
+				return Continuation{};
 			}
 
 			std::unique_lock lock{ other.m_mutex, std::defer_lock };
@@ -315,21 +337,21 @@ class thread_pool_scheduler
 			auto otherHead = other.m_head.load(std::memory_order_relaxed);
 			if (otherHead <= otherTail)
 			{
-				return coroutine_handle<>{};
+				return Continuation{};
 			}
 
 			if (stealMode == steal_mode::Approximate)
 			{
 				if (!lock.try_lock())
 				{
-					return coroutine_handle<>{};
+					return Continuation{};
 				}
 
 				otherHead = other.m_head.load(std::memory_order_relaxed);
 				otherTail = other.m_tail.load(std::memory_order_relaxed);
 				if (otherHead <= otherTail)
 				{
-					return coroutine_handle<>{};
+					return Continuation{};
 				}
 			}
 
@@ -352,7 +374,7 @@ class thread_pool_scheduler
 				// We have to give back all the items, and do not process anything.
 				other.m_tail.store(otherTail, std::memory_order_seq_cst);
 				other.stop_stealing_from();
-				return std::coroutine_handle<>{};
+				return Continuation{};
 			} else if (newOtherHead < newOtherTail)
 			{
 				// We have to give back some of the items.
@@ -411,7 +433,7 @@ class thread_pool_scheduler
 			return itemToProcess;
 		}
 
-		coroutine_handle<> acquire_remote_item()
+		Continuation acquire_remote_item()
 		{
 			auto threadStatesReadOperation = m_scheduler.m_threadStatesSection.read();
 
@@ -441,7 +463,7 @@ class thread_pool_scheduler
 				}
 			}
 
-			return coroutine_handle<>{};
+			return Continuation{};
 		}
 
 		void mark_intent_to_sleep()
@@ -616,7 +638,7 @@ class thread_pool_scheduler
 	}
 
 	void await_suspend(
-		std::coroutine_handle<> continuation
+		Continuation continuation
 	)
 	{
 		auto threadStatesOperation = m_threadStatesSection.update();
@@ -665,11 +687,11 @@ class thread_pool_scheduler
 
 	class awaiter
 	{
-		friend class thread_pool_scheduler;
-		thread_pool_scheduler& m_scheduler;
+		friend class basic_thread_pool_scheduler;
+		basic_thread_pool_scheduler& m_scheduler;
 
 		awaiter(
-			thread_pool_scheduler& scheduler
+			basic_thread_pool_scheduler& scheduler
 		) : m_scheduler { scheduler }
 		{}
 
@@ -680,7 +702,7 @@ class thread_pool_scheduler
 		}
 
 		void await_suspend(
-			std::coroutine_handle<> continuation
+			Continuation continuation
 		)
 		{
 			m_scheduler.await_suspend(continuation);
@@ -707,7 +729,6 @@ public:
 	}
 };
 
-static_assert(is_scheduler<thread_pool_scheduler>);
 }
 
 using detail::thread_pool_scheduler;

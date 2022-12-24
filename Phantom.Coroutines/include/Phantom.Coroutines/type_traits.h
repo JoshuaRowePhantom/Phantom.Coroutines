@@ -437,9 +437,12 @@ template<
     typename Continuation
 > concept is_continuation =
 std::constructible_from<Continuation>
+&& std::is_default_constructible_v<Continuation>
 && requires (Continuation c)
 {
     { c.resume() };
+    { static_cast<bool>(c) };
+    { static_cast<coroutine_handle<>>(c) };
 };
 
 template<

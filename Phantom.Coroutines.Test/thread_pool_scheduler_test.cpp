@@ -9,11 +9,11 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
-static_assert(is_scheduler<thread_pool_scheduler>);
+static_assert(is_scheduler<thread_pool_scheduler<>>);
 
 ASYNC_TEST(thread_pool_scheduler_test, schedules_on_calling_process_items_thread)
 {
-	thread_pool_scheduler scheduler;
+	thread_pool_scheduler<> scheduler;
 	async_scope<> scope;
 	std::stop_source stopSource;
 	scope.spawn([&]()->task<>

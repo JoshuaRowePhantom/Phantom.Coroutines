@@ -9,9 +9,12 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+template<
+	typename ThreadPoolScheduler = thread_pool_scheduler<>
+>
 class static_thread_pool
 {
-	thread_pool_scheduler m_scheduler;
+	ThreadPoolScheduler m_scheduler;
 	std::stop_source m_stopSource;
 	std::latch m_stopLatch;
 
@@ -41,8 +44,6 @@ public:
 		return m_scheduler.schedule();
 	}
 };
-
-static_assert(is_scheduler<static_thread_pool>);
 
 }
 
