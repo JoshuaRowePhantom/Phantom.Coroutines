@@ -1,6 +1,6 @@
-[!INCLUDE [Header](header.md)]
+# [Phantom.Coroutines](../README.md)
 
-# ```policies.h```
+## ```policies.h```
 
 ```policies.h``` defines policies for customizing the behavior of other classes
 in Phantom.Coroutines. Each policy can be used in the type argument list of a class.
