@@ -3,13 +3,49 @@
 #include <atomic>
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
+#include "policies.h"
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
 
-class async_auto_reset_event
+template<
+    is_await_cancellation_policy AwaitCancellationPolicy,
+    is_continuation Continuation,
+    is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
+    is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
+>
+class basic_async_auto_reset_event;
+
+template<
+    typename T
+> concept is_async_auto_reset_event_policy =
+is_await_cancellation_policy<T>
+|| is_await_result_on_destruction_policy<T>
+// It might appear that allowing only a single awaiter for a mutex
+// wouldn't be useful, but actually it is:
+// a common case is that there only two threads of control vying
+// for the mutex, and therefore only one of them can be awaiting.
+|| is_awaiter_cardinality_policy<T>
+|| is_continuation_type_policy<T>;
+
+template<
+    is_async_auto_reset_event_policy ... Policy
+> using async_auto_reset_event = basic_async_auto_reset_event<
+    select_await_cancellation_policy<Policy..., await_is_not_cancellable>,
+    select_continuation_type<Policy..., default_continuation_type>,
+    select_awaiter_cardinality_policy<Policy..., multiple_awaiters>,
+    select_await_result_on_destruction_policy<Policy..., noop_on_destroy>
+>;
+
+template<
+    is_await_cancellation_policy AwaitCancellationPolicy,
+    is_continuation Continuation,
+    is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
+    is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
+>
+class basic_async_auto_reset_event
 {
     // This class follows the algorithm in AutoResetEvent.tla
 
@@ -21,18 +57,18 @@ class async_auto_reset_event
 
     class awaiter
     {
-        friend class async_auto_reset_event;
+        friend class basic_async_auto_reset_event;
 
         union
         {
             awaiter* m_nextAwaiter;
-            async_auto_reset_event* m_event;
+            basic_async_auto_reset_event* m_event;
         };
 
         coroutine_handle<> m_continuation;
 
         awaiter(
-            async_auto_reset_event* event
+            basic_async_auto_reset_event* event
         ) :
             m_event{ event }
         {}
@@ -173,7 +209,7 @@ Signal_ObtainPendingAwaiters(thread) ==
     }
 
 public:
-    async_auto_reset_event(
+    basic_async_auto_reset_event(
         bool isSignalled = false
         )
         :
