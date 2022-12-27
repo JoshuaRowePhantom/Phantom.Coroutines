@@ -6,7 +6,7 @@ add_executable(
 	detail/fibonacci_heap_test.cpp
 	detail/scope_guard_test.cpp
 	"type_traits_test.cpp"
-	detail/variant_member_test.cpp
+	
 	"async_auto_reset_event_test.cpp"
 	async_generator_test.cpp
 	"async_manual_reset_event_test.cpp"

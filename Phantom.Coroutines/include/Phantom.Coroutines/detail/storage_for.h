@@ -12,7 +12,7 @@ template<
 >
 struct storage_for_impl
 {
-    std::aligned_storage_t<Size, Alignment> m_storage;
+    alignas(Alignment) char m_storage[Size];
 };
 
 template<
