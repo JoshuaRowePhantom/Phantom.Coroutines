@@ -48,6 +48,11 @@ template<
 >
 class basic_async_scope
 {
+	// Assert we're using implemented behaviors for now.
+	static_assert(std::same_as<fail_on_use_after_join, AwaitAfterJoinPolicy>);
+	static_assert(std::same_as<single_awaiter, AwaiterCardinalityPolicy>);
+	static_assert(std::same_as<await_is_not_cancellable, AwaitCancellationPolicy>);
+
 	std::atomic<size_t> m_outstandingTasks = 1;
 	coroutine_handle<> m_continuation;
 	coroutine_handle<> m_coroutineToDestroy;

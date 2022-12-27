@@ -128,3 +128,19 @@ as the continuation type. An application may prefer to use
 a promise-specific ```std::coroutine_handle<Promise>``` type or even any other class that
 obeys the [```is_continuation```](type_traits.md#is_continuation) semantics.
 
+## ```use_after_join_policy```
+
+```use_after_join_policy``` derived policies control the results of using a joinable
+object after its join operation has been started.
+
+### ```fail_on_use_after_join```
+
+Using the object after a ```join``` operation will result in the use failing with
+undefined behavior. A debug build will typically ```assert()```.
+
+### ```throw_on_use_after_join```
+
+Using the object after a ```join``` operation will result in an exception being
+thrown. This is typically lower-performing than ```fail_on_use_after_join```, as
+it usually requires additional interlocked operations.
+

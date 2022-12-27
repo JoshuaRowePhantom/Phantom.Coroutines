@@ -137,7 +137,6 @@ template<
 struct use_after_join_policy {};
 struct throw_on_use_after_join : use_after_join_policy, concrete_policy {};
 struct fail_on_use_after_join : use_after_join_policy, concrete_policy {};
-struct noop_on_use_after_join : use_after_join_policy, concrete_policy {};
 
 template<
 	typename T
