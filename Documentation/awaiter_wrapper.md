@@ -23,20 +23,27 @@ protected:
     // Get the awaiter
     awaiter_type& awaiter();
 
+    // Construct the wrapper, using the
+    // awaitable object reference.
+    explicit awaiter_wrapper(
+        Awaiter awaiter
+    ) noexcept
+        requires std::is_reference_v<Awaiter>;
+
     // Construct the wrapper, using the returned
     // awaitable object.
     template<
         std::invocable AwaitableFunc
     > awaiter_wrapper(
         AwaitableFunc&& awaitableFunc
-    );
+    ) noexcept(...);
 
 public:
     // await_ready, await_suspend, and await_resume
     // which forward all arguments to underlying awaiter,
     // enabled for overload resolution only if the underlying
     // awaiter supports the method call,
-    // an noexcept if the underlying method call is noexcept.
+    // and are noexcept if the underlying method call is noexcept.
 };
 ```
 
