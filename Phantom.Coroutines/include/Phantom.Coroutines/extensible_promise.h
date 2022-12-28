@@ -10,16 +10,34 @@ namespace Phantom::Coroutines
 {
 namespace detail
 {
-struct extensible_promise_args_constructor_tag;
-struct extensible_promise_default_constructor_tag;
+
+// An extensible_promise is a promise type that can
+// be extended or wrapped by other promise types.
+class extensible_promise
+{
+public:
+    auto handle(
+        this auto& self
+    ) noexcept
+    {
+        return std::coroutine_handle<
+            std::remove_cvref_t<decltype(self)>
+        >::from_promise(self);
+    }
+};
+
 template<
     typename T
-> struct base_promise_tag {};
+> concept is_extensible_promise =
+std::derived_from<T, extensible_promise>;
 
 template<
     typename ExtendedPromise,
     typename Promise
-> concept is_extended_promise_of = requires(ExtendedPromise promise)
+> concept is_extended_promise_of = 
+is_extensible_promise<Promise>
+&& is_extensible_promise<ExtendedPromise>
+&& requires(ExtendedPromise promise)
 {
     { promise.template promise<Promise>() } -> std::same_as<Promise&>;
 };
@@ -79,26 +97,6 @@ class derived_promise_await_transform<
 {
 public:
 };
-
-// An extensible_promise is a promise type that can
-// be extended or wrapped by other promise types.
-class extensible_promise
-{
-public:
-    auto handle(
-        this auto& self
-    ) noexcept
-    {
-        return std::coroutine_handle<
-            std::remove_cvref_t<decltype(self)>
-        >::from_promise(self);
-    }
-};
-
-template<
-    typename T
-> concept is_extensible_promise =
-std::derived_from<T, extensible_promise>;
 
 // A derived_promise is a promise that wraps an extensible_promise
 // by derivation.
