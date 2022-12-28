@@ -75,6 +75,10 @@ Write promise types that can be extended or do extend other promise types.
 
 Provides policy parameters to other classes, such as [async_mutex.h](Documentation/async_mutex.md). 
 
+### [schedulers](Documentation/schedulers.md)
+
+Discover whether a co_await operation suspended or not.
+
 ### [suspend_result.h](Documentation/suspend_result.md)
 
 Discover whether a co_await operation suspended or not.
