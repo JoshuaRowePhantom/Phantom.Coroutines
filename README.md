@@ -59,6 +59,18 @@ Library contents:
    
 Mutual exclusion inside coroutines.
 
+### [async_scope.h](Documentation/async_scope.md)
+   
+Start background tasks asynchronously and wait for them to complete.
+
+### [awaiter_wrapper.h](Documentation/awaiter_wrapper.md)
+   
+Wrap awaitable objects with an awaiter implementation.
+
+### [extensible_promise.h](Documentation/extensible_promise.md)
+   
+Write promise types that can be extended or do extend other promise types.
+
 ### [policies.h](Documentation/policies.md)
 
 Provides policy parameters to other classes, such as [async_mutex.h](Documentation/async_mutex.md). 
