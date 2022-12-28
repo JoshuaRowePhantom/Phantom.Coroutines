@@ -176,7 +176,7 @@ public:
 private:
     coroutine_handle<promise_type> m_coroutineHandle;
 
-protected:
+public:
     extensible_awaitable(
         Promise& promise
     ) :
@@ -189,6 +189,7 @@ protected:
         m_coroutineHandle { coroutineHandle }
     {}
 
+protected:
     decltype(auto) handle(
         this auto& self)
     {
@@ -261,8 +262,8 @@ template<
     is_awaitable Awaitable
 > class extended_awaiter
     :
-public awaiter_wrapper<Awaitable>,
-public extensible_awaitable<Promise>
+public extensible_awaitable<Promise>,
+public awaiter_wrapper<Awaitable>
 {
     template<
         typename Promise,
@@ -270,38 +271,21 @@ public extensible_awaitable<Promise>
     > friend class extended_awaiter;
 
 public:
-
-    template<
-        std::invocable AwaitableFunc
-    >
     extended_awaiter(
-        Promise& promise,
-        AwaitableFunc&& awaitableFunc
-    ) noexcept(
-        noexcept(awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) })
-        )
+        auto&& promise,
+        auto&& awaitableFunc
+    )
+        noexcept(noexcept(
+            awaiter_wrapper<Awaitable>{ std::forward<decltype(awaitableFunc)>(awaitableFunc) }
+    ))
+        requires
+        std::constructible_from<extensible_awaitable<Promise>, decltype(promise)>
+        && 
+        std::constructible_from<awaiter_wrapper<Awaitable>, decltype(awaitableFunc)>
         :
-        awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) },
-        extensible_awaitable<Promise>{ promise }
+        extensible_awaitable<Promise>{ std::forward<decltype(promise)>(promise) },
+        awaiter_wrapper<Awaitable>{ std::forward<decltype(awaitableFunc)>(awaitableFunc) }
     {}
-
-    template<
-        std::invocable AwaitableFunc
-    >
-    extended_awaiter(
-        coroutine_handle<Promise> promiseHandle,
-        AwaitableFunc&& awaitableFunc
-    ) noexcept(
-        noexcept(awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) })
-        )
-        :
-        awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) },
-        extensible_awaitable<Promise>{ promiseHandle }
-    {}
-
-protected:
-    using extensible_awaitable<Promise>::handle;
-    using extensible_awaitable<Promise>::promise;
 };
 
 // This specialization uses the extensible awaitable object's handle() method
@@ -325,33 +309,22 @@ class extended_awaiter<
     > friend class extended_awaiter;
 
 public:
-
-    template<
-        typename AwaitableArg
-    >
     extended_awaiter(
-        Promise& promise,
-        AwaitableArg&& awaitable
-    ) :
-        // Delegate to awaiter_wrapper
-        awaiter_wrapper<Awaitable>{ std::forward<AwaitableArg>(awaitable) }
-
+        auto&& promise,
+        auto&& awaitableFunc
+    )
+        noexcept(noexcept(
+            awaiter_wrapper<Awaitable>{ std::forward<decltype(awaitableFunc)>(awaitableFunc) }
+    ))
+        requires
+        // Require that the promise object argument type match the extensible awaitable type.
+        std::constructible_from<extensible_awaitable<Promise>, decltype(promise)>
+        &&
+        std::constructible_from<awaiter_wrapper<Awaitable>, decltype(awaitableFunc)>
+        :
         // Discard the "promise" argument, since it will have been stored
         // in the target awaiter.
-    {}
-
-    template<
-        typename AwaitableArg
-    >
-    extended_awaiter(
-        coroutine_handle<Promise> promiseHandle,
-        AwaitableArg&& awaitable
-    ) :
-        // Delegate to awaiter_wrapper
-        awaiter_wrapper<Awaitable>{ std::forward<AwaitableArg>(awaitable) }
-
-        // Discard the "promise" argument, since it will have been stored
-        // in the target awaiter.
+        awaiter_wrapper<Awaitable>{ std::forward<decltype(awaitableFunc)>(awaitableFunc) }
     {}
 
 protected:
