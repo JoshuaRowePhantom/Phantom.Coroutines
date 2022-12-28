@@ -244,7 +244,7 @@ template<
     typename Promise
 > class basic_task
     :
-    task_awaitable<Promise>
+    public task_awaitable<Promise>
 {
 public:
     basic_task(coroutine_handle<Promise> handle)
