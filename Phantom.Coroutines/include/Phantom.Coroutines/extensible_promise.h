@@ -13,68 +13,68 @@ namespace detail
 struct extensible_promise_args_constructor_tag;
 struct extensible_promise_default_constructor_tag;
 template<
-	typename T
+    typename T
 > struct base_promise_tag {};
 
 template<
-	typename ExtendedPromise,
-	typename Promise
+    typename ExtendedPromise,
+    typename Promise
 > concept is_extended_promise_of = requires(ExtendedPromise promise)
 {
-	{ promise.template promise<Promise>() } -> std::same_as<Promise&>;
+    { promise.template promise<Promise>() } -> std::same_as<Promise&>;
 };
 
 template<
-	typename Promise
+    typename Promise
 > struct wrapper_promise_return
 {
-	decltype(auto) return_value(
-		this auto& self,
-		auto&&... value
-	)
-	{
-		return self->return_value(
-			std::forward<decltype(value)>(value)...);
-	}
+    decltype(auto) return_value(
+        this auto& self,
+        auto&&... value
+    )
+    {
+        return self->return_value(
+            std::forward<decltype(value)>(value)...);
+    }
 };
 
 template<
-	has_return_void Promise
+    has_return_void Promise
 > struct wrapper_promise_return<
-	Promise
+    Promise
 >
 {
-	decltype(auto) return_void(
-		this auto& self,
-		auto&&... value
-	)
-	{
-		return self->return_void(
-			std::forward<decltype(value)>(value)...);
-	}
+    decltype(auto) return_void(
+        this auto& self,
+        auto&&... value
+    )
+    {
+        return self->return_void(
+            std::forward<decltype(value)>(value)...);
+    }
 };
 
 // The template derived_promise_await_transform ensures there is a valid
 // await_transform() method in the derived_promise implementation,
 // so that it can always be called unconditionally by derived classes.
 template<
-	typename BasePromise
+    typename BasePromise
 > class derived_promise_await_transform
 {
 public:
-	decltype(auto) await_transform(
-		auto&& awaitable
-	) noexcept
-	{
-		return std::forward<decltype(awaitable)>(awaitable);
-	}
+    decltype(auto) await_transform(
+        auto&& awaitable
+    ) noexcept
+    {
+        return std::forward<decltype(awaitable)>(awaitable);
+    }
 };
 
 template<
-	typename BasePromise
+    typename BasePromise
 > requires has_await_transform<BasePromise>
 class derived_promise_await_transform<
-	BasePromise
+    BasePromise
 >
 {
 public:
@@ -85,239 +85,239 @@ public:
 class extensible_promise
 {
 public:
-	auto handle(
-		this auto& self
-	) noexcept
-	{
-		return std::coroutine_handle<
-			std::remove_cvref_t<decltype(self)>
-		>::from_promise(self);
-	}
+    auto handle(
+        this auto& self
+    ) noexcept
+    {
+        return std::coroutine_handle<
+            std::remove_cvref_t<decltype(self)>
+        >::from_promise(self);
+    }
 };
 
 template<
-	typename T
+    typename T
 > concept is_extensible_promise =
 std::derived_from<T, extensible_promise>;
 
 // A derived_promise is a promise that wraps an extensible_promise
 // by derivation.
 template<
-	is_extensible_promise BasePromise
+    is_extensible_promise BasePromise
 > class derived_promise
-	:
-	public BasePromise,
-	public derived_promise_await_transform<BasePromise>
+    :
+    public BasePromise,
+    public derived_promise_await_transform<BasePromise>
 {
-	struct BasePromiseTag {};
+    struct BasePromiseTag {};
 protected:
-	typedef BasePromise base_promise_type;
+    typedef BasePromise base_promise_type;
 
-	decltype(auto) base_promise()
-	{
-		return *this;
-	}
+    decltype(auto) base_promise()
+    {
+        return *this;
+    }
 
 public:
-	// These constructors allow the derived promise
-	// to always provide a constructor and delegate to
-	// derived_promise's constructor,
-	// without regard as to whether the base promise
-	// provides a constructor.
-	// 
-	// A derived promise can also use a using declaration
-	// to import derived_promise's constructors.
+    // These constructors allow the derived promise
+    // to always provide a constructor and delegate to
+    // derived_promise's constructor,
+    // without regard as to whether the base promise
+    // provides a constructor.
+    // 
+    // A derived promise can also use a using declaration
+    // to import derived_promise's constructors.
 
-	// Enable construction by delegating the arguments
-	// to the promise object.
-	// This constructor is enabled only if the promise object
-	// supports the argument set.
-	template<
-		typename ... Args
-	> derived_promise(
-		Args&&... args
-	)
-		requires std::constructible_from<BasePromise, Args&&...>
-	:
-	BasePromise(
-		std::forward<Args>(args)...
-	)
-	{}
+    // Enable construction by delegating the arguments
+    // to the promise object.
+    // This constructor is enabled only if the promise object
+    // supports the argument set.
+    template<
+        typename ... Args
+    > derived_promise(
+        Args&&... args
+    )
+        requires std::constructible_from<BasePromise, Args&&...>
+    :
+    BasePromise(
+        std::forward<Args>(args)...
+    )
+    {}
 
-	// Enable construction by invoking the default constructor.
-	// This constructor is enabled only if the promise object
-	// does not support the argument set and default-constructs
-	// the promise.
-	template<
-		typename ... Args
-	> derived_promise(
-		Args&&... args
-	) requires 
-		!std::constructible_from<BasePromise, Args&&...>
-		&& std::constructible_from<BasePromise>
-	:
-	BasePromise()
-	{}
+    // Enable construction by invoking the default constructor.
+    // This constructor is enabled only if the promise object
+    // does not support the argument set and default-constructs
+    // the promise.
+    template<
+        typename ... Args
+    > derived_promise(
+        Args&&... args
+    ) requires 
+        !std::constructible_from<BasePromise, Args&&...>
+        && std::constructible_from<BasePromise>
+    :
+    BasePromise()
+    {}
 };
 
 // An extensible awaitable is an awaitable object that can reference
 // an extensible promise.
 template<
-	typename Promise
+    typename Promise
 > class extensible_awaitable
 {
 public:
-	using promise_type = Promise;
-	using coroutine_handle_type = coroutine_handle<promise_type>;
+    using promise_type = Promise;
+    using coroutine_handle_type = coroutine_handle<promise_type>;
 
 private:
-	coroutine_handle<promise_type> m_coroutineHandle;
+    coroutine_handle<promise_type> m_coroutineHandle;
 
 protected:
-	extensible_awaitable(
-		Promise& promise
-	) :
-		m_coroutineHandle{ coroutine_handle_type::from_promise(promise) }
-	{}
+    extensible_awaitable(
+        Promise& promise
+    ) :
+        m_coroutineHandle{ coroutine_handle_type::from_promise(promise) }
+    {}
 
-	extensible_awaitable(
-		coroutine_handle_type coroutineHandle = nullptr
-	) :
-		m_coroutineHandle { coroutineHandle }
-	{}
+    extensible_awaitable(
+        coroutine_handle_type coroutineHandle = nullptr
+    ) :
+        m_coroutineHandle { coroutineHandle }
+    {}
 
-	decltype(auto) handle(
-		this auto& self)
-	{
-		return (self.m_coroutineHandle);
-	}
+    decltype(auto) handle(
+        this auto& self)
+    {
+        return (self.m_coroutineHandle);
+    }
 
-	promise_type& promise() const
-	{
-		return m_coroutineHandle.promise();
-	}
+    promise_type& promise() const
+    {
+        return m_coroutineHandle.promise();
+    }
 
 public:
-	operator bool() const noexcept
-	{
-		return handle().operator bool();
-	}
+    operator bool() const noexcept
+    {
+        return handle().operator bool();
+    }
 
-	friend auto operator <=> (
-		const extensible_awaitable<Promise>&,
-		const extensible_awaitable<Promise>&
-		) noexcept = default;
+    friend auto operator <=> (
+        const extensible_awaitable<Promise>&,
+        const extensible_awaitable<Promise>&
+        ) noexcept = default;
 };
 
 template<
-	typename Promise,
-	is_awaitable Awaitable
+    typename Promise,
+    is_awaitable Awaitable
 > class extended_awaiter;
 
 template<
-	typename Awaitable,
-	typename Promise
+    typename Awaitable,
+    typename Promise
 > constexpr bool is_extended_awaiter_v = false;
 
 template<
-	typename Promise,
-	is_awaitable BaseAwaitable
+    typename Promise,
+    is_awaitable BaseAwaitable
 > constexpr bool is_extended_awaiter_v<
-	extended_awaiter<Promise, BaseAwaitable>,
-	Promise
+    extended_awaiter<Promise, BaseAwaitable>,
+    Promise
 > = true;
 
 template<
-	typename Awaitable,
-	typename Promise
+    typename Awaitable,
+    typename Promise
 > concept is_extended_awaiter = is_extended_awaiter_v<Awaitable, Promise>;
 
 template<
-	typename Promise,
-	is_awaitable Awaitable
+    typename Promise,
+    is_awaitable Awaitable
 > class extended_awaiter
-	:
+    :
 public awaiter_wrapper<Awaitable>
 {
-	template<
-		typename Promise,
-		is_awaitable Awaitable
-	> friend class extended_awaiter;
+    template<
+        typename Promise,
+        is_awaitable Awaitable
+    > friend class extended_awaiter;
 
-	std::coroutine_handle<Promise> m_handle;
+    std::coroutine_handle<Promise> m_handle;
 
 public:
 
-	template<
-		std::invocable AwaitableFunc
-	>
-	extended_awaiter(
-		Promise& promise,
-		AwaitableFunc&& awaitableFunc
-	) noexcept(
-		noexcept(awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) })
-		)
-		:
-		awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) },
-		m_handle{ std::coroutine_handle<Promise>::from_promise(promise) }
-	{}
+    template<
+        std::invocable AwaitableFunc
+    >
+    extended_awaiter(
+        Promise& promise,
+        AwaitableFunc&& awaitableFunc
+    ) noexcept(
+        noexcept(awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) })
+        )
+        :
+        awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) },
+        m_handle{ std::coroutine_handle<Promise>::from_promise(promise) }
+    {}
 
 protected:
-	std::coroutine_handle<Promise> handle() const noexcept
-	{
-		return m_handle;
-	}
+    std::coroutine_handle<Promise> handle() const noexcept
+    {
+        return m_handle;
+    }
 
-	Promise& promise() const noexcept
-	{
-		return handle().promise();
-	}
+    Promise& promise() const noexcept
+    {
+        return handle().promise();
+    }
 };
 
 // This specialization uses the awaitable object's handle() method
 // to retrieve the handle, instead of storing the handle directly,
 // thus optimizing an extended_awaiter wrapping another extended_awaiter.
 template<
-	typename Promise,
-	is_extended_awaiter<Promise> Awaitable
+    typename Promise,
+    is_extended_awaiter<Promise> Awaitable
 > class extended_awaiter<
-	Promise,
-	Awaitable
+    Promise,
+    Awaitable
 >
-	:
-	public awaiter_wrapper<Awaitable>
+    :
+    public awaiter_wrapper<Awaitable>
 {
-	template<
-		typename Promise,
-		is_awaitable Awaitable
-	> friend class extended_awaiter;
+    template<
+        typename Promise,
+        is_awaitable Awaitable
+    > friend class extended_awaiter;
 
 public:
 
-	template<
-		typename AwaitableArg
-	>
-	extended_awaiter(
-		Promise& promise,
-		AwaitableArg&& awaitable
-	) :
-		// Delegate to awaiter_wrapper
-		awaiter_wrapper<Awaitable>{ std::forward<AwaitableArg>(awaitable) }
+    template<
+        typename AwaitableArg
+    >
+    extended_awaiter(
+        Promise& promise,
+        AwaitableArg&& awaitable
+    ) :
+        // Delegate to awaiter_wrapper
+        awaiter_wrapper<Awaitable>{ std::forward<AwaitableArg>(awaitable) }
 
-		// Discard the "promise" argument, since it will have been stored
-		// in the target awaiter.
-	{}
+        // Discard the "promise" argument, since it will have been stored
+        // in the target awaiter.
+    {}
 
 protected:
-	std::coroutine_handle<Promise> handle() const noexcept
-	{
-		return this->awaiter().handle();
-	}
+    std::coroutine_handle<Promise> handle() const noexcept
+    {
+        return this->awaiter().handle();
+    }
 
-	Promise& promise() const noexcept
-	{
-		return handle().promise();
-	}
+    Promise& promise() const noexcept
+    {
+        return handle().promise();
+    }
 };
 
 }
