@@ -28,7 +28,8 @@ private:
 public:
 	explicit awaiter_wrapper(
 		Awaiter awaiter
-	) requires std::is_reference_v<Awaiter>
+	) noexcept
+		requires std::is_reference_v<Awaiter>
 		: m_awaiter(std::forward<Awaiter>(awaiter))
 	{}
 
@@ -38,7 +39,13 @@ public:
 	requires std::is_invocable_r_v<Awaiter, AwaiterFunc>
 	explicit awaiter_wrapper(
 		AwaiterFunc&& awaiterFunc
-	) : m_awaiter(std::invoke(awaiterFunc))
+	) noexcept(noexcept(
+		std::invoke(std::forward<decltype(awaiterFunc)>(awaiterFunc))
+		))
+		: m_awaiter
+		{
+			std::invoke(std::forward<decltype(awaiterFunc)>(awaiterFunc))
+		}
 	{}
 
 	decltype(auto) await_ready(
@@ -69,7 +76,7 @@ public:
 	}
 
 protected:
-	awaiter_type& awaiter()
+	awaiter_type& awaiter() noexcept
 	{
 		return m_awaiter;
 	}
@@ -89,7 +96,7 @@ protected:
 	>
 	awaiter_wrapper_awaitable_storage(
 		AwaitableFunc& awaitableFunc
-	) :
+	) noexcept(noexcept(std::invoke(awaitableFunc))) :
 		m_awaitable(std::invoke(awaitableFunc))
 	{}
 
@@ -99,7 +106,7 @@ protected:
 	>
 	Awaitable& get_awaitable(
 		AwaitableFunc& awaitableFunc
-	)
+	) noexcept
 	{
 		return m_awaitable;
 	}
@@ -121,7 +128,7 @@ protected:
 	>
 	awaiter_wrapper_awaitable_storage(
 		AwaitableFunc& awaitableFunc
-	)
+	) noexcept
 	{}
 
 	// Get the awaitable object as from the function.
@@ -130,7 +137,7 @@ protected:
 	>
 	decltype(auto) get_awaitable(
 		AwaitableFunc& awaitableFunc
-	)
+	) noexcept(noexcept(std::invoke(awaitableFunc)))
 	{
 		return std::invoke(awaitableFunc);
 	}
@@ -155,7 +162,8 @@ public:
 	requires std::is_invocable_r_v<Awaitable, AwaitableFunc>
 	explicit awaiter_wrapper(
 		AwaitableFunc&& awaitableFunc
-	) : 
+	) noexcept(noexcept(get_awaiter(this->get_awaitable(awaitableFunc))))
+		: 
 		awaiter_wrapper_awaitable_storage<Awaitable>(awaitableFunc),
 		awaiter_wrapper<awaiter_type<Awaitable>>
 	{

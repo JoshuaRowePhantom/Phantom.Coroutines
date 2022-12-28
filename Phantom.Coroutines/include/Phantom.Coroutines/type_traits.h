@@ -9,6 +9,10 @@ namespace Phantom::Coroutines
 {
 namespace detail
 {
+template<
+    typename...
+> constexpr bool always_false = false;
+
 // Determine if a given type is an instantiation of a template
 // accepting type arguments.
 template<
@@ -327,8 +331,42 @@ template<
 > using remove_rvalue_reference_t = typename remove_rvalue_reference<T>::type;
 
 template<
-    typename Awaitable
-> using awaiter_type = remove_rvalue_reference_t<decltype(get_awaiter(std::declval<Awaitable>()))>;
+    is_awaitable Awaitable
+> struct awaiter_type_s
+{
+    static_assert(always_false<Awaitable>, "awaiter_type_s doesn't cover all cases.");
+};
+
+template<
+    has_co_await_member Awaitable
+> struct awaiter_type_s<
+    Awaitable
+>
+{
+    using type = decltype(std::declval<Awaitable>().operator co_await());
+};
+
+template<
+    has_co_await_non_member Awaitable
+> struct awaiter_type_s<
+    Awaitable
+>
+{
+    using type = decltype(operator co_await(std::declval<Awaitable>()));
+};
+
+template<
+    is_awaiter Awaiter
+> struct awaiter_type_s<
+    Awaiter
+>
+{
+    using type = Awaiter;
+};
+
+template<
+    is_awaitable Awaitable
+> using awaiter_type = typename awaiter_type_s<Awaitable>::type;
 
 template<
     is_awaitable TAwaitable

@@ -105,10 +105,10 @@ static_assert(std::same_as<typed_awaiter<int>&, awaiter_type<typed_awaiter<int>&
 static_assert(std::same_as<typed_awaiter<int&>&, awaiter_type<typed_awaiter<int&>&>>);
 static_assert(std::same_as<typed_awaiter<int&&>&, awaiter_type<typed_awaiter<int&&>&>>);
 
-static_assert(std::same_as<typed_awaiter<void>, awaiter_type<typed_awaiter<void>&&>>);
-static_assert(std::same_as<typed_awaiter<int>, awaiter_type<typed_awaiter<int>&&>>);
-static_assert(std::same_as<typed_awaiter<int&>, awaiter_type<typed_awaiter<int&>&&>>);
-static_assert(std::same_as<typed_awaiter<int&&>, awaiter_type<typed_awaiter<int&&>&&>>);
+static_assert(std::same_as<typed_awaiter<void>&&, awaiter_type<typed_awaiter<void>&&>>);
+static_assert(std::same_as<typed_awaiter<int>&&, awaiter_type<typed_awaiter<int>&&>>);
+static_assert(std::same_as<typed_awaiter<int&>&&, awaiter_type<typed_awaiter<int&>&&>>);
+static_assert(std::same_as<typed_awaiter<int&&>&&, awaiter_type<typed_awaiter<int&&>&&>>);
 
 static_assert(std::same_as<typed_awaiter<void>, awaiter_type<typed_awaitable<void>>>);
 static_assert(std::same_as<typed_awaiter<int>, awaiter_type<typed_awaitable<int>>>);

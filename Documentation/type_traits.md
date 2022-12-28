@@ -85,6 +85,22 @@ template<
 using awaitable_result_type_t = awaitable_result_type<TAwaitable>::type;
 ```
 
+### [```awaiter_type```](#awaiter_type)
+
+Given an [```is_awaitable```](type_traits.md#is_awaitable) type,
+get the [```is_awaiter```](type_traits.md#is_awaiter) type that implements
+the ```await_ready```, ```await_suspend```, and ```await_resume``` methods.
+
+For [```is_awaiter```](type_traits.md#is_awaiter) types, the return
+type is the original type, including reference qualifiers.
+
+For [```has_co_await```](type_traits.md#has_co_await) types,
+the return type is exactly the return type of ```operator co_await```
+using the result of ```std::forward<has_co_await>()``` on an instance of the type,
+and may include reference qualifiers. A ```has_co_await``` type may therefore
+return different awaiter types depending on whether it is called in
+an l-value or r-value context.
+
 ### [```get_awaiter```](#get_awaiter)
 
 Given an [```is_awaitable```](type_traits.md#is_awaitable) object,

@@ -35,21 +35,22 @@ template<
 	typename BasePromise
 > class test_contextual_promise
 	:
-	public derived_promise<contextual_promise<BasePromise>>
+	public contextual_promise<BasePromise>
 {
 public:
-	template<typename Awaiter>
+	template<is_awaitable Awaiter>
 	struct test_contextual_promise_awaiter : public extended_awaiter<test_contextual_promise, Awaiter>
 	{
 		using test_contextual_promise_awaiter::extended_awaiter::extended_awaiter;
 
-		auto await_ready()
+		auto await_ready() noexcept
 		{
 			return this->awaiter().await_ready();
 		}
 
 		auto await_suspend(
-			auto&& args)
+			auto&&... args
+		) noexcept
 		{
 			this->promise().m_operations.push_back(
 				{ operation_type::suspend }
@@ -58,22 +59,21 @@ public:
 				std::forward<decltype(args)>(args)...);
 		}
 
-		auto await_resume()
+		auto await_resume() noexcept(noexcept(this->awaiter().await_resume()))
 		{
 			this->promise().m_operations.push_back(
-				{ operation_type::suspend }
+				{ operation_type::resume }
 			);
 			return this->awaiter().await_resume();
 		}
 	};
 
 	template<
-		typename Awaiter
-	> test_contextual_promise_awaiter(test_contextual_promise&, Awaiter&&) -> test_contextual_promise_awaiter<Awaiter>;
-
-	template<
 		std::invocable AwaiterFunc
-	> test_contextual_promise_awaiter(test_contextual_promise&, AwaiterFunc&&) -> test_contextual_promise_awaiter<std::invoke_result_t<AwaiterFunc>>;
+	> test_contextual_promise_awaiter(
+		test_contextual_promise&, 
+		AwaiterFunc
+	) -> test_contextual_promise_awaiter<std::invoke_result_t<AwaiterFunc>>;
 
 	test_contextual_promise(
 		auto&&,
@@ -95,13 +95,14 @@ public:
 			{ operation_type::leave });
 	}
 
-	auto initial_suspend(
-		this auto& self)
+	auto initial_suspend()
 	{
+		auto lambda = [&]() { return this->test_contextual_promise::contextual_promise::initial_suspend(); };
+		static_assert(is_awaiter<decltype(lambda())>);
 		return test_contextual_promise_awaiter
 		{ 
 			*this,
-			[&]() { return self.test_contextual_promise::contextual_promise::initial_suspend(); }
+			lambda,
 		};
 	}
 
@@ -110,20 +111,22 @@ public:
 	)
 	{
 		return test_contextual_promise_awaiter
-		{ 
+		{
 			*this,
-			contextual_promise<BasePromise>::await_transform(
-				std::forward<decltype(awaitable)>(awaitable))
+			[&]() -> decltype(auto) 
+			{
+				return this->contextual_promise<BasePromise>::await_transform(
+					std::forward<decltype(awaitable)>(awaitable));
+			}
 		};
 	}
 
-	auto final_suspend(
-		this auto& self)
+	auto final_suspend() noexcept
 	{
 		return test_contextual_promise_awaiter
 		{
 			*this,
-			[&]() { return self.test_contextual_promise::contextual_promise::final_suspend(); }
+			[&]() noexcept { return this->test_contextual_promise::contextual_promise::final_suspend(); }
 		};
 	}
 };
@@ -134,6 +137,10 @@ template<
 	test_contextual_promise<task_promise<T>>>;
 
 static_assert(is_awaiter<test_contextual_task<>::promise_type::test_contextual_promise_awaiter<async_manual_reset_event<>>>);
+static_assert(noexcept(std::declval<test_contextual_task<>::promise_type>().final_suspend()));
+static_assert(noexcept(std::declval<test_contextual_task<>::promise_type>().final_suspend().await_ready()));
+static_assert(noexcept(std::declval<test_contextual_task<>::promise_type>().final_suspend().await_suspend(coroutine_handle<>(nullptr))));
+static_assert(noexcept(std::declval<test_contextual_task<>::promise_type>().final_suspend().await_resume()));
 
 ASYNC_TEST(contextual_promise_test, context_enter_on_initial_suspend_leave_on_final_suspend)
 {
@@ -161,8 +168,12 @@ ASYNC_TEST(contextual_promise_test, context_enter_on_initial_suspend_leave_on_fi
 		operations,
 		(operations_vector
 		{
+			// initial_suspend suspend
 			{ operation_type::suspend },
+			// initial_suspend resume
+			{ operation_type::resume },
 			{ operation_type::enter },
+			// asyncAutoResetEvent suspend
 			{ operation_type::suspend },
 			{ operation_type::leave },
 		}));
@@ -173,15 +184,23 @@ ASYNC_TEST(contextual_promise_test, context_enter_on_initial_suspend_leave_on_fi
 		operations,
 		(operations_vector
 		{
+			// initial_suspend suspend
 			{ operation_type::suspend },
-			{ operation_type::enter },
-			{ operation_type::suspend },
-			{ operation_type::leave },
+			// initial_suspend resume
 			{ operation_type::resume },
 			{ operation_type::enter },
+			// asyncAutoResetEvent suspend
+			{ operation_type::suspend },
+			{ operation_type::leave },
+			// asyncAutoResetEvent resume
+			{ operation_type::resume },
+			{ operation_type::enter },
+			// final_suspend suspend
 			{ operation_type::suspend },
 			{ operation_type::leave },
 		}));
+
+	co_await scope.join();
 }
 
 

@@ -12,7 +12,7 @@ class final_suspend_transfer
 public:
     final_suspend_transfer(
         coroutine_handle<> continuation
-    ) : m_continuation(
+    ) noexcept : m_continuation(
         continuation
     )
     {}

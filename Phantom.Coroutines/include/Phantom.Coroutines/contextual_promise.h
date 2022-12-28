@@ -11,6 +11,7 @@ template<
 {
 	{ promise.enter() };
 	{ promise.leave() };
+	noexcept(promise.leave());
 };
 
 template<
@@ -29,28 +30,28 @@ public derived_promise<BasePromise>
 		typename Leave,
 		typename Promise,
 		is_awaitable Awaiter
-	> class awaiter :
+	> class contextual_promise_awaiter :
 		public extended_awaiter<Promise, Awaiter>
 	{
 		bool m_bSuspended = false;
 
-		using awaiter::extended_awaiter::awaiter;
-		using awaiter::extended_awaiter::handle;
+		using contextual_promise_awaiter::extended_awaiter::awaiter;
+		using contextual_promise_awaiter::extended_awaiter::handle;
 
 	public:
-		awaiter(
+		contextual_promise_awaiter(
 			Enter enter,
 			Leave leave,
 			Promise& promise,
-			auto&& awaiter
-		) : awaiter::extended_awaiter::extended_awaiter
+			std::invocable auto&& awaitableFunc
+		) : contextual_promise_awaiter::extended_awaiter::extended_awaiter
 		{
 			promise,
-			std::forward<decltype(Awaiter)>(awaiter)
+			std::forward<decltype(awaitableFunc)>(awaitableFunc)
 		}
 		{}
 
-		auto await_ready(
+		bool await_ready(
 			auto&&... args
 		) noexcept(
 			noexcept(awaiter().await_ready(std::forward<decltype(args)>(args)...))
@@ -63,7 +64,6 @@ public derived_promise<BasePromise>
 			auto&&... args
 		) noexcept(
 			noexcept(awaiter().await_suspend(std::forward<decltype(args)>(args)...))
-			&& (!std::same_as<DoLeaveOnSuspend, Leave> || noexcept(this->promise().leave()))
 			)
 		{
 			m_bSuspended = true;
@@ -76,10 +76,11 @@ public derived_promise<BasePromise>
 
 		auto await_resume(
 			auto&&... args
-		) noexcept(
-			noexcept(awaiter().await_resume(std::forward<decltype(args)>(args)...))
-			&& (!Enter || noexcept(this->promise().enter()))
-			)
+		) noexcept /* noexcept(
+			noexcept(
+				awaiter().await_resume(std::forward<decltype(args)>(args)...))
+				&& (std::same_as<DoNotEnterOnResume, Enter> || noexcept(this->promise().enter())
+		)) */
 		{
 			if (std::same_as<DoEnterOnResume, Enter> && m_bSuspended)
 			{
@@ -94,43 +95,53 @@ public derived_promise<BasePromise>
 		typename Leave,
 		typename Promise,
 		is_awaitable Awaitable
-	> awaiter(Enter, Leave, Promise&, Awaitable&&) -> awaiter<Enter, Leave, Promise, Awaitable>;
+	> contextual_promise_awaiter(Enter, Leave, Promise&, Awaitable&&) -> contextual_promise_awaiter<Enter, Leave, Promise, Awaitable>;
 
 	template<
 		typename Enter,
 		typename Leave,
 		typename Promise,
 		std::invocable AwaitableFunc
-	> awaiter(Enter, Leave, Promise&, AwaitableFunc&&) -> awaiter<Enter, Leave, Promise, std::invoke_result_t<AwaitableFunc>>;
+	> contextual_promise_awaiter(Enter, Leave, Promise&, AwaitableFunc&&) -> contextual_promise_awaiter<Enter, Leave, Promise, std::invoke_result_t<AwaitableFunc>>;
 
 public:
 	using contextual_promise::derived_promise::derived_promise;
 
 	auto initial_suspend(
-		this auto& self)
+		this auto& self
+	) noexcept(noexcept(
+		self.derived_promise<BasePromise>::initial_suspend()
+		))
 	{
 		static_assert(is_contextual_promise<decltype(self)>);
 
-		return awaiter
+		return contextual_promise_awaiter
 		{
 			DoEnterOnResume{},
 			DoNotLeaveOnSuspend{},
 			self,
-			self.derived_promise<BasePromise>::initial_suspend(),
+			[&]() -> decltype(auto)
+			{
+				return self.derived_promise<BasePromise>::initial_suspend();
+			}
 		};
 	}
 
 	auto final_suspend(
-		this auto& self)
+		this auto& self
+	) noexcept
 	{
 		static_assert(is_contextual_promise<decltype(self)>);
 
-		return awaiter
+		return contextual_promise_awaiter
 		{
 			DoNotEnterOnResume{},
 			DoLeaveOnSuspend{},
 			self,
-			self.derived_promise<BasePromise>::final_suspend(),
+			[&]() noexcept -> decltype(auto)
+			{
+				return self.derived_promise<BasePromise>::final_suspend();
+			}
 		};
 	}
 
@@ -139,13 +150,20 @@ public:
 		auto&& awaitable)
 	{
 		static_assert(is_contextual_promise<decltype(self)>);
-		return awaiter
+
+		return contextual_promise_awaiter
 		{
 			DoEnterOnResume{},
 			DoLeaveOnSuspend{},
 			self,
-			self.derived_promise<BasePromise>::await_transform(
-				std::forward<decltype(awaitable)>(awaitable))
+			[&]() noexcept(noexcept(
+				self.derived_promise<BasePromise>::await_transform(
+					std::forward<decltype(awaitable)>(awaitable))
+				)) -> decltype(auto)
+			{
+				return self.derived_promise<BasePromise>::await_transform(
+					std::forward<decltype(awaitable)>(awaitable));
+			}
 		};
 	}
 };

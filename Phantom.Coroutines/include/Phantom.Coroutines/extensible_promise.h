@@ -64,7 +64,7 @@ template<
 public:
 	decltype(auto) await_transform(
 		auto&& awaitable
-	)
+	) noexcept
 	{
 		return std::forward<decltype(awaitable)>(awaitable);
 	}
@@ -246,18 +246,7 @@ public awaiter_wrapper<Awaitable>
 
 	std::coroutine_handle<Promise> m_handle;
 
-protected:
-
-	template<
-		typename AwaitableArg
-	>
-	extended_awaiter(
-		Promise& promise,
-		AwaitableArg&& awaitable
-	) : 
-		awaiter_wrapper<Awaitable>{ std::forward<AwaitableArg>(awaitable) },
-		m_handle { std::coroutine_handle<Promise>::from_promise(promise) }
-	{}
+public:
 
 	template<
 		std::invocable AwaitableFunc
@@ -265,11 +254,15 @@ protected:
 	extended_awaiter(
 		Promise& promise,
 		AwaitableFunc&& awaitableFunc
-	) :
+	) noexcept(
+		noexcept(awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) })
+		)
+		:
 		awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) },
 		m_handle{ std::coroutine_handle<Promise>::from_promise(promise) }
 	{}
 
+protected:
 	std::coroutine_handle<Promise> handle() const noexcept
 	{
 		return m_handle;
@@ -299,7 +292,7 @@ template<
 		is_awaitable Awaitable
 	> friend class extended_awaiter;
 
-protected:
+public:
 
 	template<
 		typename AwaitableArg
@@ -315,6 +308,7 @@ protected:
 		// in the target awaiter.
 	{}
 
+protected:
 	std::coroutine_handle<Promise> handle() const noexcept
 	{
 		return this->awaiter().handle();

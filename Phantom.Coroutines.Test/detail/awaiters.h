@@ -43,7 +43,7 @@ struct generic_awaiter
 	bool m_awaitSuspendCalled = false;
 	bool m_awaitResumeCalled = false;
 	coroutine_handle<> m_suspendedHandle;
-
+	
 	bool await_ready()
 	{
 		m_awaitReadyCalled = true;
