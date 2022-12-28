@@ -309,8 +309,10 @@ protected:
 // thus optimizing an extended_awaiter wrapping another extended_awaiter.
 template<
     typename Promise,
-    is_extensible_awaitable Awaitable
-> class extended_awaiter<
+    is_awaitable Awaitable
+> 
+requires is_extensible_awaitable_for<awaiter_type<Awaitable>, Promise>
+class extended_awaiter<
     Promise,
     Awaitable
 >
