@@ -208,6 +208,27 @@ public:
 };
 
 template<
+    typename Awaitable
+> constexpr bool is_extensible_awaitable_v = false;
+
+template<
+    typename Promise
+> constexpr bool is_extensible_awaitable_v<
+    extensible_awaitable<Promise>
+> = true;
+
+template<
+    typename Awaitable
+> concept is_extensible_awaitable = is_extensible_awaitable_v<Awaitable>;
+
+template<
+    typename Awaitable,
+    typename Promise
+> concept is_extensible_awaitable_for =
+is_extensible_awaitable<Awaitable>
+&& std::derived_from<Awaitable, extensible_awaitable<Promise>>;
+
+template<
     typename Promise,
     is_awaitable Awaitable
 > class extended_awaiter;
