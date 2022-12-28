@@ -7,53 +7,53 @@ namespace detail
 {
 
 template<
-	typename BasePromise,
-	is_thread_local_context ThreadLocalContext,
-	typename ExtendedPromise = thread_local_contextual_promise<BasePromise, ThreadLocalContext>
+    typename BasePromise,
+    is_thread_local_context ThreadLocalContext,
+    typename ExtendedPromise = thread_local_contextual_promise<BasePromise, ThreadLocalContext>
 > class thread_local_contextual_promise
-	:
-	public derived_promise<
-	contextual_promise<
-	BasePromise,
-	thread_local_contextual_promise,
-	ExtendedPromise
-	>>
+    :
+    public derived_promise<
+    contextual_promise<
+    BasePromise,
+    thread_local_contextual_promise,
+    ExtendedPromise
+    >>
 {
-	using base_promise = thread_local_contextual_promise::derived_promise;
-	using thread_local_context_scope = thread_local_context_scope<ThreadLocalContext>;
+    using base_promise = thread_local_contextual_promise::derived_promise;
+    using thread_local_context_scope = thread_local_context_scope<ThreadLocalContext>;
 
 public:
-	using value_type = typename ThreadLocalContext::value_type;
+    using value_type = typename ThreadLocalContext::value_type;
 
 private:
-	std::optional<thread_local_context_scope> m_scope;
-	std::optional<value_type> m_value;
+    std::optional<thread_local_context_scope> m_scope;
+    std::optional<value_type> m_value;
 
 public:
-	template<
-		typename... Args
-	> thread_local_contextual_promise(
-		Args&&... args
-	) :
-		m_value
-	{
-		ThreadLocalContext::current()
-	}
-	{}
+    template<
+        typename... Args
+    > thread_local_contextual_promise(
+        Args&&... args
+    ) :
+        m_value
+    {
+        ThreadLocalContext::current()
+    }
+    {}
 
-	using base_promise::base_promise;
+    using base_promise::base_promise;
 
-	void enter()
-	{
-		m_scope.emplace(thread_local_context_scope{ std::move(*m_value) });
-		m_value.reset();
-	}
+    void enter()
+    {
+        m_scope.emplace(thread_local_context_scope{ std::move(*m_value) });
+        m_value.reset();
+    }
 
-	void leave()
-	{
-		m_value.emplace(std::move(ThreadLocalContext::current()));
-		m_scope.reset();
-	}
+    void leave()
+    {
+        m_value.emplace(std::move(ThreadLocalContext::current()));
+        m_scope.reset();
+    }
 };
 
 }

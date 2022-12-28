@@ -11,14 +11,14 @@ namespace detail
 class await_all_await_transform
 {
 public:
-	template<
-		is_awaitable T
-	> T&& await_transform(
-		T&& t
-	)
-	{
-		return std::forward<T>(t);
-	}
+    template<
+        is_awaitable T
+    > T&& await_transform(
+        T&& t
+    )
+    {
+        return std::forward<T>(t);
+    }
 };
 }
 using detail::await_all_await_transform;

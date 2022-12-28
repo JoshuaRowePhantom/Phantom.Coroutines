@@ -10,11 +10,11 @@ namespace detail
 class await_none_await_transform
 {
 public:
-	template<
-		is_awaitable T
-	> T&& await_transform(
-		T&& t
-	) = delete;
+    template<
+        is_awaitable T
+    > T&& await_transform(
+        T&& t
+    ) = delete;
 };
 }
 using detail::await_none_await_transform;

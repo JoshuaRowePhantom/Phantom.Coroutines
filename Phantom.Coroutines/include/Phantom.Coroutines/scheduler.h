@@ -7,10 +7,10 @@ namespace detail
 {
 
 template<
-	typename T
+    typename T
 > concept is_scheduler = requires (T t)
 {
-	{ t.schedule() } -> is_awaitable;
+    { t.schedule() } -> is_awaitable;
 };
 
 }

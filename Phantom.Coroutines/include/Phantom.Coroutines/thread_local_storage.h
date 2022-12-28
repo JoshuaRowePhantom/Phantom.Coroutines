@@ -8,18 +8,18 @@ namespace detail
 {
 
 template<
-	typename Value
+    typename Value
 >
 class thread_local_storage
 {
-	std::function<TValue()> m_initializer;
+    std::function<TValue()> m_initializer;
 
 public:
-	thread_local_storage(
-		std::function<TValue()> initializer
-	)
-	Value& get();
-	const Value& get() const;
+    thread_local_storage(
+        std::function<TValue()> initializer
+    )
+    Value& get();
+    const Value& get() const;
 
 };
 

@@ -10,30 +10,30 @@ namespace detail
 {
 
 template<
-	 std::invocable<> Lambda
+     std::invocable<> Lambda
 >
 class scope_guard
-	:
+    :
 private immovable_object
 {
-	Lambda m_lambda;
+    Lambda m_lambda;
 public:
-	template<
-		std::invocable<> TLambda
-	>
-	scope_guard(
-		TLambda lambda
-	) : m_lambda { std::forward<TLambda>(lambda) }
-	{}
+    template<
+        std::invocable<> TLambda
+    >
+    scope_guard(
+        TLambda lambda
+    ) : m_lambda { std::forward<TLambda>(lambda) }
+    {}
 
-	~scope_guard()
-	{
-		m_lambda();
-	}
+    ~scope_guard()
+    {
+        m_lambda();
+    }
 };
 
 template<
-	std::invocable<> Lambda
+    std::invocable<> Lambda
 > scope_guard(Lambda)->scope_guard<std::remove_reference_t<Lambda>>;
 
 }

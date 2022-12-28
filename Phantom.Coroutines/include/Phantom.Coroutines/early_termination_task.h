@@ -10,66 +10,66 @@ namespace Phantom::Coroutines
 namespace detail
 {
 template<
-	typename Traits
+    typename Traits
 > concept early_termination_traits = true;
 
 template<
-	early_termination_traits Traits
+    early_termination_traits Traits
 > class basic_early_termination_task;
 
 template<
-	typename Task
+    typename Task
 > concept is_early_termination_task =
 is_template_instantiation<Task, basic_early_termination_task>;
 
 template<
-	typename T
+    typename T
 > class early_termination_result;
 
 template<
-	typename T
+    typename T
 > concept is_early_termination_result =
 is_template_instantiation<T, early_termination_result>;
 
 template<
-	early_termination_traits Traits
+    early_termination_traits Traits
 > class basic_early_termination_promise;
 
 template<
-	typename Promise
+    typename Promise
 > concept is_early_termination_promise
 = is_template_instantiation<Promise, basic_early_termination_promise>;
 
 template<
-	typename Transformer,
-	typename Promise
+    typename Transformer,
+    typename Promise
 > concept is_early_termination_await_transformer
 = std::convertible_to<Transformer, Promise>
 && is_early_termination_promise<Promise>;
 
 template<
-	is_early_termination_promise Promise
+    is_early_termination_promise Promise
 > class basic_early_termination_awaiter;
 
 template<
-	is_early_termination_task Task
+    is_early_termination_task Task
 > class basic_early_termination_task_awaiter;
 
 template<
-	is_early_termination_promise Promise
+    is_early_termination_promise Promise
 > class basic_early_termination_transformed_awaiter;
 
 template<
-	is_early_termination_promise Promise
+    is_early_termination_promise Promise
 > class basic_early_termination_task_await_transformer;
 
 template<
-	is_early_termination_promise CallingPromise,
-	is_early_termination_task Task
+    is_early_termination_promise CallingPromise,
+    is_early_termination_task Task
 > class basic_early_termination_transformed_task_awaiter;
 
 template<
-	is_early_termination_promise Promise
+    is_early_termination_promise Promise
 > class basic_early_termination_final_suspend_awaiter;
 
 // The basic_early_termination_task_awaiter is returned
@@ -78,19 +78,19 @@ template<
 // outside of another basic_early_termination_promise.
 // This is the point of interoperation with ordinary caller co-routines.
 template<
-	is_early_termination_task Task
+    is_early_termination_task Task
 > class basic_early_termination_task_awaiter
 {
-	template<
-		early_termination_traits Traits
-	> friend class basic_early_termination_task;
+    template<
+        early_termination_traits Traits
+    > friend class basic_early_termination_task;
 
-	Task& m_task;
+    Task& m_task;
 
-	basic_early_termination_task_awaiter(
-		Task& task
-	)
-	{}
+    basic_early_termination_task_awaiter(
+        Task& task
+    )
+    {}
 
 public:
 
@@ -106,111 +106,111 @@ public:
 // from an early_termination_task coroutine by using
 // the handle_error() function.
 template<
-	early_termination_traits Traits
+    early_termination_traits Traits
 > class basic_early_termination_task
 {
 public:
-	auto operator co_await() && noexcept
-	{
-		return basic_early_termination_task_awaiter{ *this };
-	}
+    auto operator co_await() && noexcept
+    {
+        return basic_early_termination_task_awaiter{ *this };
+    }
 };
 
 template<
-	typename T
+    typename T
 > class early_termination_result
 {
-	T m_value;
+    T m_value;
 public:
-	template<
-		typename ... Args
-	> early_termination_result(
-		Args&&... args
-	) :
-		m_value(std::forward<Args>(args)...)
-	{
-	}
+    template<
+        typename ... Args
+    > early_termination_result(
+        Args&&... args
+    ) :
+        m_value(std::forward<Args>(args)...)
+    {
+    }
 };
 
 // The basic_early_termination_final_suspend_awaiter transfers control
 // to the correct calling coroutine after a promise has completed.
 template<
-	is_early_termination_promise Promise
+    is_early_termination_promise Promise
 > class basic_early_termination_final_suspend_awaiter
 {
-	template<
-		early_termination_traits Traits
-	> friend class basic_early_termination_promise;
+    template<
+        early_termination_traits Traits
+    > friend class basic_early_termination_promise;
 
-	Promise& m_promise;
+    Promise& m_promise;
 
-	basic_early_termination_final_suspend_awaiter(
-		Promise& promise
-	) :
-		m_promise(promise)
-	{}
+    basic_early_termination_final_suspend_awaiter(
+        Promise& promise
+    ) :
+        m_promise(promise)
+    {}
 
 public:
-	bool await_ready() const noexcept
-	{
-		return false;
-	}
+    bool await_ready() const noexcept
+    {
+        return false;
+    }
 
-	coroutine_handle<> await_suspend(
-		coroutine_handle<>
-	)
-	{
-		return m_promise.resume();
-	}
+    coroutine_handle<> await_suspend(
+        coroutine_handle<>
+    )
+    {
+        return m_promise.resume();
+    }
 
-	[[noreturn]]
-	void await_resume() const noexcept
-	{
-		std::terminate();
-	}
+    [[noreturn]]
+    void await_resume() const noexcept
+    {
+        std::terminate();
+    }
 };
 
 // basic_early_termination_promise provides the early
 // termination behavior for basic_early_termination_task.
 template<
-	early_termination_traits Traits
+    early_termination_traits Traits
 > class basic_early_termination_promise
 {
 public:
-	// Choose the correct coroutine to resume.
-	// The caller can resume the coroutine by
-	// symmetric transfer or by a call to resume().
-	coroutine_handle<> resume() noexcept
-	{
-	}
+    // Choose the correct coroutine to resume.
+    // The caller can resume the coroutine by
+    // symmetric transfer or by a call to resume().
+    coroutine_handle<> resume() noexcept
+    {
+    }
 
-	template<
-		typename T
-	> void return_value(
-		T&& result
-	) noexcept(std::is_nothrow_move_constructible_v<T>)
-	{
-	}
+    template<
+        typename T
+    > void return_value(
+        T&& result
+    ) noexcept(std::is_nothrow_move_constructible_v<T>)
+    {
+    }
 
-	void unhandled_exception() noexcept
-	{
-		return_value(
-			early_termination_result
-			{
-				std::current_exception()
-			}
-		);
-	}
+    void unhandled_exception() noexcept
+    {
+        return_value(
+            early_termination_result
+            {
+                std::current_exception()
+            }
+        );
+    }
 
-	std::suspend_always initial_suspend() const noexcept
-	{
-		return {};
-	}
+    std::suspend_always initial_suspend() const noexcept
+    {
+        return {};
+    }
 
-	auto final_suspend() const noexcept
-	{
-		return basic_early_termination_final_suspend_awaiter{ *this };
-	}
+    auto final_suspend() const noexcept
+    {
+        return basic_early_termination_final_suspend_awaiter{ *this };
+    }
 };
 
 // The basic_early_termination_transformed_awaiter is the base
@@ -222,81 +222,81 @@ public:
 // The derived class can resume the coroutine_handle either by
 // symmetric transfer or directly calling resume().
 template<
-	is_early_termination_promise CallingPromise
+    is_early_termination_promise CallingPromise
 > class basic_early_termination_transformed_awaiter
 {
-	CallingPromise& m_promise;
+    CallingPromise& m_promise;
 
 protected:
-	template<
-		is_early_termination_await_transformer<CallingPromise> AwaitTransformer
-	>
-	basic_early_termination_transformed_awaiter(
-		AwaitTransformer& transformer
-	) noexcept
-		: m_promise(static_cast<CallingPromise&>(transformer))
-	{
-	}
+    template<
+        is_early_termination_await_transformer<CallingPromise> AwaitTransformer
+    >
+    basic_early_termination_transformed_awaiter(
+        AwaitTransformer& transformer
+    ) noexcept
+        : m_promise(static_cast<CallingPromise&>(transformer))
+    {
+    }
 
-	template<
-		typename T
-	> void return_value(
-		T&& result
-	) noexcept(std::is_nothrow_move_constructible_v<T>)
-	{
-		return m_promise.return_value(
-			std::forward<T>(result)
-		);
-	}
+    template<
+        typename T
+    > void return_value(
+        T&& result
+    ) noexcept(std::is_nothrow_move_constructible_v<T>)
+    {
+        return m_promise.return_value(
+            std::forward<T>(result)
+        );
+    }
 
-	coroutine_handle<> resume() noexcept
-	{
-		return m_promise.resume();
-	}
+    coroutine_handle<> resume() noexcept
+    {
+        return m_promise.resume();
+    }
 };
 
 template<
-	is_early_termination_promise CallingPromise,
-	is_early_termination_task Task
+    is_early_termination_promise CallingPromise,
+    is_early_termination_task Task
 > class basic_early_termination_transformed_task_awaiter
-	:
+    :
 public basic_early_termination_transformed_awaiter<
-	CallingPromise
+    CallingPromise
 >
 {
-	template<
-		is_early_termination_promise Promise
-	> friend class basic_early_termination_task_await_transformer;
+    template<
+        is_early_termination_promise Promise
+    > friend class basic_early_termination_task_await_transformer;
 
-	template<
-		is_early_termination_await_transformer<CallingPromise> AwaitTransformer
-	> basic_early_termination_transformed_task_awaiter(
-		AwaitTransformer& transformer,
-		Task&& task
-	) :
-		basic_early_termination_transformed_awaiter<CallingPromise>(transformer)
-	{}
+    template<
+        is_early_termination_await_transformer<CallingPromise> AwaitTransformer
+    > basic_early_termination_transformed_task_awaiter(
+        AwaitTransformer& transformer,
+        Task&& task
+    ) :
+        basic_early_termination_transformed_awaiter<CallingPromise>(transformer)
+    {}
 
 public:
 };
 
 template<
-	is_early_termination_promise Promise
+    is_early_termination_promise Promise
 > class basic_early_termination_task_await_transformer
 {
 public:
-	template<
-		is_early_termination_task Task
-	> decltype(auto) await_transform(
-		Task&& awaitable
-	)
-	{
-		return basic_early_termination_transformed_task_awaiter
-		{
-			*this,
-			awaitable,
-		};
-	}
+    template<
+        is_early_termination_task Task
+    > decltype(auto) await_transform(
+        Task&& awaitable
+    )
+    {
+        return basic_early_termination_transformed_task_awaiter
+        {
+            *this,
+            awaitable,
+        };
+    }
 };
 
 }
