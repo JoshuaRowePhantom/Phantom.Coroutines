@@ -92,11 +92,14 @@ public:
 		return final_suspend_transfer{ self.m_continuation };
 	}
 
+	template<
+		typename Self
+	>
 	auto get_return_object(
-		this auto& self
+		this Self& self
 	) noexcept
 	{
-		return task<Result>(
+		return basic_task<Self>(
 			self.handle()
 			);
 	}
@@ -268,6 +271,8 @@ public:
 
 namespace Phantom::Coroutines
 {
+using detail::basic_task;
+using detail::basic_task_promise;
 using detail::task;
 using detail::task_awaiter;
 using detail::task_promise;

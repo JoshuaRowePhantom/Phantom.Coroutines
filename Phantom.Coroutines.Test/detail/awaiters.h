@@ -103,7 +103,7 @@ struct generic_awaitable_value
 {
 	generic_awaiter<AwaitSuspendResult, AwaitResumeResult> m_awaiter;
 
-	auto operator co_await()&&
+	auto operator co_await()
 	{
 		return m_awaiter;
 	}

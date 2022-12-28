@@ -1,7 +1,7 @@
 #include <type_traits>
+#include "awaiter_wrapper.h"
 #include "detail/coroutine.h"
 #include "type_traits.h"
-#include "detail/awaiter_wrapper.h"
 
 namespace Phantom::Coroutines
 {
@@ -24,13 +24,13 @@ public awaiter_wrapper<Awaitable>
         suspend_result& suspendResult,
         Awaitable&& awaitable
     ) :
-        awaiter_wrapper<Awaitable>
+    awaiter_wrapper<Awaitable> 
     {
-            std::forward<Awaitable>(awaitable)
+        [&]() -> decltype(auto) { return std::forward<Awaitable>(awaitable); }
     },
-        m_suspendResult
+     m_suspendResult
     {
-            suspendResult
+        suspendResult
     }
     {
     }
@@ -104,7 +104,7 @@ public:
         )
     {
         return suspend_result_awaiter<
-            Awaitable
+            Awaitable&&
         >(
             *this,
             std::forward<Awaitable>(awaitable)

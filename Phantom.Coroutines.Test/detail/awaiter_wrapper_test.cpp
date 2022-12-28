@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "awaiters.h"
-#include "Phantom.Coroutines/detail/awaiter_wrapper.h"
+#include "Phantom.Coroutines/awaiter_wrapper.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -18,42 +18,54 @@ public:
 TEST(awaiter_wrapper_test, can_wrap_awaiter_value)
 {
 	generic_awaiter<void, void> awaiter;
-	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>> wrapper = std::move(awaiter);
+	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>> wrapper{ [&]() { return awaiter; } };
 	ASSERT_NE(&wrapper.awaiter(), &awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaiter_lvalue)
 {
 	generic_awaiter<void, void> awaiter;
-	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&> wrapper = awaiter;
+	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&> wrapper{ awaiter };
 	ASSERT_EQ(&wrapper.awaiter(), &awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaiter_rvalue)
 {
 	generic_awaiter<void, void> awaiter;
-	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&&> wrapper = std::move(awaiter);
+	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&&> wrapper{ std::move(awaiter) };
+	ASSERT_EQ(&wrapper.awaiter(), &awaiter);
+}
+
+TEST(awaiter_wrapper_test, can_wrap_awaiter_lvalue_from_lambda)
+{
+	generic_awaiter<void, void> awaiter;
+	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&> wrapper{ [&]() -> auto& { return awaiter; } };
+	ASSERT_EQ(&wrapper.awaiter(), &awaiter);
+}
+
+TEST(awaiter_wrapper_test, can_wrap_awaiter_rvalue_from_lambda)
+{
+	generic_awaiter<void, void> awaiter;
+	awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&&> wrapper{ [&]() -> auto&& { return std::move(awaiter); } };
 	ASSERT_EQ(&wrapper.awaiter(), &awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaitable_value)
 {
-	generic_awaitable_value<void, void> awaitable;
-	awaiter_wrapper_test_awaiter<generic_awaitable_rvalue<void, void>> wrapper = std::move(awaitable);
-	ASSERT_NE(&wrapper.awaiter(), &awaitable.m_awaiter);
+	awaiter_wrapper_test_awaiter<generic_awaitable_value<void, void>> wrapper{ [&]() { return generic_awaitable_value<void, void>{}; } };
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaitable_lvalue)
 {
 	generic_awaitable_lvalue<void, void> awaitable;
-	awaiter_wrapper_test_awaiter<generic_awaitable_lvalue<void, void>&> wrapper = awaitable;
+	awaiter_wrapper_test_awaiter<generic_awaitable_lvalue<void, void>&> wrapper{ [&]() -> auto& { return awaitable; } };
 	ASSERT_EQ(&wrapper.awaiter(), &awaitable.m_awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaitable_rvalue)
 {
 	generic_awaitable_rvalue<void, void> awaitable;
-	awaiter_wrapper_test_awaiter<generic_awaitable_rvalue<void, void>> wrapper = std::move(awaitable);
+	awaiter_wrapper_test_awaiter<generic_awaitable_rvalue<void, void>&&> wrapper{ [&]() -> auto&& { return std::move(awaitable); } };
 	ASSERT_EQ(&wrapper.awaiter(), &awaitable.m_awaiter);
 }
 

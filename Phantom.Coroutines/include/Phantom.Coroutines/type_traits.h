@@ -254,7 +254,7 @@ TAwaiter awaiter)
 template<
     typename TAwaitable
 > concept has_co_await_member = requires(
-    TAwaitable awaitable
+    TAwaitable&& awaitable
     )
 {
     { std::forward<TAwaitable>(awaitable).operator co_await() } -> is_awaiter;

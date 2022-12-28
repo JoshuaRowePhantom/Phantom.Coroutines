@@ -3,7 +3,7 @@
 #include <concepts>
 #include <type_traits>
 #include "type_traits.h"
-#include "detail/awaiter_wrapper.h"
+#include "awaiter_wrapper.h"
 #include "detail/coroutine.h"
 
 namespace Phantom::Coroutines
@@ -54,13 +54,60 @@ template<
 	}
 };
 
-// A derived_promise is a promise that wraps another promise type
-// by derivation.
+// The template derived_promise_await_transform ensures there is a valid
+// await_transform() method in the derived_promise implementation,
+// so that it can always be called unconditionally by derived classes.
 template<
 	typename BasePromise
+> class derived_promise_await_transform
+{
+public:
+	decltype(auto) await_transform(
+		auto&& awaitable
+	)
+	{
+		return std::forward<decltype(awaitable)>(awaitable);
+	}
+};
+
+template<
+	typename BasePromise
+> requires has_await_transform<BasePromise>
+class derived_promise_await_transform<
+	BasePromise
+>
+{
+public:
+};
+
+// An extensible_promise is a promise type that can
+// be extended or wrapped by other promise types.
+class extensible_promise
+{
+public:
+	auto handle(
+		this auto& self
+	) noexcept
+	{
+		return std::coroutine_handle<
+			std::remove_cvref_t<decltype(self)>
+		>::from_promise(self);
+	}
+};
+
+template<
+	typename T
+> concept is_extensible_promise =
+std::derived_from<T, extensible_promise>;
+
+// A derived_promise is a promise that wraps an extensible_promise
+// by derivation.
+template<
+	is_extensible_promise BasePromise
 > class derived_promise
 	:
-	public BasePromise
+	public BasePromise,
+	public derived_promise_await_transform<BasePromise>
 {
 	struct BasePromiseTag {};
 protected:
@@ -111,21 +158,6 @@ public:
 	:
 	BasePromise()
 	{}
-};
-
-// An extensible_promise is a promise type that can
-// be extended or wrapped by other promise types.
-class extensible_promise
-{
-public:
-	auto handle(
-		this auto& self
-	) noexcept
-	{
-		return std::coroutine_handle<
-			std::remove_cvref_t<decltype(self)>
-		>::from_promise(self);
-	}
 };
 
 // An extensible awaitable is an awaitable object that can reference
@@ -227,6 +259,17 @@ protected:
 		m_handle { std::coroutine_handle<Promise>::from_promise(promise) }
 	{}
 
+	template<
+		std::invocable AwaitableFunc
+	>
+	extended_awaiter(
+		Promise& promise,
+		AwaitableFunc&& awaitableFunc
+	) :
+		awaiter_wrapper<Awaitable>{ std::forward<AwaitableFunc>(awaitableFunc) },
+		m_handle{ std::coroutine_handle<Promise>::from_promise(promise) }
+	{}
+
 	std::coroutine_handle<Promise> handle() const noexcept
 	{
 		return m_handle;
@@ -286,7 +329,9 @@ protected:
 }
 
 using detail::extensible_promise;
+using detail::is_extensible_promise;
 using detail::extensible_awaitable;
 using detail::extended_awaiter;
+using detail::derived_promise;
 
 }
