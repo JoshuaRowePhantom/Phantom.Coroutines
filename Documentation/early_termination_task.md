@@ -78,7 +78,7 @@ error_task<int> MyOuterCoroutine()
 
 error_task<int> MyErrorHandlingCoroutine()
 {
-    auto result = co_await MyOuterCoroutine().result();
+    auto result = co_await MyOuterCoroutine().handle_errors();
     static_assert(
         std::same<
             std::expected<int, std::error_condition>, 
