@@ -29,10 +29,77 @@ class early_termination_result
     public early_termination_policy
 {};
 
+template<
+    typename Promise
+>
 class early_termination_awaiter
     :
-    public early_termination_policy
-{};
+    public early_termination_policy,
+    public extensible_awaitable<Promise>
+{
+protected:
+    auto error_handling_continuation(
+        this auto& self
+    ) noexcept
+    {
+        return self.promise().m_errorHandlingContinuation;
+    }
+
+public:
+    early_termination_awaiter(
+        Promise& promise
+    ) noexcept :
+        early_termination_awaiter::extensible_awaitable(promise)
+    {}
+};
+
+template<
+    typename Promise
+>
+class early_termination_synchronous_awaiter;
+
+template<
+    typename Awaiter
+> concept is_termination_synchronous_awaiter =
+is_template_instantiation<Awaiter, early_termination_synchronous_awaiter>
+&&
+    requires (Awaiter awaiter)
+{
+    { awaiter.is_error() } -> std::same_as<bool>;
+    { awaiter.await_resume() };
+};
+
+template<
+    typename Promise
+>
+class early_termination_synchronous_awaiter
+    :
+    public early_termination_awaiter<Promise>
+{
+public:
+    early_termination_synchronous_awaiter(
+        Promise& promise
+    ) noexcept :
+        early_termination_synchronous_awaiter::early_termination_awaiter(promise)
+    {}
+
+    bool await_ready(
+        this is_termination_synchronous_awaiter auto& self
+    ) noexcept(noexcept(self.is_error()))
+    {
+        return !self.is_error();
+    }
+
+    auto await_suspend(
+        this is_termination_synchronous_awaiter auto& self
+    ) noexcept
+    {
+        // This method is only called if is_error() was true,
+        // so it represents an error situation.
+        // We should resume the error-handling continuation of the promise.
+        return self.error_handling_continuation();
+    }
+};
 
 template<
     typename Policy
@@ -60,7 +127,7 @@ public:
 
     auto handle_errors(
         this auto&& self
-    )
+    ) noexcept
     {
         return task_awaiter
         {
@@ -80,7 +147,7 @@ public:
 
     auto operator co_await (
         this std::movable auto&& self
-        )
+        ) noexcept
     {
         return basic_early_termination_task_co_await_operation
         {
@@ -100,6 +167,10 @@ template<
 {
     template<
         typename Promise
+    > friend class early_termination_awaiter;
+
+    template<
+        typename Promise
     > class non_error_handling_awaiter
         :
     public task_awaiter<Promise>
@@ -113,7 +184,8 @@ template<
 
 public:
     auto get_return_object(
-        this auto& self)
+        this auto& self
+    ) noexcept
     {
         return basic_early_termination_task{ self };
     }
@@ -134,7 +206,7 @@ public:
         typename Promise
     > auto await_transform(
         basic_early_termination_task_co_await_operation<Promise>&& operation
-    )
+    ) noexcept
     {
         return non_error_handling_awaiter
         {
@@ -290,5 +362,6 @@ using detail::early_termination_task;
 using detail::early_termination_promise;
 using detail::early_termination_transformer;
 using detail::early_termination_awaiter;
+using detail::early_termination_synchronous_awaiter;
 using detail::early_termination_result;
 }

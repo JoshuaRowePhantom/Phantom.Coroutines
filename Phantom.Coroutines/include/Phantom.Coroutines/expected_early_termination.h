@@ -3,6 +3,7 @@
 #include "early_termination_task.h"
 #include "type_traits.h"
 #include <concepts>
+#include <expected>
 #include <utility>
 #include <type_traits>
 
@@ -10,14 +11,6 @@ namespace Phantom::Coroutines
 {
 namespace detail
 {
-
-class expected_early_termination_transformer
-    :
-    public early_termination_transformer
-{
-public:
-
-};
 
 class expected_early_termination_result
     :
@@ -27,7 +20,7 @@ public:
     template<
         is_template_instantiation<std::expected> Expected
     >
-    decltype(auto) return_result(
+    static decltype(auto) return_result(
         Expected&& expected
     )
     {
@@ -44,6 +37,57 @@ public:
             return std::forward_like<Expected>(
                 *expected);
         }
+    }
+};
+
+class expected_early_termination_transformer
+    :
+    public early_termination_transformer
+{
+    template<
+        typename Promise,
+        typename Expected
+    >
+    class expected_awaiter :
+        public early_termination_synchronous_awaiter<Promise>,
+        public expected_early_termination_result
+    {
+        Expected&& m_expected;
+
+    public:
+        expected_awaiter(
+            Promise& promise,
+            Expected&& expected
+        ) :
+            early_termination_synchronous_awaiter<Promise>{ promise },
+            m_expected{ std::forward<Expected>(expected) }
+        {}
+
+        bool is_error() const
+        {
+            return !m_expected.has_value();
+        }
+
+        decltype(auto) await_resume()
+        {
+            return return_result(
+                std::forward<Expected>(m_expected));
+        }
+    };
+
+public:
+    template<
+        typename Expected
+    > auto await_transform(
+        this auto& self,
+        Expected&& expected
+    ) requires is_template_instantiation<Expected, std::expected>
+    {
+        return expected_awaiter
+        {
+            self,
+            std::forward<Expected>(expected)
+        };
     }
 };
 
