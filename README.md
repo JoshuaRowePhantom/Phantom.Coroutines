@@ -67,6 +67,10 @@ Start background tasks asynchronously and wait for them to complete.
    
 Wrap awaitable objects with an awaiter implementation.
 
+### [early_termination_task.h](Documentation/early_termination_task.md)
+   
+Coroutines that terminate execution when termination conditions are encountered.
+
 ### [extensible_promise.h](Documentation/extensible_promise.md)
    
 Write promise types that can be extended or do extend other promise types.
