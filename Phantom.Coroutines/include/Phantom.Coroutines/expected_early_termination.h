@@ -58,14 +58,22 @@ class expected_early_termination_transformer
         expected_awaiter(
             Promise& promise,
             Expected&& expected
-        ) :
+        ) noexcept :
             early_termination_synchronous_awaiter<Promise>{ promise },
             m_expected{ std::forward<Expected>(expected) }
         {}
 
-        bool is_error() const
+        bool is_error() const noexcept
         {
             return !m_expected.has_value();
+        }
+
+        auto return_value() const
+        {
+            return std::unexpected
+            {
+                m_expected.error()
+            };
         }
 
         decltype(auto) await_resume()

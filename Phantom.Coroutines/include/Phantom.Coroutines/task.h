@@ -136,7 +136,7 @@ public:
             );
         }
 
-        return self.return_result<result_index>(
+        return self.variant_result_storage<Result>::return_result<result_index>(
             self.m_result);
     }
 
