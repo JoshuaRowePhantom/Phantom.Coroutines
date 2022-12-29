@@ -63,6 +63,7 @@ template<
 
     friend class basic_task<basic_task_promise>;
 
+protected:
     typedef std::variant<
         std::monostate,
         typename variant_result_storage<Result>::result_variant_member_type,
@@ -163,7 +164,7 @@ template<
     :
 public extensible_awaitable<Promise>
 {
-protected:
+public:
     task_awaitable(
     )
     {}
@@ -181,8 +182,7 @@ protected:
     {
         other.handle() = nullptr;
     }
-
-public:
+    
     task_awaitable& operator=(
         task_awaitable&& other
         )
@@ -208,13 +208,12 @@ template<
     typename Promise
 > class task_awaiter 
     :
-task_awaitable<Promise>
+public task_awaitable<Promise>
 {
 public:
     task_awaiter(
         task_awaitable<Promise>&& other
-    ) :
-        task_awaitable<Promise>{ std::move(other) }
+    ) : task_awaitable<Promise>(std::move(other))
     {}
 
     bool await_ready(
@@ -247,10 +246,7 @@ template<
     public task_awaitable<Promise>
 {
 public:
-    basic_task(coroutine_handle<Promise> handle)
-        : task_awaitable<Promise>{ handle }
-    {}
-
+    using basic_task::task_awaitable::task_awaitable;
     using promise_type = Promise;
 
     basic_task()
@@ -274,7 +270,6 @@ namespace Phantom::Coroutines
 using detail::basic_task;
 using detail::basic_task_promise;
 using detail::task;
-using detail::task_awaiter;
 using detail::task_promise;
 
 }

@@ -115,6 +115,36 @@ constexpr bool tuple_has_element_v<
     = tuple_has_element_v<Type, std::tuple<RemainingElements...>>;
 
 template<
+    typename ... Tuples
+> struct tuple_cat_types
+{
+    static_assert(sizeof...(Tuples) == 0);
+    typedef std::tuple<> tuple_type;
+};
+
+template<
+    typename ... Types
+> struct tuple_cat_types<
+    std::tuple<Types...>
+>
+{
+    typedef std::tuple<Types...> tuple_type;
+};
+
+template<
+    typename... Types1,
+    typename... Types2,
+    typename... Tuples
+> struct tuple_cat_types<
+    std::tuple<Types1...>,
+    std::tuple<Types2...>,
+    Tuples...
+>
+{
+    typedef std::tuple<Types1..., Types2...> tuple_type;
+};
+
+template<
     typename BoundType
 > struct same_as_filter
 {

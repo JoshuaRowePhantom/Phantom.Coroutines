@@ -1,309 +1,294 @@
 #pragma once
 
-#include "Phantom.Coroutines/type_traits.h"
 #include <concepts>
 #include <exception>
+#include <tuple>
 #include <type_traits>
+#include "await_all_await_transform.h"
+#include "detail/final_suspend_transfer.h"
+#include "detail/variant_result_storage.h"
+#include "extensible_promise.h"
+#include "task.h"
+#include "type_traits.h"
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
-template<
-    typename Traits
-> concept early_termination_traits = true;
+
+class early_termination_policy
+{};
+
+class early_termination_transformer
+    :
+    public early_termination_policy
+{};
+
+class early_termination_result
+    :
+    public early_termination_policy
+{};
+
+class early_termination_awaiter
+    :
+    public early_termination_policy
+{};
 
 template<
-    early_termination_traits Traits
-> class basic_early_termination_task;
+    typename Policy
+> concept is_early_termination_policy = std::derived_from<Policy, early_termination_policy>;
 
-template<
-    typename Task
-> concept is_early_termination_task =
-is_template_instantiation<Task, basic_early_termination_task>;
-
-template<
-    typename T
-> class early_termination_result;
-
-template<
-    typename T
-> concept is_early_termination_result =
-is_template_instantiation<T, early_termination_result>;
-
-template<
-    early_termination_traits Traits
-> class basic_early_termination_promise;
-
+// This class is returned from the co_await
+// operator of basic_early_termination_task.
+// It is noticeably NOT an awaiter.
+// It is turned into an awaiter in the await_transform method of basic_early_termination_promise,
+// or by the handle_errors() method.
 template<
     typename Promise
-> concept is_early_termination_promise
-= is_template_instantiation<Promise, basic_early_termination_promise>;
-
-template<
-    typename Transformer,
-    typename Promise
-> concept is_early_termination_await_transformer
-= std::convertible_to<Transformer, Promise>
-&& is_early_termination_promise<Promise>;
-
-template<
-    is_early_termination_promise Promise
-> class basic_early_termination_awaiter;
-
-template<
-    is_early_termination_task Task
-> class basic_early_termination_task_awaiter;
-
-template<
-    is_early_termination_promise Promise
-> class basic_early_termination_transformed_awaiter;
-
-template<
-    is_early_termination_promise Promise
-> class basic_early_termination_task_await_transformer;
-
-template<
-    is_early_termination_promise CallingPromise,
-    is_early_termination_task Task
-> class basic_early_termination_transformed_task_awaiter;
-
-template<
-    is_early_termination_promise Promise
-> class basic_early_termination_final_suspend_awaiter;
-
-// The basic_early_termination_task_awaiter is returned
-// by operator co_await of basic_early_termination_task, and provides
-// the behavior of co_await'ing a basic_early_termination_task
-// outside of another basic_early_termination_promise.
-// This is the point of interoperation with ordinary caller co-routines.
-template<
-    is_early_termination_task Task
-> class basic_early_termination_task_awaiter
+> class basic_early_termination_task_co_await_operation
+    :
+    public task_awaitable<Promise>
 {
     template<
-        early_termination_traits Traits
-    > friend class basic_early_termination_task;
-
-    Task& m_task;
-
-    basic_early_termination_task_awaiter(
-        Task& task
-    )
-    {}
-
-public:
-
-};
-
-// An early_termination_task converts exceptions and
-// special returns into an early termination of the current coroutine
-// and a resumption of an error-handling coroutine.
-// If the caller was not an early_termination_task,
-// the exception or special return is converted back into
-// a rethrown exception in that caller.
-// The underlying exception of a called can be obtained
-// from an early_termination_task coroutine by using
-// the handle_error() function.
-template<
-    early_termination_traits Traits
-> class basic_early_termination_task
-{
-public:
-    auto operator co_await() && noexcept
-    {
-        return basic_early_termination_task_awaiter{ *this };
-    }
-};
-
-template<
-    typename T
-> class early_termination_result
-{
-    T m_value;
-public:
-    template<
-        typename ... Args
-    > early_termination_result(
-        Args&&... args
-    ) :
-        m_value(std::forward<Args>(args)...)
-    {
-    }
-};
-
-// The basic_early_termination_final_suspend_awaiter transfers control
-// to the correct calling coroutine after a promise has completed.
-template<
-    is_early_termination_promise Promise
-> class basic_early_termination_final_suspend_awaiter
-{
-    template<
-        early_termination_traits Traits
+        typename Result,
+        typename ErrorResult,
+        typename Continuation
     > friend class basic_early_termination_promise;
 
-    Promise& m_promise;
-
-    basic_early_termination_final_suspend_awaiter(
-        Promise& promise
-    ) :
-        m_promise(promise)
-    {}
-
 public:
-    bool await_ready() const noexcept
-    {
-        return false;
-    }
+    using basic_early_termination_task_co_await_operation::task_awaitable::task_awaitable;
 
-    coroutine_handle<> await_suspend(
-        coroutine_handle<>
+    auto handle_errors(
+        this auto&& self
     )
     {
-        return m_promise.resume();
-    }
-
-    [[noreturn]]
-    void await_resume() const noexcept
-    {
-        std::terminate();
-    }
-};
-
-// basic_early_termination_promise provides the early
-// termination behavior for basic_early_termination_task.
-template<
-    early_termination_traits Traits
-> class basic_early_termination_promise
-{
-public:
-    // Choose the correct coroutine to resume.
-    // The caller can resume the coroutine by
-    // symmetric transfer or by a call to resume().
-    coroutine_handle<> resume() noexcept
-    {
-    }
-
-    template<
-        typename T
-    > void return_value(
-        T&& result
-    ) noexcept(std::is_nothrow_move_constructible_v<T>)
-    {
-    }
-
-    void unhandled_exception() noexcept
-    {
-        return_value(
-            early_termination_result
-            {
-                std::current_exception()
-            }
-        );
-    }
-
-    std::suspend_always initial_suspend() const noexcept
-    {
-        return {};
-    }
-
-    auto final_suspend() const noexcept
-    {
-        return basic_early_termination_final_suspend_awaiter{ *this };
-    }
-};
-
-// The basic_early_termination_transformed_awaiter is the base
-// class for awaiters of arbitrary types within the early return
-// framework, including the basic_early_termination_transformed_task_awaiter.
-// Derived classes can call set_result to set the result of the awaiter,
-// including an early_termination_result. Then, the derived
-// class can use resume() to obtain the coroutine_handle to result.
-// The derived class can resume the coroutine_handle either by
-// symmetric transfer or directly calling resume().
-template<
-    is_early_termination_promise CallingPromise
-> class basic_early_termination_transformed_awaiter
-{
-    CallingPromise& m_promise;
-
-protected:
-    template<
-        is_early_termination_await_transformer<CallingPromise> AwaitTransformer
-    >
-    basic_early_termination_transformed_awaiter(
-        AwaitTransformer& transformer
-    ) noexcept
-        : m_promise(static_cast<CallingPromise&>(transformer))
-    {
-    }
-
-    template<
-        typename T
-    > void return_value(
-        T&& result
-    ) noexcept(std::is_nothrow_move_constructible_v<T>)
-    {
-        return m_promise.return_value(
-            std::forward<T>(result)
-        );
-    }
-
-    coroutine_handle<> resume() noexcept
-    {
-        return m_promise.resume();
-    }
-};
-
-template<
-    is_early_termination_promise CallingPromise,
-    is_early_termination_task Task
-> class basic_early_termination_transformed_task_awaiter
-    :
-public basic_early_termination_transformed_awaiter<
-    CallingPromise
->
-{
-    template<
-        is_early_termination_promise Promise
-    > friend class basic_early_termination_task_await_transformer;
-
-    template<
-        is_early_termination_await_transformer<CallingPromise> AwaitTransformer
-    > basic_early_termination_transformed_task_awaiter(
-        AwaitTransformer& transformer,
-        Task&& task
-    ) :
-        basic_early_termination_transformed_awaiter<CallingPromise>(transformer)
-    {}
-
-public:
-};
-
-template<
-    is_early_termination_promise Promise
-> class basic_early_termination_task_await_transformer
-{
-public:
-    template<
-        is_early_termination_task Task
-    > decltype(auto) await_transform(
-        Task&& awaitable
-    )
-    {
-        return basic_early_termination_transformed_task_awaiter
+        return task_awaiter
         {
-            *this,
-            awaitable,
+            std::move(self)
         };
     }
 };
 
+template<
+    typename Promise
+> class basic_early_termination_task
+    :
+public basic_task<Promise>
+{
+public:
+    using basic_early_termination_task::basic_task::basic_task;
+
+    auto operator co_await (
+        this std::movable auto&& self
+        )
+    {
+        return basic_early_termination_task_co_await_operation
+        {
+            std::move(self),
+        };
+    }
+};
+
+template<
+    typename Result,
+    typename ErrorResult,
+    typename Continuation
+> class basic_early_termination_promise
+    :
+    private basic_task_promise<ErrorResult, Continuation>,
+    public await_all_await_transform
+{
+    template<
+        typename Promise
+    > class non_error_handling_awaiter
+        :
+    public task_awaiter<Promise>
+    {
+        friend class basic_early_termination_promise;
+
+        using non_error_handling_awaiter::task_awaitable::task_awaitable;
+    };
+
+    Continuation m_errorHandlingContinuation;
+
+public:
+    auto get_return_object(
+        this auto& self)
+    {
+        return basic_early_termination_task{ self };
+    }
+
+    void unhandled_exception(
+        this auto& self
+    ) noexcept
+    {
+        self.m_continuation = self.m_errorHandlingContinuation;
+        self.basic_early_termination_promise::basic_task_promise::unhandled_exception();
+    }
+
+    using await_all_await_transform::await_transform;
+
+    // For early termination task awaiters that have specified not to handle errors,
+    // return an awaiter that performs all the special logic of an early termination promise.
+    template<
+        typename Promise
+    > auto await_transform(
+        basic_early_termination_task_co_await_operation<Promise>&& operation
+    )
+    {
+        return non_error_handling_awaiter
+        {
+            std::move(operation),
+        };
+    }
+
+    using basic_early_termination_promise::basic_task_promise::await_ready;
+
+    // Suspend error-handling awaiters.
+    template<
+        std::derived_from<basic_early_termination_promise> Promise
+    >
+    auto await_suspend(
+        this Promise& self,
+        task_awaiter<Promise>& awaiter,
+        auto continuation
+    )
+    {
+        // Use the continuation for this awaiter as the error handling.
+        m_errorHandlingContinuation = continuation;
+
+        return basic_early_termination_promise::basic_task_promise::await_suspend(
+            self,
+            awaiter,
+            continuation
+        );
+    }
+
+    // Suspend non-error-handling awaiters
+    template<
+        std::derived_from<basic_early_termination_promise> Promise
+    >
+    auto await_suspend(
+        this Promise& self,
+        non_error_handling_awaiter<Promise>& nonErrorHandlingAwaiter,
+        auto continuation
+    )
+    {
+        // Use the error handling continuation of the promise associated
+        // with the non-error-handling continuation.
+        // continuation is guaranteed to be the coroutine handle of a basic_early_termination_promise.
+        m_errorHandlingContinuation = continuation.promise().m_errorHandlingContinuation;
+
+        return basic_early_termination_promise::basic_task_promise::await_suspend(
+            self,
+            nonErrorHandlingAwaiter,
+            continuation
+        );
+    }
+
+    // Resume error-handling awaiters.
+    template<
+        std::derived_from<basic_early_termination_promise> Promise
+    >
+    decltype(auto) await_resume(
+        this Promise& self,
+        task_awaiter<Promise>& awaiter
+    )
+    {
+        return self.basic_early_termination_promise::basic_task_promise::await_resume(
+            awaiter);
+    }
+
+    // Resume non-error-handling awaiters.
+    template<
+        std::derived_from<basic_early_termination_promise> Promise
+    >
+    decltype(auto) await_resume(
+        this Promise& self,
+        non_error_handling_awaiter<Promise>& awaiter
+    )
+    {
+        // The task is guaranteed to have succeeded,
+        // otherwise we would have resumed an error-handling awaiter.
+        // Transform the result into the final result type.
+        return self.return_result(
+            std::move(get<self.result_index>(self.m_result))
+        );
+    }
+};
+
+template<
+    typename Promise
+> constexpr bool is_early_termination_promise_v = false;
+
+template<
+    typename Promise
+> concept is_early_termination_promise =
+is_template_instantiation<Promise, basic_early_termination_promise>;
+
+template<
+    typename Tuple
+>
+class early_termination_promise_inheritor;
+
+template<
+    typename ... Types
+>
+class early_termination_promise_inheritor<
+    std::tuple<Types...>
+> :
+    public Types...
+{};
+
+template<
+    typename Policy
+> struct early_termination_policy_selector
+:
+    std::integral_constant<
+        bool,
+    is_early_termination_policy<Policy>
+>
+{};
+
+template<
+    typename Result,
+    typename ErrorResult,
+    typename ... Policies
+> using early_termination_promise = 
+    early_termination_promise_inheritor<
+        typename tuple_cat_types<
+            filter_types<
+                early_termination_policy_selector,
+                std::tuple<Policies...>
+            >,
+            std::tuple<
+                basic_early_termination_promise
+                <
+                    Result,
+                    ErrorResult,
+                    select_continuation_type<Policies...>
+                >
+            >
+        >::tuple_type
+    >;
+
+template<
+    typename Result,
+    typename ErrorResult,
+    typename ... Policies
+> using early_termination_task =
+    basic_early_termination_task<
+        early_termination_promise<
+            Result,
+            ErrorResult,
+            Policies...
+        >
+    >;
 }
-using detail::basic_early_termination_awaiter;
-using detail::basic_early_termination_promise;
-using detail::basic_early_termination_task;
-using detail::is_early_termination_result;
-using detail::is_early_termination_promise;
-using detail::is_early_termination_await_transformer;
+
+using detail::early_termination_task;
+using detail::early_termination_promise;
+using detail::early_termination_transformer;
+using detail::early_termination_awaiter;
+using detail::early_termination_result;
 }
