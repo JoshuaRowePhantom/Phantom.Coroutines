@@ -81,6 +81,14 @@ static_assert(0 == tuple_element_index_v<int, std::tuple<int, char, char>>);
 static_assert(1 == tuple_element_index_v<int, std::tuple<char, int, char>>);
 static_assert(2 == tuple_element_index_v<int, std::tuple<char, char, int>>);
 
+// Verify that tuple_cat_types works
+static_assert(std::same_as<tuple_cat_types_t<>, std::tuple<>>);
+static_assert(std::same_as<tuple_cat_types_t<std::tuple<>>, std::tuple<>>);
+static_assert(std::same_as<tuple_cat_types_t<std::tuple<>, std::tuple<>>, std::tuple<>>);
+static_assert(std::same_as<tuple_cat_types_t<std::tuple<int>, std::tuple<char>>, std::tuple<int, char>>);
+static_assert(std::same_as<tuple_cat_types_t<std::tuple<int>, std::tuple<char>, std::tuple<long>>, std::tuple<int, char, long>>);
+static_assert(std::same_as<tuple_cat_types_t<std::tuple<int>, std::tuple<char, float>, std::tuple<long>>, std::tuple<int, char, float, long>>);
+
 // Verify that awaitable_result_type_t produces valid results
 static_assert(is_awaiter<typed_awaiter<void>>);
 static_assert(is_awaiter<typed_awaiter<void, bool>>);

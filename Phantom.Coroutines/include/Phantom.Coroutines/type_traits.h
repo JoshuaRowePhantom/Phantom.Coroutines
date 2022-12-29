@@ -46,8 +46,8 @@ std::is_empty_v<T>;
 
 template<
     template<typename> typename Filter,
-    typename TypesTuple,
-    typename FilteredTypesTuple = std::tuple<>
+    is_template_instantiation<std::tuple> TypesTuple,
+    is_template_instantiation<std::tuple> FilteredTypesTuple = std::tuple<>
 > struct filter_tuple_types;
 
 template<
@@ -115,12 +115,16 @@ constexpr bool tuple_has_element_v<
     = tuple_has_element_v<Type, std::tuple<RemainingElements...>>;
 
 template<
-    typename ... Tuples
+    is_template_instantiation<std::tuple> ... Tuples
 > struct tuple_cat_types
 {
     static_assert(sizeof...(Tuples) == 0);
     typedef std::tuple<> tuple_type;
 };
+
+template<
+    typename ... Tuples
+> using tuple_cat_types_t = typename tuple_cat_types<Tuples...>::tuple_type;
 
 template<
     typename ... Types
@@ -141,7 +145,7 @@ template<
     Tuples...
 >
 {
-    typedef std::tuple<Types1..., Types2...> tuple_type;
+    typedef tuple_cat_types_t<std::tuple<Types1..., Types2...>, Tuples...> tuple_type;
 };
 
 template<
