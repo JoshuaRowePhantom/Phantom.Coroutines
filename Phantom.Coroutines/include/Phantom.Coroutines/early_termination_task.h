@@ -153,31 +153,31 @@ template<
         typename Continuation
     > friend class basic_early_termination_promise;
 
+    void do_static_assert_cannot_await()
+    {
+        static_assert(always_false<Promise>, "Cannot co_await an early_termination_task except by calling handle_errors() or inside a early_termination_task coroutine.");
+    }
+
 public:
     basic_early_termination_task_co_await_operation(
         task_awaitable<Promise>&& other
     ) : task_awaitable<Promise>{ std::move(other) }
     {}
 
-    void doassert()
-    {
-        static_assert(always_false<Promise>, "Cannot co_await an early_termination_task except by calling handle_errors() or inside a early_termination_task coroutine.");
-    }
-
     // Implement the awaiter methods so that we can emit a useful static_assert message.
     void await_ready()
     {
-        doassert();
+        do_static_assert_cannot_await();
     }
 
     void await_suspend(auto)
     {
-        doassert();
+        do_static_assert_cannot_await();
     }
 
     void await_resume()
     {
-        doassert();
+        do_static_assert_cannot_await();
     }
 };
 
