@@ -63,10 +63,18 @@ template<
 > concept is_early_termination_synchronous_awaiter = requires (Awaiter awaiter)
 {
     { awaiter.is_error() } -> std::same_as<bool>;
+    // Implemented by a early_termination_synchronous_awaiter derived class to return
+    // the awaited value in an error handling context.
     { awaiter.return_value() };
+    // Implemented by a early_termination_synchronous_awaiter derived class to return
+    // the awaited value in a non-error handling context.
     { awaiter.await_resume() };
 };
 
+// early_termination_synchronous_awaiter provides a framework for awaiting
+// synchronously-obtained values.
+// Derived classes must implement the is_early_termination_synchronous_awaiter
+// concept.
 template<
     typename Promise
 >
