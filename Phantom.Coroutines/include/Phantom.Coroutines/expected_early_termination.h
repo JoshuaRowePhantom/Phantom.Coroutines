@@ -20,7 +20,7 @@ public:
     template<
         is_template_instantiation<std::expected> Expected
     >
-    static decltype(auto) return_result(
+    static decltype(auto) get_success_value(
         Expected&& expected
     )
     {
@@ -68,7 +68,7 @@ class expected_early_termination_transformer
             return !m_expected.has_value();
         }
 
-        auto return_value() const
+        auto get_error_value() const
         {
             return std::unexpected
             {
@@ -78,7 +78,7 @@ class expected_early_termination_transformer
 
         decltype(auto) await_resume()
         {
-            return return_result(
+            return get_success_value(
                 std::forward<Expected>(m_expected));
         }
     };

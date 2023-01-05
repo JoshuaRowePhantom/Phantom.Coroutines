@@ -45,6 +45,22 @@ protected:
         return self.promise().m_errorHandlingContinuation;
     }
 
+    auto& error_reporting_promise(
+        this auto& self
+    ) noexcept
+    {
+        return self.promise().m_errorReportingContinuation.promise();
+    }
+
+    void return_error_value(
+        auto&& value
+    )
+    {
+        //error_reporting_promise().return_value(
+        //    std::forward<decltype(value)>(value)
+        //);
+    }
+
 public:
     early_termination_awaiter(
         Promise& promise
@@ -63,9 +79,9 @@ template<
 > concept is_early_termination_synchronous_awaiter = requires (Awaiter awaiter)
 {
     { awaiter.is_error() } -> std::same_as<bool>;
-    // Implemented by a early_termination_synchronous_awaiter derived class to return
+    // Implemented by a early_termination_synchronous_awaiter derived class to get
     // the awaited value in an error handling context.
-    { awaiter.return_value() };
+    { awaiter.get_error_value() };
     // Implemented by a early_termination_synchronous_awaiter derived class to return
     // the awaited value in a non-error handling context.
     { awaiter.await_resume() };
@@ -94,6 +110,7 @@ public:
     ) noexcept(noexcept(self.is_error()))
     {
         static_assert(is_early_termination_synchronous_awaiter<decltype(self)>);
+
         return !self.is_error();
     }
 
@@ -106,8 +123,8 @@ public:
     {
         static_assert(is_early_termination_synchronous_awaiter<decltype(self)>);
         
-        continuation.promise().return_value(
-            self.return_value()
+        self.return_error_value(
+            self.get_error_value()
         );
 
         // This method is only called if is_error() was true,
@@ -142,6 +159,20 @@ template<
     std::integral_constant<
         bool,
         is_early_termination_transformer<Policy>
+    >
+{};
+
+template<
+    typename Policy
+> concept is_early_termination_result = std::derived_from<Policy, early_termination_result>;
+
+template<
+    typename Policy
+> struct early_termination_result_selector
+    :
+    std::integral_constant<
+        bool,
+        is_early_termination_result<Policy>
     >
 {};
 
@@ -244,9 +275,10 @@ template<
     {
         friend class basic_early_termination_promise;
 
-        using non_error_handling_awaiter::task_awaitable::task_awaitable;
+        using non_error_handling_awaiter::task_awaiter::task_awaiter;
     };
 
+    Continuation m_errorReportingContinuation;
     Continuation m_errorHandlingContinuation;
 
 public:
@@ -261,21 +293,21 @@ public:
         this auto& self
     ) noexcept
     {
-        self.m_continuation = self.m_errorHandlingContinuation;
+        self.continuation() = self.m_errorHandlingContinuation;
         self.basic_early_termination_promise::basic_task_promise::unhandled_exception();
     }
 
     using await_all_await_transform::await_transform;
 
-    // For early termination task awaiters that have specified not to handle errors,
+    // For early termination tasks that have specified not to handle errors,
     // return an awaiter that performs all the special logic of an early termination promise.
     template<
         typename Promise
     > auto await_transform(
-        basic_early_termination_task_co_await_operation<Promise>&& operation
+        basic_early_termination_task<Promise>&& operation
     ) noexcept
     {
-        return non_error_handling_awaiter
+        return non_error_handling_awaiter<Promise>
         {
             std::move(operation),
         };
@@ -283,7 +315,7 @@ public:
 
     using basic_early_termination_promise::basic_task_promise::await_ready;
 
-    // Suspend error-handling awaiters.
+    // Suspend error-handling awaiters for this promise.
     template<
         std::derived_from<basic_early_termination_promise> Promise
     >
@@ -295,6 +327,7 @@ public:
     {
         // Use the continuation for this awaiter as the error handling.
         self.m_errorHandlingContinuation = continuation;
+        self.m_errorReportingContinuation = self.handle();
 
         return self.basic_early_termination_promise::basic_task_promise::await_suspend(
             awaiter,
@@ -302,7 +335,7 @@ public:
         );
     }
 
-    // Suspend non-error-handling awaiters
+    // Suspend non-error-handling awaiters for this promise.
     template<
         std::derived_from<basic_early_termination_promise> Promise
     >
@@ -316,6 +349,7 @@ public:
         // with the non-error-handling continuation.
         // continuation is guaranteed to be the coroutine handle of a basic_early_termination_promise.
         self.m_errorHandlingContinuation = continuation.promise().m_errorHandlingContinuation;
+        self.m_errorReportingContinuation = continuation.promise().m_errorReportingContinuation;
 
         return self.basic_early_termination_promise::basic_task_promise::await_suspend(
             nonErrorHandlingAwaiter,
@@ -323,7 +357,7 @@ public:
         );
     }
 
-    // Resume error-handling awaiters.
+    // Resume error-handling awaiters for this promise.
     template<
         std::derived_from<basic_early_termination_promise> Promise
     >
@@ -336,7 +370,7 @@ public:
             awaiter);
     }
 
-    // Resume non-error-handling awaiters.
+    // Resume non-error-handling awaiters for this promise.
     template<
         std::derived_from<basic_early_termination_promise> Promise
     >
@@ -348,8 +382,8 @@ public:
         // The task is guaranteed to have succeeded,
         // otherwise we would have resumed an error-handling awaiter.
         // Transform the result into the final result type.
-        return self.return_result(
-            std::move(get<self.result_index>(self.m_result))
+        return self.get_success_value(
+            self.return_successful_result()
         );
     }
 };
@@ -370,6 +404,11 @@ template<
         typename filter_tuple_types<
             early_termination_transformer_selector,
             PoliciesTuple
+        >::tuple_type,
+    is_template_instantiation<std::tuple> ResultTypesTuple =
+        typename filter_tuple_types<
+            early_termination_result_selector,
+            PoliciesTuple
         >::tuple_type
 >
 class early_termination_promise_inheritor;
@@ -377,18 +416,22 @@ class early_termination_promise_inheritor;
 template<
     typename Promise,
     typename ... Policies,
-    typename ... Transformers
+    typename ... Transformers,
+    typename ... Results
 >
 class early_termination_promise_inheritor<
     Promise,
     std::tuple<Policies...>,
-    std::tuple<Transformers...>
+    std::tuple<Transformers...>,
+    std::tuple<Results...>
 > :
     public Policies...,
     public Promise
 {
 public:
     using Transformers::await_transform...;
+    using Results::get_success_value...;
+    using Promise::await_transform;
 };
 
 template<

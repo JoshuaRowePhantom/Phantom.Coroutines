@@ -63,7 +63,7 @@ template<
 
     friend class basic_task<basic_task_promise>;
 
-protected:
+private:
     typedef std::variant<
         std::monostate,
         typename variant_result_storage<Result>::result_variant_member_type,
@@ -75,6 +75,14 @@ protected:
     static const size_t exception_index = 2;
 
     Continuation m_continuation;
+
+protected:
+    Continuation& continuation(
+        this auto& self
+    )
+    {
+        return self.m_continuation;
+    }
 
 public:
     typedef Result result_type;
@@ -119,8 +127,25 @@ public:
         auto continuation
     )
     {
-        self.m_continuation = continuation;
+        self.continuation() = continuation;
         return self.handle();
+    }
+
+    bool has_exception(
+        this auto& self
+    ) noexcept
+    {
+        return self.m_result.index() == exception_index;
+    }
+
+    [[noreturn]] void rethrow_exception(
+        this auto& self
+    )
+    {
+        std::rethrow_exception(
+            get<exception_index>(
+                self.m_result)
+        );
     }
 
     decltype(auto) await_resume(
@@ -128,16 +153,29 @@ public:
         auto& awaiter
     )
     {
-        if (self.m_result.index() == exception_index)
+        if (self.has_exception())
         {
-            rethrow_exception(
-                get<exception_index>(
-                    self.m_result)
-            );
+            self.rethrow_exception();
         }
+
+        return self.return_successful_result();
+    }
+
+    decltype(auto) return_successful_result(
+        this auto& self)
+    {
+        [[assume(self.m_result.index() == result_index)]];
 
         return self.variant_result_storage<Result>::return_result<result_index>(
             self.m_result);
+    }
+
+    decltype(auto) return_exception(
+        this auto& self,
+        std::exception_ptr exception)
+    {
+        self.m_result.emplace<exception_index>(
+            std::move(exception));
     }
 
     void return_variant_result(
@@ -153,7 +191,7 @@ public:
         this auto& self
     )
     {
-        self.m_result.emplace<exception_index>(
+        return self.return_exception(
             std::current_exception());
     }
 };
