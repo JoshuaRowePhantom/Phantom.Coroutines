@@ -156,6 +156,7 @@ ASYNC_TEST(expected_early_termination_test, co_await_expected_handle_errors_with
     auto lambda2 = [&]() -> expected_int_early_termination_task<long>
     {
         auto result = co_await lambda1().handle_errors();
+        static_assert(std::same_as<std::expected<int, int>, decltype(result)>);
         EXPECT_EQ(result, (std::expected<long, int>{ 5 }));
         co_return 6;
     };
