@@ -319,11 +319,12 @@ public:
 };
 
 template<
+    typename ErrorResult,
     typename Promise
 > class non_error_handling_awaiter
     :
     public task_awaiter<Promise>,
-    non_error_handling_awaiter_error_retriever<typename Promise::result_type>
+    non_error_handling_awaiter_error_retriever<ErrorResult>
 {
     template<
         typename ErrorResult,
@@ -332,7 +333,7 @@ template<
 
     using non_error_handling_awaiter::task_awaiter::task_awaiter;
 
-    virtual typename Promise::result_type get_error_value(
+    virtual typename ErrorResult get_error_value(
         basic_early_termination_promise_identity* errorReportingPromise
     ) override
     {
@@ -358,8 +359,9 @@ template<
     template<
         typename Promise
     > friend class early_termination_awaiter;
-
+    
     template<
+        typename ErrorResult,
         typename Promise
     > friend class non_error_handling_awaiter;
 
@@ -392,6 +394,8 @@ template<
     }
 
 public:
+    using typename basic_task_promise<ErrorResult, Continuation>::result_type;
+
     auto error_handling_continuation(
         this auto& self
     )
@@ -473,7 +477,7 @@ public:
         basic_early_termination_task<Promise>&& operation
     ) noexcept
     {
-        return non_error_handling_awaiter<Promise>
+        return non_error_handling_awaiter<result_type, Promise>
         {
             std::move(operation),
         };
@@ -502,11 +506,12 @@ public:
 
     // Suspend non-error-handling awaiters for this promise.
     template<
+        typename ErrorResult,
         std::derived_from<basic_early_termination_promise> Promise
     >
     auto await_suspend(
         this Promise& self,
-        non_error_handling_awaiter<Promise>& nonErrorHandlingAwaiter,
+        non_error_handling_awaiter<ErrorResult, Promise>& nonErrorHandlingAwaiter,
         auto continuation
     )
     {
@@ -514,7 +519,7 @@ public:
         // with the non-error-handling continuation.
         // continuation is guaranteed to be the coroutine handle of a basic_early_termination_promise.
         self.m_errorReporter = continuation.promise().m_errorReporter;
-        self.m_errorRetriever = &nonErrorHandlingAwaiter;
+        continuation.promise().m_errorRetriever = &nonErrorHandlingAwaiter;
 
         return self.basic_early_termination_promise::basic_task_promise::await_suspend(
             nonErrorHandlingAwaiter,
@@ -545,11 +550,12 @@ public:
 
     // Resume non-error-handling awaiters for this promise.
     template<
+        typename ErrorResult,
         std::derived_from<basic_early_termination_promise> Promise
     >
     decltype(auto) await_resume(
         this Promise& self,
-        non_error_handling_awaiter<Promise>& awaiter
+        non_error_handling_awaiter<ErrorResult, Promise>& awaiter
     )
     {
         // The task is guaranteed to have succeeded,
