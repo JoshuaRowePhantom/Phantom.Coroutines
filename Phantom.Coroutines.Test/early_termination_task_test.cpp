@@ -2,13 +2,14 @@
 #include "Phantom.Coroutines/early_termination_task.h"
 #include "Phantom.Coroutines/error_condition_early_termination.h"
 #include "Phantom.Coroutines/expected_early_termination.h"
+#include "lifetime_tracker.h"
 
 namespace Phantom::Coroutines
 {
 namespace
 {
 template<
-    typename Value
+    typename Value = void
 > using expected_int_early_termination_task =
 early_termination_task<
     std::expected<Value, int>,
@@ -163,6 +164,30 @@ ASYNC_TEST(expected_early_termination_test, co_await_expected_handle_errors_with
 
     auto result = co_await lambda2().handle_errors();
     EXPECT_EQ(result, (std::expected<long, int>(6)));
+}
+
+ASYNC_TEST(expected_early_termination_test, error_causes_coroutine_to_be_destroyed_before_resuming_caller)
+{
+    detail::lifetime_statistics statistics;
+
+    auto lambda1 = [&]() -> expected_int_early_termination_task<>
+    {
+        auto tracker = statistics.tracker();
+        EXPECT_EQ(statistics.instance_count, 1);
+        co_await std::expected<int, int> { std::unexpected{ 5 } };
+        EXPECT_TRUE(false);
+        co_return{};
+    };
+
+    auto lambda2 = [&](std::expected<void, int> result) -> task<>
+    {
+        EXPECT_EQ(statistics.instance_count, 0);
+        co_return;
+    };
+
+    co_await lambda2(
+        co_await lambda1().handle_errors()
+    );
 }
 
 }
