@@ -515,6 +515,7 @@ std::constructible_from<Continuation>
     { c.resume() };
     { static_cast<bool>(c) };
     { static_cast<coroutine_handle<>>(c) };
+    { c.destroy() };
 };
 
 template<

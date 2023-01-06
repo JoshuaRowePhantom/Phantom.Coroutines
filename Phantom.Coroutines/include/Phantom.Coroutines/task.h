@@ -5,6 +5,7 @@
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
 #include "detail/promise_traits.h"
+#include "detail/scope_guard.h"
 #include "detail/variant_result_storage.h"
 #include "single_consumer_promise.h"
 #include <concepts>
@@ -51,28 +52,42 @@ template<
 > class task_awaiter;
 
 template<
-    typename Result,
-    is_continuation Continuation
-> class basic_task_promise
+    typename Result
+>
+class basic_task_variant_result
     :
-    public variant_return_result<Result>,
-    public extensible_promise,
-    private variant_result_storage<Result>
+    public variant_result_storage<Result>
 {
-    using variant_result_storage<Result>::is_void;
-
-    friend class basic_task<basic_task_promise>;
-
-private:
+public:
     typedef std::variant<
         std::monostate,
         typename variant_result_storage<Result>::result_variant_member_type,
         std::exception_ptr
     > result_variant_type;
 
-    result_variant_type m_result;
     static const size_t result_index = 1;
     static const size_t exception_index = 2;
+};
+
+template<
+    typename Result,
+    is_continuation Continuation
+> class basic_task_promise
+    :
+    public extensible_promise,
+    public variant_return_result<Result>,
+    private basic_task_variant_result<Result>
+{
+    using variant_result_storage<Result>::is_void;
+
+    friend class basic_task<basic_task_promise>;
+
+private:
+
+    using typename basic_task_promise::basic_task_variant_result::result_variant_type;
+    using basic_task_promise::basic_task_variant_result::result_index;
+    using basic_task_promise::basic_task_variant_result::exception_index;
+    result_variant_type* m_result;
 
     Continuation m_continuation;
 
@@ -128,6 +143,7 @@ public:
         auto continuation
     )
     {
+        self.m_result = &awaiter.m_result;
         self.continuation() = continuation;
         return self.handle();
     }
@@ -136,7 +152,7 @@ public:
         this auto& self
     ) noexcept
     {
-        return self.m_result.index() == exception_index;
+        return self.m_result->index() == exception_index;
     }
 
     [[noreturn]] void rethrow_exception(
@@ -145,7 +161,7 @@ public:
     {
         std::rethrow_exception(
             get<exception_index>(
-                self.m_result)
+                *self.m_result)
         );
     }
 
@@ -154,6 +170,12 @@ public:
         auto& awaiter
     )
     {
+        scope_guard destroyer = [&]()
+        {
+            self.handle().destroy();
+            awaiter.handle() = nullptr;
+        };
+
         if (self.has_exception())
         {
             self.rethrow_exception();
@@ -165,17 +187,17 @@ public:
     decltype(auto) return_successful_result(
         this auto& self)
     {
-        [[assume(self.m_result.index() == result_index)]];
+        [[assume(*self.m_result->index() == result_index)]];
 
         return self.variant_result_storage<Result>::return_result<result_index>(
-            self.m_result);
+            *self.m_result);
     }
 
     decltype(auto) return_exception(
         this auto& self,
         std::exception_ptr exception)
     {
-        self.m_result.emplace<exception_index>(
+        self.m_result->emplace<exception_index>(
             std::move(exception));
     }
 
@@ -184,7 +206,7 @@ public:
         auto&& value
     )
     {
-        self.m_result.emplace<result_index>(
+        self.m_result->emplace<result_index>(
             std::forward<decltype(value)>(value));
     }
 
@@ -247,8 +269,17 @@ template<
     typename Promise
 > class task_awaiter 
     :
-public task_awaitable<Promise>
+public task_awaitable<Promise>,
+private basic_task_variant_result<typename Promise::result_type>
 {
+    template<
+        typename Result,
+        is_continuation Continuation
+    > friend class basic_task_promise;
+
+    using typename task_awaiter::basic_task_variant_result::result_variant_type;
+    result_variant_type m_result;
+
 public:
     task_awaiter(
         task_awaitable<Promise>&& other
