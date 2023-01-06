@@ -559,6 +559,44 @@ template<
     typename ... Policies
 > using select_policy_t = typename select_policy<PolicySelector, Policies...>::type;
 
+template<
+    typename Owner,
+    typename Value
+> decltype(auto) forward_owned(
+    std::remove_reference_t<Value>&& value
+) noexcept
+{
+    if constexpr (
+        std::is_lvalue_reference_v<Owner>
+        || std::is_lvalue_reference_v<Value>)
+    {
+        return (value);
+    }
+    else
+    {
+        return std::move(value);
+    }
+}
+
+template<
+    typename Owner,
+    typename Value
+> decltype(auto) forward_owned(
+    std::remove_reference_t<Value>& value
+) noexcept
+{
+    if constexpr (
+        std::is_lvalue_reference_v<Owner>
+        || std::is_lvalue_reference_v<Value>)
+    {
+        return (value);
+    }
+    else
+    {
+        return std::move(value);
+    }
+}
+
 }
 
 using detail::awaiter_type;

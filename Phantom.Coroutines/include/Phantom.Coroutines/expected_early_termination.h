@@ -17,26 +17,68 @@ class expected_early_termination_result
     public early_termination_result
 {
 public:
+    static bool is_error_value(
+        const auto& value
+    )
+    {
+        if constexpr (is_template_instantiation<std::remove_cvref_t<decltype(value)>, std::unexpected>)
+        {
+            return true;
+        }
+        else if constexpr (is_template_instantiation<std::remove_cvref_t<decltype(value)>, std::expected>)
+        {
+            return !value;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    template<
+        is_template_instantiation<std::expected> ErrorResult
+    >
+    static ErrorResult get_result_value(
+        ErrorResult&& value
+    )
+    {
+        return ErrorResult{ std::forward<decltype(value)>(value) };
+    }
+
     template<
         is_template_instantiation<std::expected> Expected
     >
     static decltype(auto) get_success_value(
-        Expected&& expected
+        Expected&& value
     )
     {
-        if constexpr (std::same_as<void, typename Expected::value_type>)
+        return *value;
+    }
+
+    template<
+        is_template_instantiation<std::expected> ErrorResult,
+        typename Value,
+        typename Error
+    >
+    static ErrorResult get_error_value(
+        std::expected<Value, Error> expected
+    )
+    {
+        return std::unexpected
         {
-            return;
-        }
-        else if constexpr (std::is_lvalue_reference_v<typename Expected::value_type>)
-        {
-            return *expected;
-        }
-        else
-        {
-            return std::forward_like<Expected>(
-                *expected);
-        }
+            std::forward<Error>(expected.error())
+        };
+    }
+
+    template<
+        is_template_instantiation<std::expected> ErrorResult,
+        typename Error
+    >
+    static ErrorResult get_error_value(
+        std::unexpected<Error> unexpected
+    )
+    {
+        return unexpected;
     }
 };
 

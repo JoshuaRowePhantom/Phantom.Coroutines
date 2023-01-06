@@ -86,6 +86,7 @@ protected:
 
 public:
     typedef Result result_type;
+    typedef Continuation continuation_type;
 
     auto initial_suspend(
         this auto& self

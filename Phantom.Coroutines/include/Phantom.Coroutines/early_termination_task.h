@@ -27,7 +27,37 @@ class early_termination_transformer
 class early_termination_result
     :
     public early_termination_policy
-{};
+{
+    struct invalid_return_value {};
+public:
+    void get_error_value(invalid_return_value);
+    void get_success_value(invalid_return_value);
+};
+
+class basic_early_termination_promise_identity {};
+
+template<
+    typename Continuation
+> class error_handling_early_termination_task_error_reporter
+{
+    template<
+        typename ErrorResult,
+        typename Continuation
+    > friend class basic_early_termination_promise;
+
+
+    template<
+        typename Promise
+    >
+    friend class early_termination_awaiter;
+
+protected:
+    Continuation m_errorHandlingContinuation;
+
+    // This is set to non-null if an error is reported from a chain
+    // of promises, and will point to the promise reporting the error.
+    basic_early_termination_promise_identity* m_errorReportingPromise = nullptr;
+};
 
 template<
     typename Promise
@@ -42,23 +72,16 @@ protected:
         this auto& self
     ) noexcept
     {
-        return self.promise().m_errorHandlingContinuation;
-    }
-
-    auto& error_reporting_promise(
-        this auto& self
-    ) noexcept
-    {
-        return self.promise().m_errorReportingContinuation.promise();
+        return self.promise().error_handling_continuation();
     }
 
     void return_error_value(
+        this auto& self,
         auto&& value
     )
     {
-        //error_reporting_promise().return_value(
-        //    std::forward<decltype(value)>(value)
-        //);
+        return self.promise().return_error_value(
+            std::forward<decltype(value)>(value));
     }
 
 public:
@@ -222,6 +245,36 @@ public:
 
 template<
     typename Promise
+> class basic_error_handling_early_termination_task_awaiter
+    :
+    public task_awaiter<Promise>,
+    private error_handling_early_termination_task_error_reporter<typename Promise::continuation_type>
+{
+    template<
+        typename ErrorResult,
+        typename Continuation
+    > friend class basic_early_termination_promise;
+
+public:
+    basic_error_handling_early_termination_task_awaiter(
+        task_awaitable<Promise>&& other
+    ) : task_awaiter<Promise>(
+        std::move(other))
+    {}
+
+    auto await_suspend(
+        this auto& self,
+        auto continuation
+    )
+    {
+        self.m_errorHandlingContinuation = continuation;
+        return self.task_awaiter<Promise>::await_suspend(
+            continuation);
+    }
+};
+
+template<
+    typename Promise
 > class basic_early_termination_task
     :
 public basic_task<Promise>
@@ -248,10 +301,43 @@ public:
         this auto&& self
     ) noexcept
     {
-        return task_awaiter
+        return basic_error_handling_early_termination_task_awaiter
         {
             std::move(self)
         };
+    }
+};
+
+template<
+    typename ErrorResult
+> class non_error_handling_awaiter_error_retriever
+{
+public:
+    virtual ErrorResult get_error_value(
+        basic_early_termination_promise_identity* errorReportingPromise
+    ) = 0;
+};
+
+template<
+    typename Promise
+> class non_error_handling_awaiter
+    :
+    public task_awaiter<Promise>,
+    non_error_handling_awaiter_error_retriever<typename Promise::result_type>
+{
+    template<
+        typename ErrorResult,
+        typename Continuation
+    > friend class basic_early_termination_promise;
+
+    using non_error_handling_awaiter::task_awaiter::task_awaiter;
+
+    virtual typename Promise::result_type get_error_value(
+        basic_early_termination_promise_identity* errorReportingPromise
+    ) override
+    {
+        return this->promise().get_error_value_from_error_reporter(
+            errorReportingPromise);
     }
 };
 
@@ -261,27 +347,107 @@ template<
 > class basic_early_termination_promise
     :
     public basic_task_promise<ErrorResult, Continuation>,
-    public await_all_await_transform
+    public await_all_await_transform,
+    private basic_early_termination_promise_identity
 {
+    template<
+        typename ErrorResult,
+        typename Continuation
+    > friend class basic_early_termination_promise;
+
     template<
         typename Promise
     > friend class early_termination_awaiter;
 
     template<
         typename Promise
-    > class non_error_handling_awaiter
-        :
-    public task_awaiter<Promise>
+    > friend class non_error_handling_awaiter;
+
+    error_handling_early_termination_task_error_reporter<Continuation>* m_errorReporter;
+    non_error_handling_awaiter_error_retriever<ErrorResult>* m_errorRetriever;
+
+    ErrorResult get_error_value_from_error_reporter(
+        this auto& self,
+        basic_early_termination_promise_identity* errorReportingPromise)
     {
-        friend class basic_early_termination_promise;
+        if (errorReportingPromise == &self)
+        {
+            return self.get_error_value<ErrorResult>(
+                self.return_successful_result());
+        }
+        else
+        {
+            return self.m_errorRetriever->get_error_value(
+                errorReportingPromise);
+        }
+    }
 
-        using non_error_handling_awaiter::task_awaiter::task_awaiter;
-    };
-
-    Continuation m_errorReportingContinuation;
-    Continuation m_errorHandlingContinuation;
+    void internal_return_value(
+        this auto& self,
+        auto&& value
+    )
+    {
+        self.basic_task_promise<ErrorResult, Continuation>::return_value(
+            std::forward<decltype(value)>(value));
+    }
 
 public:
+    auto error_handling_continuation(
+        this auto& self
+    )
+    {
+        return self.m_errorReporter->m_errorHandlingContinuation;
+    }
+
+    void return_error_value(
+        this auto& self,
+        auto&& value
+    )
+    {
+        self.continuation() = self.error_handling_continuation();
+        self.m_errorReporter->m_errorReportingPromise = &self;
+
+        self.internal_return_value(
+            self.get_error_value<ErrorResult>(
+                std::forward<decltype(value)>(value)));
+    }
+
+    void return_result_value(
+        this auto& self,
+        auto&& value
+    )
+    {
+        if (self.is_error_value(value))
+        {
+            self.return_error_value(
+                std::forward<decltype(value)>(value));
+        }
+        else
+        {
+            self.internal_return_value(
+                self.get_result_value(
+                    std::forward<decltype(value)>(value)));
+        }
+    }
+
+    void return_value(
+        this auto& self,
+        ErrorResult& value
+    )
+    {
+        return self.return_result_value(
+            value);
+    }
+
+    void return_value(
+        this auto& self,
+        ErrorResult&& value
+    )
+    {
+        return self.return_result_value(
+            std::move(value));
+    }
+
     auto get_return_object(
         this auto& self
     ) noexcept
@@ -293,7 +459,7 @@ public:
         this auto& self
     ) noexcept
     {
-        self.continuation() = self.m_errorHandlingContinuation;
+        self.continuation() = self.error_handling_continuation();
         self.basic_early_termination_promise::basic_task_promise::unhandled_exception();
     }
 
@@ -321,14 +487,13 @@ public:
     >
     auto await_suspend(
         this Promise& self,
-        task_awaiter<Promise>& awaiter,
+        basic_error_handling_early_termination_task_awaiter<Promise>& awaiter,
         auto continuation
     )
     {
         // Use the continuation for this awaiter as the error handling.
-        self.m_errorHandlingContinuation = continuation;
-        self.m_errorReportingContinuation = self.handle();
-
+        self.m_errorReporter = &awaiter;
+        
         return self.basic_early_termination_promise::basic_task_promise::await_suspend(
             awaiter,
             continuation
@@ -348,8 +513,8 @@ public:
         // Use the error handling continuation of the promise associated
         // with the non-error-handling continuation.
         // continuation is guaranteed to be the coroutine handle of a basic_early_termination_promise.
-        self.m_errorHandlingContinuation = continuation.promise().m_errorHandlingContinuation;
-        self.m_errorReportingContinuation = continuation.promise().m_errorReportingContinuation;
+        self.m_errorReporter = continuation.promise().m_errorReporter;
+        self.m_errorRetriever = &nonErrorHandlingAwaiter;
 
         return self.basic_early_termination_promise::basic_task_promise::await_suspend(
             nonErrorHandlingAwaiter,
@@ -363,9 +528,17 @@ public:
     >
     decltype(auto) await_resume(
         this Promise& self,
-        task_awaiter<Promise>& awaiter
+        basic_error_handling_early_termination_task_awaiter<Promise>& awaiter
     )
     {
+        if (awaiter.m_errorReportingPromise
+            && awaiter.m_errorReportingPromise != &self)
+        {
+            self.internal_return_value(
+                self.get_error_value_from_error_reporter(
+                    awaiter.m_errorReportingPromise));
+        }
+
         return self.basic_early_termination_promise::basic_task_promise::await_resume(
             awaiter);
     }
@@ -431,6 +604,10 @@ class early_termination_promise_inheritor<
 public:
     using Transformers::await_transform...;
     using Results::get_success_value...;
+    using Results::is_error_value...;
+    using Results::get_error_value...;
+    using Promise::return_error_value;
+    using Promise::return_value;
     using Promise::await_transform;
 };
 

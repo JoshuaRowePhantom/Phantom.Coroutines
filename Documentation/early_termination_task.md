@@ -98,9 +98,8 @@ error_task<int> MyErrorHandlingCoroutine()
 
 The type arguments to ```early_termination_task``` are:
 
-* The type of the value returned by non-handling co_await operations.
 * The type of the value returned by error-handling co_await operations.
-* The [policies](policies.md) and type handlers to apply to the ```early_termination_task```, in precedence order.
+* The [policies](policies.md) and type handlers to apply to the ```early_termination_task```.
 
 For convenience, it is useful to user that handlers and reporters
 follow an implementation and naming convention matching that used
@@ -140,8 +139,11 @@ awaiter.
 
 An ```early_termination_result``` type derives from the class
 ```early_termination_result```, and is expected to provide
-an implementation of ```resume(T&&)``` that is used to resume
-the calling coroutine.
+implementations of:
+
+* ```get_success_value(T&&)``` retrieves a successful result from the full ErrorType
+* ```get_error_value(T&&)``` retrieves a full ErrorType
+* ```is_error_value(T&&)``` determines if a value returned from return_value is an error
 
 An ```early_termination_handler``` type simply derives
 from both the ```early_termination_checker``` and 
