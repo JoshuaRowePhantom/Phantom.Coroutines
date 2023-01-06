@@ -6,6 +6,7 @@
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "lifetime_tracker.h"
+#include "async_test.h"
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
@@ -132,6 +133,56 @@ TEST(task_test, Task_destroys_coroutine_if_not_awaited)
     }
 
     ASSERT_EQ(0, statistics.instance_count);
+}
+
+namespace
+{
+
+template<
+    typename Result
+> class lifetime_tracking_task_promise : 
+    public derived_promise<task_promise<Result>>
+{
+    lifetime_tracker m_tracker;
+
+public:
+    lifetime_tracking_task_promise(
+        auto&&... args
+    ) :
+        m_tracker
+    { 
+        get<lifetime_tracker&>(std::tie(args...))
+    }
+    {}
+};
+
+template<
+    typename Result = void
+> using lifetime_tracking_task = basic_task<lifetime_tracking_task_promise<Result>>;
+
+static_assert(std::same_as<lifetime_tracking_task_promise<void>, lifetime_tracking_task<>::promise_type>);
+static_assert(std::same_as<lifetime_tracking_task_promise<void>, std::coroutine_traits<lifetime_tracking_task<>, lifetime_tracker>::promise_type>);
+
+}
+
+ASYNC_TEST(task_test, Task_destroys_coroutine_before_resumption_of_calling_coroutine)
+{
+    lifetime_statistics statistics;
+
+    auto lambda1 = [&](lifetime_tracker) -> lifetime_tracking_task<int>
+    {
+        EXPECT_EQ(2, statistics.instance_count);
+        co_return 5;
+    };
+
+    auto lambda2 = [&](int) -> task<>
+    {
+        EXPECT_EQ(0, statistics.instance_count);
+        co_return;
+    };
+
+    co_await lambda2(
+        co_await lambda1(statistics.tracker()));
 }
 
 TEST(task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
