@@ -9,10 +9,11 @@ namespace Phantom::Coroutines
 namespace
 {
 template<
-    typename Value = void
-> using expected_int_early_termination_task =
+    typename Value = void,
+    typename Error = int
+> using expected_early_termination_task =
 early_termination_task<
-    std::expected<Value, int>,
+    std::expected<Value, Error>,
     expected_early_termination_result,
     expected_early_termination_transformer
 >;
@@ -48,7 +49,7 @@ static_assert(assert_is_type<
 >::value);
 
 static_assert(assert_is_type<
-        expected_int_early_termination_task<void>,
+        expected_early_termination_task<void>,
         detail::basic_early_termination_task<
             detail::early_termination_promise_inheritor<
                 detail::basic_early_termination_promise<
@@ -68,7 +69,7 @@ static_assert(assert_is_type<
 
 ASYNC_TEST(expected_early_termination_test, co_await_expected_with_value_continues_top_level_coroutine)
 {
-    auto lambda = [&]() -> expected_int_early_termination_task<void>
+    auto lambda = [&]() -> expected_early_termination_task<void>
     {
         std::string result = co_await std::expected<std::string, int>("hello world");
         EXPECT_EQ(result, "hello world");
@@ -81,7 +82,7 @@ ASYNC_TEST(expected_early_termination_test, co_await_expected_with_value_continu
 
 ASYNC_TEST(expected_early_termination_test, co_await_expected_with_error_terminates_top_level_coroutine)
 {
-    auto lambda = [&]() -> expected_int_early_termination_task<void>
+    auto lambda = [&]() -> expected_early_termination_task<void>
     {
         std::string result = co_await std::expected<std::string, int>(std::unexpect, 1);
         // We should not reach here.
@@ -95,12 +96,12 @@ ASYNC_TEST(expected_early_termination_test, co_await_expected_with_error_termina
 
 ASYNC_TEST(expected_early_termination_test, co_return_unexpected_terminates_nested_coroutines)
 {
-    auto lambda1 = [&]() -> expected_int_early_termination_task<void>
+    auto lambda1 = [&]() -> expected_early_termination_task<void>
     {
         co_return std::unexpected{ 1 };
     };
 
-    auto lambda2 = [&]() -> expected_int_early_termination_task<void>
+    auto lambda2 = [&]() -> expected_early_termination_task<void>
     {
         co_await lambda1();
         EXPECT_TRUE(false);
@@ -113,12 +114,12 @@ ASYNC_TEST(expected_early_termination_test, co_return_unexpected_terminates_nest
 
 ASYNC_TEST(expected_early_termination_test, co_return_expected_with_error_terminates_nested_coroutines)
 {
-    auto lambda1 = [&]() -> expected_int_early_termination_task<void>
+    auto lambda1 = [&]() -> expected_early_termination_task<void>
     {
         co_return std::expected<void, int>{ std::unexpect, 1 };
     };
 
-    auto lambda2 = [&]() -> expected_int_early_termination_task<void>
+    auto lambda2 = [&]() -> expected_early_termination_task<void>
     {
         co_await lambda1();
         EXPECT_TRUE(false);
@@ -131,12 +132,12 @@ ASYNC_TEST(expected_early_termination_test, co_return_expected_with_error_termin
 
 ASYNC_TEST(expected_early_termination_test, co_await_expected_with_value_continues_nested_coroutines_of_different_types)
 {
-    auto lambda1 = [&]() -> expected_int_early_termination_task<int>
+    auto lambda1 = [&]() -> expected_early_termination_task<int>
     {
         co_return 5;
     };
 
-    auto lambda2 = [&]() -> expected_int_early_termination_task<long>
+    auto lambda2 = [&]() -> expected_early_termination_task<long>
     {
         auto result = co_await lambda1();
         EXPECT_EQ(result, 5);
@@ -149,12 +150,12 @@ ASYNC_TEST(expected_early_termination_test, co_await_expected_with_value_continu
 
 ASYNC_TEST(expected_early_termination_test, co_await_expected_handle_errors_with_value_continues_nested_coroutines_of_different_types)
 {
-    auto lambda1 = [&]() -> expected_int_early_termination_task<int>
+    auto lambda1 = [&]() -> expected_early_termination_task<int>
     {
         co_return 5;
     };
 
-    auto lambda2 = [&]() -> expected_int_early_termination_task<long>
+    auto lambda2 = [&]() -> expected_early_termination_task<long>
     {
         auto result = co_await lambda1().handle_errors();
         static_assert(std::same_as<std::expected<int, int>, decltype(result)>);
@@ -170,7 +171,7 @@ ASYNC_TEST(expected_early_termination_test, error_causes_coroutine_to_be_destroy
 {
     detail::lifetime_statistics statistics;
 
-    auto lambda1 = [&]() -> expected_int_early_termination_task<>
+    auto lambda1 = [&]() -> expected_early_termination_task<>
     {
         auto tracker = statistics.tracker();
         EXPECT_EQ(statistics.instance_count, 1);
@@ -188,6 +189,53 @@ ASYNC_TEST(expected_early_termination_test, error_causes_coroutine_to_be_destroy
     co_await lambda2(
         co_await lambda1().handle_errors()
     );
+}
+
+ASYNC_TEST(expected_early_termination_test, exception_terminates_nested_coroutines_without_invoking_exception_handlers)
+{
+    auto lambda1 = [&]() -> expected_early_termination_task<>
+    {
+        throw std::string("hello world");
+        EXPECT_TRUE(false);
+        co_return{};
+    };
+
+    auto lambda2 = [&]() -> expected_early_termination_task<>
+    {
+        try
+        {
+            co_await lambda1();
+            EXPECT_TRUE(false);
+        }
+        catch (...)
+        {
+            EXPECT_TRUE(false);
+        }
+        co_return{};
+    };
+
+    auto lambda3 = [&]() -> expected_early_termination_task<>
+    {
+        try
+        {
+            co_await lambda2();
+        }
+        catch (...)
+        {
+            EXPECT_TRUE(false);
+        }
+        EXPECT_TRUE(false);
+        co_return{};
+    };
+    
+    try
+    {
+        co_await lambda3().handle_errors();
+    }
+    catch (std::string& actualException)
+    {
+        EXPECT_EQ(std::string("hello world"), actualException);
+    }
 }
 
 }

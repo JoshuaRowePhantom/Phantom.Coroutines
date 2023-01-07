@@ -60,7 +60,7 @@ public:
         typename Value,
         typename Error
     >
-    static ErrorResult get_error_value(
+    static ErrorResult get_error_result(
         std::expected<Value, Error> expected
     )
     {
@@ -74,7 +74,7 @@ public:
         is_template_instantiation<std::expected> ErrorResult,
         typename Error
     >
-    static ErrorResult get_error_value(
+    static ErrorResult get_error_result(
         std::unexpected<Error> unexpected
     )
     {
@@ -110,7 +110,7 @@ class expected_early_termination_transformer
             return !m_expected.has_value();
         }
 
-        auto get_error_value() const
+        auto get_error_result() const
         {
             return std::unexpected
             {

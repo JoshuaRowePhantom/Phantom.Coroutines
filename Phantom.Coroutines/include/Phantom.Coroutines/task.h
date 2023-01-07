@@ -175,6 +175,13 @@ public:
             awaiter.handle() = nullptr;
         };
 
+        return self.return_result();
+    }
+
+    decltype(auto) return_result(
+        this auto& self
+    )
+    {
         if (self.has_exception())
         {
             self.rethrow_exception();

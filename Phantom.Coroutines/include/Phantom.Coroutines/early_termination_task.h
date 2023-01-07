@@ -30,7 +30,7 @@ class early_termination_result
 {
     struct invalid_return_value {};
 public:
-    void get_error_value(invalid_return_value);
+    void get_error_result(invalid_return_value);
     void get_success_value(invalid_return_value);
 };
 
@@ -104,7 +104,7 @@ template<
     { awaiter.is_error() } -> std::same_as<bool>;
     // Implemented by a early_termination_synchronous_awaiter derived class to get
     // the awaited value in an error handling context.
-    { awaiter.get_error_value() };
+    { awaiter.get_error_result() };
     // Implemented by a early_termination_synchronous_awaiter derived class to return
     // the awaited value in a non-error handling context.
     { awaiter.await_resume() };
@@ -147,7 +147,7 @@ public:
         static_assert(is_early_termination_synchronous_awaiter<decltype(self)>);
         
         self.return_error_value(
-            self.get_error_value()
+            self.get_error_result()
         );
 
         // This method is only called if is_error() was true,
@@ -313,7 +313,7 @@ template<
 > class non_error_handling_awaiter_error_retriever
 {
 public:
-    virtual ErrorResult get_error_value(
+    virtual ErrorResult get_error_result(
         basic_early_termination_promise_identity* errorReportingPromise
     ) = 0;
 };
@@ -333,11 +333,11 @@ template<
 
     using non_error_handling_awaiter::task_awaiter::task_awaiter;
 
-    virtual typename ErrorResult get_error_value(
+    virtual typename ErrorResult get_error_result(
         basic_early_termination_promise_identity* errorReportingPromise
     ) override
     {
-        return this->promise().get_error_value_from_error_reporter(
+        return this->promise().get_error_result_from_error_reporter(
             errorReportingPromise);
     }
 };
@@ -368,18 +368,21 @@ template<
     error_handling_early_termination_task_error_reporter<Continuation>* m_errorReporter;
     non_error_handling_awaiter_error_retriever<ErrorResult>* m_errorRetriever;
 
-    ErrorResult get_error_value_from_error_reporter(
+    ErrorResult get_error_result_from_error_reporter(
         this auto& self,
         basic_early_termination_promise_identity* errorReportingPromise)
     {
         if (errorReportingPromise == &self)
         {
-            return self.get_error_value<ErrorResult>(
-                self.return_successful_result());
+            return self.get_error_result<ErrorResult>(
+                // Note that we do not use get_successful_result here,
+                // as the "error" may be a C++ exception. If it is a C++ exception,
+                // we need to _throw_ the exception.
+                self.return_result());
         }
         else
         {
-            return self.m_errorRetriever->get_error_value(
+            return self.m_errorRetriever->get_error_result(
                 errorReportingPromise);
         }
     }
@@ -391,6 +394,13 @@ template<
     {
         self.basic_task_promise<ErrorResult, Continuation>::return_value(
             std::forward<decltype(value)>(value));
+    }
+
+    void set_has_error(
+        this auto& self)
+    {
+        self.continuation() = self.error_handling_continuation();
+        self.m_errorReporter->m_errorReportingPromise = &self;
     }
 
 public:
@@ -408,11 +418,10 @@ public:
         auto&& value
     )
     {
-        self.continuation() = self.error_handling_continuation();
-        self.m_errorReporter->m_errorReportingPromise = &self;
+        self.set_has_error();
 
         self.internal_return_value(
-            self.get_error_value<ErrorResult>(
+            self.get_error_result<ErrorResult>(
                 std::forward<decltype(value)>(value)));
     }
 
@@ -463,7 +472,7 @@ public:
         this auto& self
     ) noexcept
     {
-        self.continuation() = self.error_handling_continuation();
+        self.set_has_error();
         self.basic_early_termination_promise::basic_task_promise::unhandled_exception();
     }
 
@@ -540,7 +549,7 @@ public:
             && awaiter.m_errorReportingPromise != &self)
         {
             self.internal_return_value(
-                self.get_error_value_from_error_reporter(
+                self.get_error_result_from_error_reporter(
                     awaiter.m_errorReportingPromise));
         }
 
@@ -611,7 +620,7 @@ public:
     using Transformers::await_transform...;
     using Results::get_success_value...;
     using Results::is_error_value...;
-    using Results::get_error_value...;
+    using Results::get_error_result...;
     using Promise::return_error_value;
     using Promise::return_value;
     using Promise::await_transform;
