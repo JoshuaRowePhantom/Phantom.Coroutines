@@ -375,10 +375,10 @@ template<
         if (errorReportingPromise == &self)
         {
             return self.get_error_result<ErrorResult>(
-                // Note that we do not use get_successful_result here,
+                // Note that we do not use resume_successful_result here,
                 // as the "error" may be a C++ exception. If it is a C++ exception,
                 // we need to _throw_ the exception.
-                self.return_result());
+                self.resume_result());
         }
         else
         {
@@ -571,7 +571,7 @@ public:
         // otherwise we would have resumed an error-handling awaiter.
         // Transform the result into the final result type.
         return self.get_success_value(
-            self.return_successful_result()
+            self.resume_successful_result()
         );
     }
 };

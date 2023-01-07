@@ -154,7 +154,7 @@ public:
         return self.m_result->index() == exception_index;
     }
 
-    [[noreturn]] void rethrow_exception(
+    [[noreturn]] void resume_exception(
         this auto& self
     )
     {
@@ -175,22 +175,22 @@ public:
             awaiter.handle() = nullptr;
         };
 
-        return self.return_result();
+        return self.resume_result();
     }
 
-    decltype(auto) return_result(
+    decltype(auto) resume_result(
         this auto& self
     )
     {
         if (self.has_exception())
         {
-            self.rethrow_exception();
+            self.resume_exception();
         }
 
-        return self.return_successful_result();
+        return self.resume_successful_result();
     }
 
-    decltype(auto) return_successful_result(
+    decltype(auto) resume_successful_result(
         this auto& self)
     {
         [[assume(*self.m_result->index() == result_index)]];
