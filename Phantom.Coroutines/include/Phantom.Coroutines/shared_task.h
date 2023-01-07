@@ -165,6 +165,13 @@ private:
             coroutine_handle<>
         ) noexcept
         {
+            // Any thread reading the state and continuing execution will -acquire- m_state
+            // to guarantee it can see the completed return value.  Therefore,
+            // we -release- m_state.
+            // 
+            // This thread needs to -acquire- all the data written by other threads
+            // when they updated the state to include awaiters into the linked list.
+            // Therefore, we -acquire- m_state.
             auto previousState = self.m_promise.m_state.exchange(
                 Completed{},
                 std::memory_order_acq_rel
@@ -224,6 +231,10 @@ private:
             this auto& self
         ) noexcept
         {
+            // If the task is complete, we need to make sure we can
+            // read all the results of the task.
+            // final_suspend_awaiter -released- m_state,
+            // so we -acquire- it here.
             return self.promise().m_state.load(std::memory_order_acquire)
                 == Completed{};
         }
@@ -244,9 +255,22 @@ private:
                         return {};
                     }
 
-            self.m_nextAwaiter = state.as<Running>();
-            return &self;
-                });
+                    self.m_nextAwaiter = state.as<Running>();
+                    return &self;
+                },
+                // We don't need strong memory order to initially load the value
+                // for use in the lambda.
+                std::memory_order_relaxed,
+                // In the case that we start the shared_task, we need to -acquire-
+                // the state left behind by the thread that created the promise.
+                // -Probably- the shared_task was passed to another thread via an acquire / release operation,
+                // but it's always possible that e.g. a caller wrote a shared_task* to a shared data structure
+                // with relaxed semantics and it was cheaply acquired.
+                // We also need to write with release semantics because the m_nextAwaiter must be readable
+                // by whichever thread completes the task and dispatches the awaiters.
+                std::memory_order_acq_rel,
+                // We don't need special ordering rules for failure.
+                std::memory_order_relaxed);
 
             if (previousState == Completed{})
             {
@@ -276,7 +300,7 @@ private:
     using state_type = typename atomic_state_type::state_type;
     static inline const auto NotStarted = state_type{ nullptr };
 
-    atomic_state_type m_state = NotStarted;
+    atomic_state_type m_state;
 
     using typename shared_task_promise::variant_result_storage::result_variant_member_type;
     using variant_type = std::variant<
@@ -298,6 +322,7 @@ private:
         this auto& self
     ) noexcept
     {
+        // Acquiring a reference needs no special memory ordering, just atomicity.
         self.m_referenceCount.fetch_add(1, std::memory_order_relaxed);
     }
 
@@ -305,7 +330,15 @@ private:
         this auto& self
     ) noexcept
     {
-        auto previousReferenceCount = self.m_referenceCount.fetch_sub(1, std::memory_order_acquire);
+        // The thread doing the releasing may have written to memory referenced by
+        // the return value of the promise, so to ensure the thread
+        // doing the releasing can destroy that memory, the fetch_sub
+        // must -release- the reference count.
+
+        // The last decrement will destroy the promise, so it will need to -acquire-
+        // the reference count in order to guarantee it can read data written by
+        // other thread, this data needing to be destroyed.
+        auto previousReferenceCount = self.m_referenceCount.fetch_sub(1, std::memory_order_acq_rel);
         if (previousReferenceCount == 1)
         {
             self.handle().destroy();
@@ -325,6 +358,15 @@ private:
     }
 
 public:
+    shared_task_promise()
+    {
+        m_state.store(
+            NotStarted,
+            // Ensure that all the data needed for a thread that resumes
+            // this shared_task_promise is visible.
+            std::memory_order_release);
+    }
+
     auto get_return_object(
         this auto& self
     ) noexcept
