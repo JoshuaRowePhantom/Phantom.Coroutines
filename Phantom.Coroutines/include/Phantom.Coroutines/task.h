@@ -116,14 +116,11 @@ public:
         return final_suspend_transfer{ self.m_continuation };
     }
 
-    template<
-        typename Self
-    >
     auto get_return_object(
-        this Self& self
+        this auto& self
     ) noexcept
     {
-        return basic_task<Self>(
+        return basic_task(
             self.handle()
             );
     }
@@ -338,6 +335,10 @@ public:
         };
     }
 };
+
+template<
+    typename Promise
+> basic_task(coroutine_handle<Promise>) -> basic_task<Promise>;
 
 }
 
