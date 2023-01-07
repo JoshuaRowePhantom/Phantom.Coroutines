@@ -112,3 +112,11 @@ type is either an l-value or r-value reference to the original object.
 
 For [```has_co_await```](type_traits.md#has_co_await) objects,
 the return type is exactly the return type of ```operator co_await```.
+
+### [```has_``` promise inspection](#promise_has)
+
+```has_return_void<Promise>``` detects whether a promise type
+has a method named ```return_void```.
+
+```has_await_transform<Promise>``` detects whether a promise type
+has a method named ```await_transform```.

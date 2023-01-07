@@ -609,5 +609,7 @@ using detail::has_co_await_member;
 using detail::has_co_await_non_member;
 using detail::get_awaiter;
 using detail::is_coroutine_handle;
+using detail::has_return_void;
+using detail::has_await_transform;
 
 } // namespace Phantom::Coroutines
