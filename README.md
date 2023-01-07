@@ -55,27 +55,27 @@ default high-performance policies for typical uses.
 
 Library contents:
 
-### [async_mutex.h](Documentation/async_mutex.md)
+### [```async_mutex.h```](Documentation/async_mutex.md)
    
 Mutual exclusion inside coroutines.
 
-### [async_scope.h](Documentation/async_scope.md)
+### [```async_scope.h```](Documentation/async_scope.md)
    
 Start background tasks asynchronously and wait for them to complete.
 
-### [awaiter_wrapper.h](Documentation/awaiter_wrapper.md)
+### [```awaiter_wrapper.h```](Documentation/awaiter_wrapper.md)
    
 Wrap awaitable objects with an awaiter implementation.
 
-### [early_termination_task.h](Documentation/early_termination_task.md)
+### [```early_termination_task.h```](Documentation/early_termination_task.md)
    
 Coroutines that terminate execution when termination conditions are encountered.
 
-### [extensible_promise.h](Documentation/extensible_promise.md)
+### [```extensible_promise.h```](Documentation/extensible_promise.md)
    
 Write promise types that can be extended or do extend other promise types.
 
-### [policies.h](Documentation/policies.md)
+### [```policies.h```](Documentation/policies.md)
 
 Provides policy parameters to other classes, such as [async_mutex.h](Documentation/async_mutex.md). 
 
@@ -83,16 +83,21 @@ Provides policy parameters to other classes, such as [async_mutex.h](Documentati
 
 Discover whether a co_await operation suspended or not.
 
-### [suspend_result.h](Documentation/suspend_result.md)
+### [```suspend_result.h```](Documentation/suspend_result.md)
 
 Discover whether a co_await operation suspended or not.
 
-### [task.h](Documentation/task.md)
+### [```sync_wait.h```](Documentation/sync_wait.md)
+
+Create ```std::future``` objects from awaitable objects, and synchronously
+wait for the results.
+
+### [```task.h```](Documentation/task.md)
 
 An extremely high performance lightweight awaitable operation.  This is expected
 to be one of the most commonly used classes for most code.
 
-### [type_traits.h](Documentation/type_traits.md)
+### [```type_traits.h```](Documentation/type_traits.md)
 
 Metaprogramming tools for introspection of asynchronous code.
 

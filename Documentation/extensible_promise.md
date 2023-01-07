@@ -23,6 +23,9 @@ class my_promise :
 {
 public:
     template<
+        // Uses a type parameter here,
+        // instead of assuming the promise is
+        // a my_promise.
         typename Promise
     >
     class my_initial_suspend_awaiter :
@@ -31,9 +34,18 @@ public:
         my_initial_suspend_awaiter(
             Promise&
         );
+
+        bool await_ready(
+            // explicit object parameter
+            this auto& self
+        )
+        {
+            return false;
+        }
     }
 
     auto initial_suspend(
+        // explicit object parameter
         this auto& self
     )
     {
@@ -141,6 +153,7 @@ class extended_awaiter<
     public awaiter_wrapper<Awaitable>
 {
 public:
+    // Construct 
     template<
         typename AwaitableArg
     >
@@ -172,5 +185,98 @@ protected:
     auto& awaiter(
         this auto& self
     );
+};
+```
+
+### [```derived_promise```](#derived_promise)
+
+Users can derive from ```derived_promise<BasePromise>```
+to extend another promise type. This provides "is-a" relationships
+between promise objects.
+
+```derived_promise<BasePromise>``` provides some helpers to aid
+implementers deriving from an unknown promise type. The ```BasePromise``` 
+type argument satisfies ```is_extensible_promise```,
+so it is guaranteed the [```extensible_promise```](#extensible_promise)
+methods are available. 
+
+#### Construction
+```derived_promise``` provides
+a constructor that accepts all arguments. This constructor either
+delegates to the default constructor or to a constructor that
+accepts the arguments. This makes it possible to write a
+wrapper-type promise that uses the arguments and delegates to an 
+underlying promise type without having determine to whether the underlying promise
+itself uses the arguments. 
+
+The usual options for writing a constructor in a derived_promise are
+to inherit the constructor with the ```using``` keyword or to delegate
+to the base constructor.
+
+```c++
+template<typename Promise>
+class InheritingConstructorPromise : public derived_promise<Promise>
+{
+using derived_promise<Promise>::derived_promise;
+};
+
+template<typename Promise>
+class ArgumentTracingPromise : public derived_promise<Promise>
+{
+    void Trace(
+        const auto& value
+    )
+    {
+        std::cerr << value << "\n";
+    }
+
+public:
+    ArgumentTracingPromise(
+        auto && ... args
+    ) : derived_promise<Promise>::derived_promise
+    {
+        // Trace all the argument values
+        // before forwarding them.
+        std::forward<decltype(args)>((Trace(args), args))...
+    }
+    {
+    }
+};
+```
+
+#### await_transform
+
+```derived_promise``` also ensures there is always an implementation
+of ```await_transform```. If the underlying promise provides an
+```await_transform``` method, then the ```derived_promise``` inherits
+it directly via the ```using``` keyword. Otherwise, one is synthesized
+that does nothing to the argument. The purpose of this is to make it
+easy to write delegating ```await_transform```.
+
+#### Formal specification
+
+```c++
+template<
+    is_extensible_promise BasePromise
+> class derived_promise
+{
+public:
+    // There is always a constructor that accepts the full
+    // argument list. Its implementation either delegates
+    // to the underlying constructor or invokes
+    // the default constructor.
+    template<
+        typename ... Args
+    > derived_promise(
+        Args&&... args
+    );
+
+    // There is always an await_transform method available,
+    // either from the BasePromise or from derived_promise,
+    // with the intent that it is easy to delegate
+    // await_transform calls to the base promise object.
+    decltype(auto) await_transform(
+        auto&& awaitable
+    ) noexcept;
 };
 ```
