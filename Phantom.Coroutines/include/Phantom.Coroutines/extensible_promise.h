@@ -72,12 +72,9 @@ template<
     }
 };
 
-// The template derived_promise_await_transform ensures there is a valid
-// await_transform() method in the derived_promise implementation,
-// so that it can always be called unconditionally by derived classes.
-template<
-    typename BasePromise
-> class derived_promise_await_transform
+// Holds the identity await_transform method implementation,
+// so that it is only every specialized on each awaitable type once.
+class derived_promise_identity_await_transform
 {
 public:
     decltype(auto) await_transform(
@@ -86,6 +83,17 @@ public:
     {
         return std::forward<decltype(awaitable)>(awaitable);
     }
+};
+
+// The template derived_promise_await_transform ensures there is a valid
+// await_transform() method in the derived_promise implementation,
+// so that it can always be called unconditionally by derived classes.
+template<
+    typename BasePromise
+> class derived_promise_await_transform
+    :
+public derived_promise_identity_await_transform
+{
 };
 
 template<
@@ -107,14 +115,8 @@ template<
     public BasePromise,
     public derived_promise_await_transform<BasePromise>
 {
-    struct BasePromiseTag {};
 protected:
-    typedef BasePromise base_promise_type;
-
-    decltype(auto) base_promise()
-    {
-        return *this;
-    }
+    using base_promise_type = BasePromise;
 
 public:
     // These constructors allow the derived promise

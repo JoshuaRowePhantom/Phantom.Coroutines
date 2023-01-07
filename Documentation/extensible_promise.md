@@ -260,6 +260,9 @@ template<
     is_extensible_promise BasePromise
 > class derived_promise
 {
+protected:
+    using base_promise_type = BasePromise;
+    
 public:
     // There is always a constructor that accepts the full
     // argument list. Its implementation either delegates
