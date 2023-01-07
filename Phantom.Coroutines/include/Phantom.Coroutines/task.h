@@ -4,7 +4,6 @@
 #include "detail/final_suspend_transfer.h"
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
-#include "detail/promise_traits.h"
 #include "detail/scope_guard.h"
 #include "detail/variant_result_storage.h"
 #include "single_consumer_promise.h"
