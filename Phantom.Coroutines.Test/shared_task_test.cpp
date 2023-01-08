@@ -8,20 +8,21 @@
 #include "Phantom.Coroutines/type_traits.h"
 #include "lifetime_tracker.h"
 
-using namespace Phantom::Coroutines;
-using namespace Phantom::Coroutines::detail;
 
-static_assert(detail::is_awaiter<shared_task_promise<void>::awaiter>);
-static_assert(detail::is_awaiter<shared_task_promise<int>::awaiter>);
-static_assert(detail::is_awaiter<shared_task_promise<int&>::awaiter>);
-static_assert(detail::is_awaiter<shared_task_promise<int&&>::awaiter>);
+namespace Phantom::Coroutines::detail
+{
 
-static_assert(detail::is_awaiter<shared_task_promise<void>::final_suspend_awaiter>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task_promise<void>>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task_promise<int>>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task_promise<int&>>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task_promise<int&&>>>);
 
-static_assert(detail::is_awaiter<shared_task_promise<void>::awaiter>);
-static_assert(detail::is_awaiter<shared_task_promise<int>::awaiter>);
-static_assert(detail::is_awaiter<shared_task_promise<int&>::awaiter>);
-static_assert(detail::is_awaiter<shared_task_promise<int&&>::awaiter>);
+static_assert(detail::is_awaiter<shared_task_promise_final_suspend_awaiter<shared_task_promise<void>>>);
+
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task_promise<void>>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task_promise<int>>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task_promise<int&>>>);
+static_assert(detail::is_awaiter<shared_task_awaiter<shared_task_promise<int&&>>>);
 
 static_assert(detail::is_awaitable<shared_task<>>);
 static_assert(detail::is_awaitable<shared_task<int>>);
@@ -33,9 +34,9 @@ static_assert(detail::has_co_await_member<shared_task<>&>);
 static_assert(detail::has_co_await_member<shared_task<>&&>);
 
 // Assert the type of awaiter returned by co_await.
-static_assert(std::same_as<shared_task_promise<void>::awaiter, decltype(std::declval<shared_task<void>>().operator co_await())>);
-static_assert(std::same_as<shared_task_promise<void>::awaiter, decltype(std::declval<shared_task<void>&>().operator co_await())>);
-static_assert(std::same_as<shared_task_promise<void>::awaiter, decltype(std::declval<shared_task<void>&&>().operator co_await())>);
+static_assert(std::same_as<shared_task_awaiter<shared_task_promise<void>>, decltype(std::declval<shared_task<void>>().operator co_await())>);
+static_assert(std::same_as<shared_task_awaiter<shared_task_promise<void>>, decltype(std::declval<shared_task<void>&>().operator co_await())>);
+static_assert(std::same_as<shared_task_awaiter<shared_task_promise<void>>, decltype(std::declval<shared_task<void>&&>().operator co_await())>);
 
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<>&>, void>);
 static_assert(std::same_as<detail::awaitable_result_type_t<shared_task<int>&>, int&>);
@@ -123,10 +124,10 @@ TEST(shared_task_test, Multiple_co_awaits_cause_only_one_invocation)
 {
     std::atomic_int invocationCount = 0;
 
-    auto task = [&]() -> shared_task<> 
-    { 
-        ++invocationCount; 
-        co_return; 
+    auto task = [&]() -> shared_task<>
+    {
+        ++invocationCount;
+        co_return;
     }();
 
     sync_wait(
@@ -174,10 +175,10 @@ TEST(shared_task_test, Task_destroys_coroutine_if_awaited)
     single_consumer_manual_reset_event event;
 
     sync_wait([&, tracker = statistics.tracker()]()->shared_task<>
-    {
-        tracker.use();
-        co_return;
-    }());
+        {
+            tracker.use();
+    co_return;
+        }());
 
     ASSERT_EQ(0, statistics.instance_count);
 }
@@ -217,8 +218,8 @@ TEST(shared_task_test, Can_suspend_and_resume)
         [&]() -> shared_task<>
         {
             stage = 1;
-            co_await event;
-            stage = 2;
+    co_await event;
+    stage = 2;
         });
 
     ASSERT_EQ(1, stage);
@@ -263,7 +264,7 @@ TEST(shared_task_test, Destroys_returned_value_when_co_awaited_as_lvalue)
                 auto& tracker = co_await task;
                 instanceCountBeforeDestruction = statistics.instance_count;
             }
-            instanceCountAfterDestruction = statistics.instance_count;
+    instanceCountAfterDestruction = statistics.instance_count;
         }());
 
     ASSERT_EQ(1, instanceCountBeforeDestruction);
@@ -287,7 +288,7 @@ TEST(shared_task_test, Destroys_returned_value_when_co_awaited_as_rvalue)
                 co_await taskWithReturnValueLambda();
                 instanceCountBeforeDestruction = statistics.instance_count;
             }
-            instanceCountAfterDestruction = statistics.instance_count;
+    instanceCountAfterDestruction = statistics.instance_count;
         }());
 
     ASSERT_EQ(0, instanceCountBeforeDestruction);
@@ -319,7 +320,7 @@ TEST(shared_task_test, Destroys_thrown_exception)
                     instanceCountBeforeDestruction = statistics.instance_count;
                 }
             }
-            instanceCountAfterDestruction = statistics.instance_count;
+    instanceCountAfterDestruction = statistics.instance_count;
         }());
 
     // std::exception_ptr implementation is allowed but not required
@@ -485,4 +486,6 @@ TEST(shared_task_test, Default_constructor_produces_invalid_task)
 {
     shared_task<> task;
     ASSERT_FALSE(task);
+}
+
 }

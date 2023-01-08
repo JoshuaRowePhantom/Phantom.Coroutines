@@ -43,8 +43,9 @@ template<
 > class basic_task;
 
 template<
-    typename Result = void
-> using task = basic_task<task_promise<Result>>;
+    typename Result = void,
+    is_task_promise_policy... Policies
+> using task = basic_task<task_promise<Result, Policies...>>;
 
 template<
     typename Promise
