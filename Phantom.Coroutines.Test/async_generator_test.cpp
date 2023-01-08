@@ -2,7 +2,10 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include "async_test.h"
 #include "Phantom.Coroutines/async_generator.h"
+#include "Phantom.Coroutines/async_manual_reset_event.h"
+#include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/sync_wait.h"
 
 using namespace Phantom::Coroutines;
@@ -194,4 +197,45 @@ TEST(async_generator_test, Moving_constructing_async_generator_keeps_iterators_i
             EXPECT_EQ(3, *co_await ++iterator);
             EXPECT_EQ(myGenerator2.end(), co_await ++iterator);
         }());
+}
+
+ASYNC_TEST(async_generator_test, Can_enumerate_async_actions)
+{
+    async_manual_reset_event<> signal1;
+    async_manual_reset_event<> signal2;
+
+    std::vector<int> enumeratedResults;
+
+    auto generatorLambda = [&]() -> async_generator<int>
+    {
+        co_yield 1;
+        co_yield 2;
+        co_await signal1;
+        co_yield 3;
+        co_await signal2;
+        co_yield 4;
+    };
+
+    auto iterationLoop = [&]() -> task<>
+    {
+        auto generator = generatorLambda();
+
+        for (auto iterator = co_await generator.begin();
+            iterator != generator.end();
+            co_await ++iterator)
+        {
+            enumeratedResults.push_back(*iterator);
+        }
+    };
+
+    async_scope<> scope;
+    scope.spawn(iterationLoop());
+
+    EXPECT_EQ(enumeratedResults, (std::vector<int>{ 1, 2 }));
+    signal1.set();
+    EXPECT_EQ(enumeratedResults, (std::vector<int>{ 1, 2, 3 }));
+    signal2.set();
+    EXPECT_EQ(enumeratedResults, (std::vector<int>{ 1, 2, 3, 4 }));
+    co_await scope.join();
+    EXPECT_EQ(enumeratedResults, (std::vector<int>{ 1, 2, 3, 4 }));
 }

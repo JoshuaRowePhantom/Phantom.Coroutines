@@ -35,9 +35,6 @@ public derived_promise<BasePromise>
     {
         bool m_bSuspended = false;
 
-        using contextual_promise_awaiter::extended_awaiter::awaiter;
-        using contextual_promise_awaiter::extended_awaiter::handle;
-
     public:
         contextual_promise_awaiter(
             Enter enter,
@@ -52,29 +49,32 @@ public derived_promise<BasePromise>
         {}
 
         bool await_ready(
+            this auto& self,
             auto&&... args
         ) noexcept(
-            noexcept(awaiter().await_ready(std::forward<decltype(args)>(args)...))
+            noexcept(self.awaiter().await_ready(std::forward<decltype(args)>(args)...))
             )
         {
-            return awaiter().await_ready(std::forward<decltype(args)>(args)...);
+            return self.awaiter().await_ready(std::forward<decltype(args)>(args)...);
         }
 
         auto await_suspend(
+            this auto& self,
             auto&&... args
         ) noexcept(
-            noexcept(awaiter().await_suspend(std::forward<decltype(args)>(args)...))
+            noexcept(self.awaiter().await_suspend(std::forward<decltype(args)>(args)...))
             )
         {
-            m_bSuspended = true;
+            self.m_bSuspended = true;
             if (std::same_as<DoLeaveOnSuspend, Leave>)
             {
-                this->promise().leave();
+                self.promise().leave();
             }
-            return awaiter().await_suspend(std::forward<decltype(args)>(args)...);
+            return self.awaiter().await_suspend(std::forward<decltype(args)>(args)...);
         }
 
         auto await_resume(
+            this auto& self,
             auto&&... args
         ) noexcept /* noexcept(
             noexcept(
@@ -82,11 +82,11 @@ public derived_promise<BasePromise>
                 && (std::same_as<DoNotEnterOnResume, Enter> || noexcept(this->promise().enter())
         )) */
         {
-            if (std::same_as<DoEnterOnResume, Enter> && m_bSuspended)
+            if (std::same_as<DoEnterOnResume, Enter> && self.m_bSuspended)
             {
-                this->promise().enter();
+                self.promise().enter();
             }
-            return awaiter().await_resume(std::forward<decltype(args)>(args)...);
+            return self.awaiter().await_resume(std::forward<decltype(args)>(args)...);
         }
     };
 
