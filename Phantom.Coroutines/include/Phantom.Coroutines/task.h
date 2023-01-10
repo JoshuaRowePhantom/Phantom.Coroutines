@@ -256,6 +256,7 @@ public:
         }
         this->handle() = other.handle();
         other.handle() = nullptr;
+        return *this;
     }
 
     ~task_awaitable()
