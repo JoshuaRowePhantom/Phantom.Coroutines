@@ -24,12 +24,12 @@ template<
 
 template<
     typename Policy
-> concept is_task_promise_policy =
+> concept is_task_policy =
 is_continuation_type_policy<Policy>;
 
 template<
     typename Result,
-    is_task_promise_policy ... Policies
+    is_task_policy ... Policies
 > 
 using task_promise = basic_task_promise<
     Result,
@@ -44,7 +44,7 @@ template<
 
 template<
     typename Result = void,
-    is_task_promise_policy... Policies
+    is_task_policy... Policies
 > using task = basic_task<task_promise<Result, Policies...>>;
 
 template<
@@ -92,11 +92,9 @@ private:
     Continuation m_continuation;
 
 protected:
-    Continuation& continuation(
-        this auto& self
-    )
+    Continuation& continuation()
     {
-        return self.m_continuation;
+        return m_continuation;
     }
 
 public:
@@ -114,7 +112,7 @@ public:
         this auto& self
     ) noexcept
     {
-        return final_suspend_transfer{ self.m_continuation };
+        return final_suspend_transfer{ self.continuation() };
     }
 
     auto get_return_object(
@@ -145,6 +143,20 @@ public:
         return self.handle();
     }
 
+    decltype(auto) await_resume(
+        this auto& self,
+        auto& awaiter
+    )
+    {
+        scope_guard destroyer = [&]()
+        {
+            self.handle().destroy();
+            awaiter.handle() = nullptr;
+        };
+
+        return self.resume_result();
+    }
+
     bool has_exception(
         this auto& self
     ) noexcept
@@ -160,20 +172,6 @@ public:
             get<exception_index>(
                 *self.m_result)
         );
-    }
-
-    decltype(auto) await_resume(
-        this auto& self,
-        auto& awaiter
-    )
-    {
-        scope_guard destroyer = [&]()
-        {
-            self.handle().destroy();
-            awaiter.handle() = nullptr;
-        };
-
-        return self.resume_result();
     }
 
     decltype(auto) resume_result(
