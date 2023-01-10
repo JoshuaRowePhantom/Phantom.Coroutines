@@ -104,11 +104,11 @@ protected:
     template<
         std::invocable AwaitableFunc
     >
-    Awaitable& get_awaitable(
+    Awaitable&& get_awaitable(
         AwaitableFunc& awaitableFunc
     ) noexcept
     {
-        return m_awaitable;
+        return std::move(m_awaitable);
     }
 };
 
