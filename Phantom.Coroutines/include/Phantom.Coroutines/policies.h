@@ -159,4 +159,36 @@ template<
     Policies...
 >;
 
+template<
+    typename T
+> struct base_promise_type
+{
+    using type = T;
+};
+
+template<
+    typename T
+> concept is_base_promise_type =
+detail::is_template_instantiation_v<T, base_promise_type>;
+
+template<
+    typename T
+> struct is_base_promise_type_selector :
+    std::integral_constant<
+        bool,
+        is_base_promise_type<T>
+    >
+{};
+
+template<
+    typename ... Policies
+> using select_base_promise_type_policy = detail::select_policy_t<
+    is_base_promise_type_selector,
+    Policies...
+>;
+
+template<
+    typename ... Policies
+> using select_base_promise_type = typename select_base_promise_type_policy<Policies...>::type;
+
 }
