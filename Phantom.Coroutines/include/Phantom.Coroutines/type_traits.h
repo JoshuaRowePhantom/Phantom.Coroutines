@@ -33,6 +33,25 @@ template<
     template <typename ...> typename Template
 > concept is_template_instantiation = is_template_instantiation_v<T, Template>;
 
+// Determine if a given type is a derived class of an instantiation of
+// a template accepting type arguments.
+template<
+    template<typename...> typename Template
+> struct derived_instantiation_detector
+{
+    template<
+        typename... Args
+    > void detect(
+        const Template<Args...>&);
+};
+
+template<
+    typename T,
+    template<typename...> typename Template
+> concept is_derived_instantiation = requires (T t)
+{
+    { derived_instantiation_detector<Template>::detect(t) };
+};
 
 template<
     typename T,
@@ -517,48 +536,6 @@ std::constructible_from<Continuation>
     { static_cast<coroutine_handle<>>(c) };
     { c.destroy() };
 };
-
-template<
-    template<typename T> typename PolicySelector,
-    typename ... Policies
-> struct select_policy
-{
-    static_assert(std::same_as<void, PolicySelector<void>>, "Policy list does not contain desired policy.");
-};
-
-template<
-    template<typename T> typename PolicySelector,
-    typename MatchingPolicy,
-    typename ... Policies
->
-    requires (PolicySelector<MatchingPolicy>::value)
-struct select_policy<
-    PolicySelector,
-    MatchingPolicy,
-    Policies...
->
-{
-    using type = MatchingPolicy;
-};
-
-template<
-    template<typename T> typename PolicySelector,
-    typename NotMatchingPolicy,
-    typename ... Policies
->
-    requires (!PolicySelector<NotMatchingPolicy>::value)
-struct select_policy<
-    PolicySelector,
-    NotMatchingPolicy,
-    Policies...
-> : public select_policy<PolicySelector, Policies...>
-{
-};
-
-template<
-    template<typename T> typename PolicySelector,
-    typename ... Policies
-> using select_policy_t = typename select_policy<PolicySelector, Policies...>::type;
 
 template<
     typename Owner,
