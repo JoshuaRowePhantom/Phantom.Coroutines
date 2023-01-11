@@ -26,7 +26,7 @@ task<> DoSomethingThatDoesntReturnAnything() { co_return; }
 ```task<Result>``` is an alias for ```basic_task<task_promise<Result>>```. 
 ```basic_task<Promise>```.
 
-## ```task_promise<typename Result, is_task_promise_policy Policies...>```
+## [```task_promise<typename Result, is_task_promise_policy Policies...>```](#task_promise)
 
 This alias template provides a ```basic_task_promise``` with the requested
 policies applied.

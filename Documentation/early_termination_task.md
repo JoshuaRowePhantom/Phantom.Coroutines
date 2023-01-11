@@ -158,6 +158,8 @@ The default behavior for exception is as follows:
   an error-handling await operation is encountered.
 * The exception is then rethrown into that coroutine.
 
+### [```early_termination_promise<Result, Policies...>```](#early_termination_promise)
+
 ### ```early_termination_transformer```
 
 This class acts as the base class for transformers that look at
