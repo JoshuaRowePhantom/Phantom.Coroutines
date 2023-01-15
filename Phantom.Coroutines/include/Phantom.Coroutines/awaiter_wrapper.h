@@ -115,7 +115,16 @@ template<
     public awaiter_wrapper_storage<Awaitable>,
     public awaiter_wrapper_methods<awaiter_type<Awaitable>>
 {
-    using awaiter_storage = awaiter_wrapper_storage<awaiter_type<Awaitable>>;
+    template<
+        is_awaitable Awaitable
+    > friend class awaiter_wrapper;
+
+public:
+    using awaitable_type = Awaitable;
+    using awaiter_type = awaiter_type<Awaitable>;
+
+private:
+    using awaiter_storage = awaiter_wrapper_storage<awaiter_type>;
     std::optional<awaiter_storage> m_awaiter;
 
     auto get_awaiter_lambda()
@@ -126,9 +135,38 @@ template<
         };
     }
 
-public:
-    using awaiter_type = awaiter_type<Awaitable>;
+    decltype(auto) retrieve_from_extended_promise_handle(
+        this auto& self,
+        auto awaiterRetriever,
+        auto awaitableRetriever
+    )
+    {
+        if constexpr (
+            is_extended_promise_handle<awaitable_type>
+            && is_extended_promise_handle<awaiter_type>
+            )
+        {
+            if (self.awaiter_wrapper::m_awaiter)
+            {
+                return awaiterRetriever(*self.awaiter_wrapper::m_awaiter);
+            }
+            else
+            {
+                return awaitableRetriever(self);
+            }
+        }
+        else if constexpr (is_extended_promise_handle<awaiter_type>)
+        {
+            std::ignore = awaiter();
+            return awaiterRetriever(*self.awaiter_wrapper::m_awaiter);
+        }
+        else
+        {
+            return awaitableRetriever(self);
+        }
+    }
 
+public:
     awaiter_wrapper()
     {
     }
@@ -152,6 +190,26 @@ public:
                 self.awaiter_wrapper::get_awaiter_lambda());
         }
         return self.awaiter_wrapper::m_awaiter->awaitable();
+    }
+
+    decltype(auto) handle(
+        this auto& self
+    )
+    {
+        return self.retrieve_from_extended_promise_handle(
+            [](auto&& awaiter) -> decltype(auto) { return awaiter.handle(); },
+            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper_storage<Awaitable>::handle(); }
+        );
+    }
+
+    decltype(auto) promise(
+        this auto& self
+    )
+    {
+        return self.retrieve_from_extended_promise_handle(
+            [](auto&& awaiter) -> decltype(auto) { return awaiter.promise(); },
+            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper_storage<Awaitable>::promise(); }
+        );
     }
 };
 

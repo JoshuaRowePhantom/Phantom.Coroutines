@@ -68,7 +68,7 @@ public derived_promise<BasePromise>
             self.m_bSuspended = true;
             if (std::same_as<DoLeaveOnSuspend, Leave>)
             {
-                self.promise().leave();
+                self.extensible_promise_handle<Promise>::promise().leave();
             }
             return self.awaiter().await_suspend(std::forward<decltype(args)>(args)...);
         }
@@ -84,7 +84,7 @@ public derived_promise<BasePromise>
         {
             if (std::same_as<DoEnterOnResume, Enter> && self.m_bSuspended)
             {
-                self.promise().enter();
+                self.extensible_promise_handle<Promise>::promise().enter();
             }
             return self.awaiter().await_resume(std::forward<decltype(args)>(args)...);
         }

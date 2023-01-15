@@ -232,6 +232,10 @@ template<
 };
 
 template<
+    typename Generator
+> async_generator_begin_awaiter(Generator&) -> async_generator_begin_awaiter<Generator>;
+
+template<
     is_derived_instantiation<basic_async_generator> Generator
 > class async_generator_iterator
     :
@@ -367,7 +371,7 @@ public:
 
     auto begin()
     {
-        return async_generator_increment_awaiter{ *this };
+        return async_generator_begin_awaiter{ *this };
     }
 
     auto end()
