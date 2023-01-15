@@ -492,8 +492,6 @@ public:
         };
     }
 
-    using basic_early_termination_promise::basic_task_promise::await_ready;
-
     // Suspend error-handling awaiters for this promise.
     template<
         std::derived_from<basic_early_termination_promise> Promise

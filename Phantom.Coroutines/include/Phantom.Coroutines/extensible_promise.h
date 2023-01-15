@@ -333,12 +333,61 @@ template<
 
 // This class helps for transferring ownership of single-owner awaitables.
 template<
-    is_extensible_promise_handle Base
-> class single_owner_awaitable
+    typename Promise
+> class single_owner_promise_handle
     :
-    public Base
+    public extensible_promise_handle<Promise>
 {
+public:
+    using typename single_owner_promise_handle::extensible_promise_handle::coroutine_handle_type;
 
+    using single_owner_promise_handle::extensible_promise_handle::extensible_promise_handle;
+
+    single_owner_promise_handle(
+        const single_owner_promise_handle&
+    ) = delete;
+
+    single_owner_promise_handle(
+        single_owner_promise_handle&& other
+    )
+    {
+        std::swap(
+            this->handle(),
+            other.handle()
+        );
+    }
+
+    auto& operator=(
+        const single_owner_promise_handle& other
+        ) = delete;
+
+    auto& operator=(
+        single_owner_promise_handle&& other
+        )
+    {
+        auto temp = std::move(*this);
+
+        std::swap(
+            this->handle(),
+            other.handle()
+        );
+
+        return *this;
+    }
+
+    void destroy()
+    {
+        if (this->handle())
+        {
+            this->handle().destroy();
+            this->handle() = {};
+        }
+    }
+
+    ~single_owner_promise_handle()
+    {
+        destroy();
+    }
 };
 }
 

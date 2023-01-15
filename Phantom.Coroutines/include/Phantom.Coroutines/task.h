@@ -158,50 +158,10 @@ public:
 
 template<
     typename Promise
-> class task_awaitable
-    :
-public extensible_promise_handle<Promise>
-{
-public:
-    task_awaitable(
-    )
-    {}
-
-    task_awaitable(
-        coroutine_handle<Promise> handle
-    ) :
-        extensible_promise_handle<Promise>{ handle }
-    {}
-
-    task_awaitable(
-        task_awaitable&& other
-    ) :
-        extensible_promise_handle<Promise>{ std::move(other) }
-    {
-        other.handle() = nullptr;
-    }
-    
-    task_awaitable& operator=(
-        task_awaitable&& other
-        )
-    {
-        if (this->handle())
-        {
-            this->handle().destroy();
-        }
-        this->handle() = other.handle();
-        other.handle() = nullptr;
-        return *this;
-    }
-
-    ~task_awaitable()
-    {
-        if (this->handle())
-        {
-            this->handle().destroy();
-        }
-    }
-};
+> using task_awaitable = single_owner_promise_handle
+<
+    Promise
+>;
 
 template<
     typename Promise
@@ -303,7 +263,7 @@ template<
     public task_awaitable<Promise>
 {
 public:
-    using basic_task::task_awaitable::task_awaitable;
+    using task_awaitable<Promise>::task_awaitable;
     using promise_type = Promise;
 
     basic_task()
