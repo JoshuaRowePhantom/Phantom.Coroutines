@@ -35,7 +35,10 @@ public:
 
     using extensible_promise_handle<Promise>::extensible_promise_handle;
 
-    bool await_ready() const noexcept { return false; }
+    bool await_ready() const noexcept 
+    {
+        return false; 
+    }
 
     std::coroutine_handle<> await_suspend(
         this auto& self,
@@ -45,7 +48,9 @@ public:
         return self.promise().m_continuation;
     }
 
-    void await_resume() const noexcept {}
+    void await_resume() const noexcept 
+    {
+    }
 };
 
 struct async_generator_current_value_index
@@ -194,11 +199,14 @@ public:
 
     auto await_suspend(
         this auto& self,
+        auto continuation,
         auto&&... args)
     {
         self.currentValue().emplace<EmptyIndex>();
+        self.promise().m_continuation = continuation;
 
         return self.awaiter().await_suspend(
+            continuation,
             std::forward<decltype(args)>(args)...
         );
     }
