@@ -1,10 +1,8 @@
 #pragma once
 
-#include "detail/coroutine.h"
-#include "detail/final_suspend_transfer.h"
-#include "detail/immovable_object.h"
-#include "await_none_await_transform.h"
+#include "awaiter_wrapper.h"
 #include "extensible_promise.h"
+#include "task.h"
 #include <concepts>
 #include <exception>
 #include <variant>
@@ -17,6 +15,11 @@ namespace detail
 {
 
 template<
+    typename T
+> concept is_async_generator_policy =
+is_base_promise_type_policy<T>;
+
+template<
     typename Promise
 > class basic_async_generator;
 
@@ -24,13 +27,13 @@ template<
     typename Promise
 > class async_generator_yield_awaiter
     :
-    public extensible_awaitable<Promise>
+    public extensible_promise_handle<Promise>
 {
 public:
-    using typename extensible_awaitable<Promise>::promise_type;
-    using typename extensible_awaitable<Promise>::coroutine_handle_type;
+    using typename extensible_promise_handle<Promise>::promise_type;
+    using typename extensible_promise_handle<Promise>::coroutine_handle_type;
 
-    using extensible_awaitable<Promise>::extensible_awaitable;
+    using extensible_promise_handle<Promise>::extensible_promise_handle;
 
     bool await_ready() const noexcept { return false; }
 
@@ -45,20 +48,36 @@ public:
     void await_resume() const noexcept {}
 };
 
+struct async_generator_current_value_index
+{
+    // The iterator needs to be advanced,
+    // or the underlying coroutine has completed.
+    static const std::size_t EmptyIndex = 0;
+    // The iterator holds a reference to a value.
+    static const std::size_t ValueRefIndex = 1;
+    // The iterator holds a copy of a value.
+    static const std::size_t ValueIndex = 2;
+};
+
 template<
-    typename Result
+    typename Result,
+    typename BasePromise
 > class basic_async_generator_promise
+    :
+    public derived_promise<BasePromise>,
+    private async_generator_current_value_index
 {
 public:
-    using result_type = Result;
+    using value_type = Result;
+    using async_generator_base_promise_type = BasePromise;
 
 private:
     template<
-        typename Promise
+        is_derived_instantiation<basic_async_generator> Generator
     > friend class async_generator_iterator;
 
     template<
-        typename Promise
+        is_derived_instantiation<basic_async_generator> Generator
     > friend class async_generator_increment_awaiter;
 
     template<
@@ -71,39 +90,26 @@ private:
 
     typedef std::variant<
         std::monostate,
-        std::reference_wrapper<std::remove_reference_t<result_type>>,
-        std::remove_cvref_t<result_type>,
+        std::reference_wrapper<std::remove_reference_t<value_type>>,
+        std::remove_cvref_t<value_type>,
         std::exception_ptr,
         std::monostate
     > current_value_holder_type;
-
-    // The iterator needs to be advanced.
-    static const std::size_t EmptyIndex = 0;
-    // The iterator holds a reference to a value.
-    static const std::size_t ValueRefIndex = 1;
-    // The iterator holds a copy of a value.
-    static const std::size_t ValueIndex = 2;
-    // The iterator holds an exception.
-    static const std::size_t ExceptionIndex = 3;
-    // The iterator is complete.
-    static const std::size_t CompleteIndex = 4;
 
     current_value_holder_type m_currentValue;
     coroutine_handle<> m_continuation;
 
 public:
-    auto get_return_object(
-        this auto& self
+    template<
+        typename Self
+    > auto get_return_object(
+        this Self& self
     ) noexcept
     {
-        return basic_async_generator{ self };
-    }
-
-    suspend_always initial_suspend(
-        this auto& self
-    ) noexcept
-    {
-        return suspend_always{};
+        return basic_async_generator<Self>
+        {
+            [&]() { return self.derived_promise<BasePromise>::get_return_object(); }
+        };
     }
 
     template<
@@ -114,15 +120,15 @@ public:
     )
     {
         if constexpr (
-            std::same_as<std::remove_reference_t<result_type>, std::remove_reference_t<Value>>
+            std::same_as<std::remove_reference_t<value_type>, std::remove_reference_t<Value>>
             &&
             (
-                std::is_reference_v<result_type>
+                std::is_reference_v<value_type>
                 || std::is_rvalue_reference_v<Value&&>
             ))
         {
             self.m_currentValue.emplace<ValueRefIndex>(
-                static_cast<std::add_lvalue_reference_t<result_type>>(
+                static_cast<std::add_lvalue_reference_t<value_type>>(
                     value));
         }
         else
@@ -133,113 +139,156 @@ public:
 
         return async_generator_yield_awaiter{ self };
     }
-
-    void return_void(
-        this auto& self
-    )
-    {
-        self.m_currentValue.emplace<CompleteIndex>();
-    }
-
-    void unhandled_exception(
-        this auto& self
-    )
-    {
-        self.m_currentValue.emplace<ExceptionIndex>(
-            std::current_exception());
-    }
-
-    final_suspend_transfer final_suspend(
-        this auto& self
-    ) noexcept
-    {
-        return final_suspend_transfer
-        {
-            self.m_continuation
-        };
-    }
 };
 
 template<
-    typename Promise
+    is_derived_instantiation<basic_async_generator> Generator
 > class async_generator_increment_awaiter
     :
-public extensible_awaitable<Promise>
+private async_generator_current_value_index
 {
-    using promise_type = Promise;
+    template<
+        is_derived_instantiation<basic_async_generator> Generator
+    > friend class async_generator_begin_awaiter;
+
+    using promise_type = typename Generator::promise_type;
+
+    Generator& m_generator;
+
+    decltype(auto) promise(
+        this auto& self
+    )
+    {
+        return self.m_generator.promise();
+    }
+
+    decltype(auto) currentValue(
+        this auto& self
+    )
+    {
+        return (self.promise().m_currentValue);
+    }
+
+    decltype(auto) awaiter(
+        this auto& self
+    )
+    {
+        return self.m_generator.awaiter();
+    }
 
 public:
-    using extensible_awaitable<Promise>::extensible_awaitable;
+    async_generator_increment_awaiter(
+        Generator& generator
+    ) : m_generator{generator}
+    {}
 
-    bool await_ready(
-        this auto& self
-    ) noexcept 
+    auto await_ready(
+        this auto& self,
+        auto&&... args
+    )
     {
-        return !self || self.promise().m_currentValue.index() != promise_type::EmptyIndex;
+        return self.awaiter().await_ready(
+            std::forward<decltype(args)>(args)...
+        );
     }
 
     auto await_suspend(
         this auto& self,
-        auto continuation
-    ) noexcept
+        auto&&... args)
     {
-        self.promise().m_continuation = continuation;
-        return self.handle();
+        self.currentValue().emplace<EmptyIndex>();
+
+        return self.awaiter().await_suspend(
+            std::forward<decltype(args)>(args)...
+        );
     }
 
     auto await_resume(
-        this auto& self)
+        this auto& self
+        )
     {
-        if (self && self.promise().m_currentValue.index() == promise_type::ExceptionIndex)
+        if (self.currentValue().index() == ValueRefIndex
+            || self.currentValue().index() == ValueIndex)
         {
-            std::rethrow_exception(
-                std::get<promise_type::ExceptionIndex>(
-                    self.promise().m_currentValue));
+            return self.awaiter().get_result_value(
+                [&]() { return async_generator_iterator<Generator>{ &self.m_generator }; }
+            );
         }
 
-        return async_generator_iterator{ self.handle() };
+        return self.awaiter().await_resume_value(
+            [] { return async_generator_iterator<Generator>{}; }
+        );
     }
 };
 
+
 template<
-    typename Promise
+    is_derived_instantiation<basic_async_generator> Generator
+> class async_generator_begin_awaiter
+    :
+    public async_generator_increment_awaiter<Generator>
+{
+    using async_generator_begin_awaiter::async_generator_begin_awaiter::async_generator_begin_awaiter;
+};
+
+template<
+    is_derived_instantiation<basic_async_generator> Generator
 > class async_generator_iterator
     :
-    public extensible_awaitable<Promise>
+    private async_generator_current_value_index
 {
-    using promise_type = Promise;
-    using result_type = typename promise_type::result_type;
+    friend class async_generator_increment_awaiter<Generator>;
+    friend class basic_async_generator<typename Generator::promise_type>;
 
-    promise_type* m_promise;
+    using promise_type = typename Generator::promise_type;
+    Generator* m_generator;
+
+    async_generator_iterator(
+        Generator* generator
+    ) :
+        m_generator{ generator }
+    {}
+
+    auto& promise(
+        this auto& self)
+    {
+        return self.m_generator->promise();
+    }
 
 public:
-    typedef std::remove_reference_t<result_type> value_type;
-    typedef size_t difference_type;
-    typedef std::add_lvalue_reference_t<result_type> reference;
-    typedef std::input_iterator_tag iterator_category;
+    async_generator_iterator(
+    ) :
+        m_generator{nullptr}
+    {}
 
-    using extensible_awaitable<Promise>::extensible_awaitable;
+    using value_type = typename promise_type::value_type;
+    typedef size_t difference_type;
+    typedef std::add_lvalue_reference_t<value_type> reference;
+    typedef std::input_iterator_tag iterator_category;
 
     auto operator++(
         this auto& self)
     {
-        self.promise().m_currentValue.emplace<promise_type::EmptyIndex>();
-        return async_generator_increment_awaiter{ self.promise() };
+        self.promise().m_currentValue.emplace<EmptyIndex>();
+        return async_generator_increment_awaiter
+        { 
+            *self.m_generator,
+        };
     }
 
-    std::add_lvalue_reference_t<result_type> operator*()
+    reference operator*()
     {
-        if (this->promise().m_currentValue.index() == promise_type::ValueIndex)
+        if (promise().m_currentValue.index() == ValueIndex)
         {
-            return std::get<promise_type::ValueIndex>(
-                this->promise().m_currentValue);
+            return std::get<ValueIndex>(
+                promise().m_currentValue);
         }
 
-        return std::get<promise_type::ValueRefIndex>(
-            this->promise().m_currentValue);
+        return std::get<ValueRefIndex>(
+            promise().m_currentValue);
     }
 
-    std::remove_reference_t<result_type>* operator->(
+    std::remove_reference_t<value_type>* operator->(
         this auto& self)
     {
         return &*self;
@@ -249,104 +298,100 @@ public:
         this auto& self
         ) 
     {
-        return self.handle()
-            && self.promise().m_currentValue.index() != promise_type::CompleteIndex;
+        return m_generator
+            && self.promise().m_currentValue.index() != EmptyIndex;
     }
 
-    bool operator==(
+    auto operator ==(
         const async_generator_iterator& other
-        )
-        const
+        ) const
     {
-        return this->handle() == other.handle()
-            || !*this && !other;
+        return m_generator == other.m_generator;
     }
 
-    bool operator!=(
+    auto operator !=(
         const async_generator_iterator& other
-        )
-        const
+        ) const
     {
-        return !(*this == other);
+        return m_generator != other.m_generator;
     }
 };
+
+decltype(auto) get_async_generator_base_return_object(
+    auto& promise
+)
+{
+    return promise.async_generator_base_promise_type::get_return_object();
+}
 
 template<
     typename Promise
 > class basic_async_generator
     :
-    public extensible_awaitable<Promise>
+    public extended_promise_handle<awaiter_wrapper<decltype(get_async_generator_base_return_object(std::declval<Promise&>()))>>
 {
-public:
-    using promise_type = Promise;
-    using result_type = typename promise_type::result_type;
-    using iterator_type = async_generator_iterator<Promise>;
+    friend class async_generator_increment_awaiter<basic_async_generator>;
+    friend class async_generator_iterator<basic_async_generator>;
+    
+    using awaiter_wrapper_type = typename basic_async_generator::extended_promise_handle::promise_handle_type;
+    using awaitable_type = typename awaiter_wrapper_type::awaiter_type;
 
-public:
-    using extensible_awaitable<Promise>::extensible_awaitable;
-
-    basic_async_generator(
-        const basic_async_generator&
-    ) = delete;
-
-    basic_async_generator(
-        basic_async_generator&& other
-    ) :
-        extensible_awaitable<Promise>{ other.handle() }
-    {
-        other.handle() = nullptr;
-    }
-
-    void operator=(
-        const basic_async_generator&
-        ) = delete;
-
-    basic_async_generator& operator=(
-        this auto& self,
-        basic_async_generator&& other
-        )
-    {
-        auto temp = std::move(self);
-        std::swap(self.handle(), other.handle());
-        return self;
-    }
-
-    ~basic_async_generator()
-    {
-        if (this->handle())
-        {
-            this->handle().destroy();
-        }
-    }
-
-    auto begin(
+    decltype(auto) awaiter(
         this auto& self
     )
     {
-        return async_generator_increment_awaiter { self.handle() };
+        return self.basic_async_generator::awaitable().awaiter();
     }
 
-    auto end(
-    )
-    { 
-        return async_generator_iterator<Promise>{};
+public:
+    using typename basic_async_generator::extended_promise_handle::promise_type;
+    using result_type = typename promise_type::result_type;
+    using value_type = typename promise_type::value_type;
+    using iterator_type = async_generator_iterator<basic_async_generator>;
+
+public:
+    basic_async_generator()
+    {}
+
+    basic_async_generator(
+        std::invocable auto&& awaitableFunction
+    ) :
+        basic_async_generator::extended_promise_handle
+    {
+        [&]()
+        {
+            return awaiter_wrapper_type{ std::forward<decltype(awaitableFunction)>(awaitableFunction) };
+        }
+    }
+    {}
+
+    auto begin()
+    {
+        return async_generator_increment_awaiter{ *this };
+    }
+
+    auto end()
+    {
+        return iterator_type{};
     }
 };
 
 template<
-    typename Promise
-> basic_async_generator(Promise&) -> basic_async_generator<Promise>;
-
-template<
-    typename Result
+    typename Result,
+    typename ... Policies
 > using async_generator_promise = basic_async_generator_promise<
-    Result
+    Result,
+    select_base_promise_type<Policies..., base_promise_type<task_promise<void>>>
 >;
 
 template<
-    typename Result
+    typename Result,
+    typename ... Policies
 > using async_generator = basic_async_generator<
-    async_generator_promise<Result>
+    async_generator_promise<
+        Result,
+        Policies...
+    >
 >;
 
 }

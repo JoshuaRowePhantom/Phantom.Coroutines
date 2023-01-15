@@ -65,7 +65,7 @@ template<
 class early_termination_awaiter
     :
     public early_termination_policy,
-    public extensible_awaitable<Promise>
+    public extensible_promise_handle<Promise>
 {
 protected:
     auto error_handling_continuation(
@@ -88,7 +88,7 @@ public:
     early_termination_awaiter(
         Promise& promise
     ) noexcept :
-        early_termination_awaiter::extensible_awaitable(promise)
+        early_termination_awaiter::extensible_promise_handle(promise)
     {}
 };
 

@@ -39,9 +39,22 @@ template<
 {
 public:
     template<is_awaitable Awaiter>
-    struct test_contextual_promise_awaiter : public extended_awaiter<test_contextual_promise, Awaiter>
+    struct test_contextual_promise_awaiter : 
+        public awaiter_wrapper<Awaiter>,
+        public extensible_promise_handle<test_contextual_promise>
     {
-        using test_contextual_promise_awaiter::extended_awaiter::extended_awaiter;
+        test_contextual_promise_awaiter(
+            test_contextual_promise& promise,
+            auto&& awaiterFunction
+        ) : awaiter_wrapper<Awaiter> { std::forward<decltype(awaiterFunction)>(awaiterFunction) },
+            extensible_promise_handle<test_contextual_promise> { promise }
+        {
+        }
+
+        decltype(auto) promise()
+        {
+            return this->test_contextual_promise_awaiter::extensible_promise_handle::promise();
+        }
 
         auto await_ready() noexcept
         {

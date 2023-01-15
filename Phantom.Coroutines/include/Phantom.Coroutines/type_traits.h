@@ -41,7 +41,7 @@ template<
 {
     template<
         typename... Args
-    > void detect(
+    > static void detect(
         const Template<Args...>&);
 };
 
@@ -311,7 +311,7 @@ TAwaiter awaiter)
 template<
     typename TAwaitable
 > concept has_co_await_member = requires(
-    TAwaitable&& awaitable
+    TAwaitable awaitable
     )
 {
     { std::forward<TAwaitable>(awaitable).operator co_await() } -> is_awaiter;
@@ -320,7 +320,7 @@ template<
 template<
     typename TAwaitable
 > concept has_co_await_non_member = requires(
-    TAwaitable && awaitable
+    TAwaitable awaitable
     )
 {
     { operator co_await(std::forward(awaitable)) } -> is_awaiter;
@@ -575,6 +575,56 @@ template<
     }
 }
 
+// Conditionally inherit from one base or another.
+template<
+    bool Condition,
+    typename BaseTrue,
+    typename BaseFalse
+> class inherit_if : public BaseTrue
+{
+    using BaseTrue::BaseTrue;
+};
+
+template<
+    typename BaseTrue,
+    typename BaseFalse
+> class inherit_if<
+    false,
+    BaseTrue,
+    BaseFalse
+> : public BaseFalse
+{
+    using BaseFalse::BaseFalse;
+};
+
+template<
+    typename Value
+> class value_storage
+{
+    Value m_value;
+
+public:
+    value_storage() requires std::is_default_constructible_v<Value> {}
+
+    value_storage(
+        std::invocable auto&& invocable
+    ) requires
+        std::same_as<Value, std::invoke_result_t<decltype(invocable)>>
+        :
+        m_value { std::invoke(std::forward<decltype(invocable)>(invocable)) }
+    {}
+
+protected:
+    decltype(auto) value()
+    {
+        return (m_value);
+    }
+
+    decltype(auto) value() const
+    {
+        return (m_value);
+    }
+};
 }
 
 using detail::awaiter_type;

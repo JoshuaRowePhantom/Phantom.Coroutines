@@ -25,14 +25,14 @@ TEST(awaiter_wrapper_test, can_wrap_awaiter_value)
 TEST(awaiter_wrapper_test, can_wrap_awaiter_lvalue)
 {
     generic_awaiter<void, void> awaiter;
-    awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&> wrapper{ awaiter };
+    awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&> wrapper{ [&]() -> auto& { return awaiter; } };
     ASSERT_EQ(&wrapper.awaiter(), &awaiter);
 }
 
 TEST(awaiter_wrapper_test, can_wrap_awaiter_rvalue)
 {
     generic_awaiter<void, void> awaiter;
-    awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&&> wrapper{ std::move(awaiter) };
+    awaiter_wrapper_test_awaiter<generic_awaiter<void, void>&&> wrapper{ [&]() -> auto&& { return std::move(awaiter); } };
     ASSERT_EQ(&wrapper.awaiter(), &awaiter);
 }
 

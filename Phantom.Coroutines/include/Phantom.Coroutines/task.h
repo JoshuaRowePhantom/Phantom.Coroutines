@@ -80,7 +80,13 @@ template<
 {
     using variant_result_storage<Result>::is_void;
 
-    friend class basic_task<basic_task_promise>;
+    template<
+        typename Promise
+    > friend class basic_task;
+
+    template<
+        typename Promise
+    > friend class task_awaiter;
 
 private:
 
@@ -124,77 +130,6 @@ public:
             );
     }
 
-    auto await_ready(
-        this auto& self,
-        auto& awaiter
-    )
-    {
-        return false;
-    }
-
-    auto await_suspend(
-        this auto& self,
-        auto& awaiter,
-        auto continuation
-    )
-    {
-        self.m_result = &awaiter.m_result;
-        self.continuation() = continuation;
-        return self.handle();
-    }
-
-    decltype(auto) await_resume(
-        this auto& self,
-        auto& awaiter
-    )
-    {
-        scope_guard destroyer = [&]()
-        {
-            self.handle().destroy();
-            awaiter.handle() = nullptr;
-        };
-
-        return self.resume_result();
-    }
-
-    bool has_exception(
-        this auto& self
-    ) noexcept
-    {
-        return self.m_result->index() == exception_index;
-    }
-
-    [[noreturn]] void resume_exception(
-        this auto& self
-    )
-    {
-        std::rethrow_exception(
-            get<exception_index>(
-                *self.m_result)
-        );
-    }
-
-    decltype(auto) resume_result(
-        this auto& self
-    )
-    {
-        if (self.has_exception())
-        {
-            self.resume_exception();
-        }
-
-        return self.resume_successful_result();
-    }
-
-    decltype(auto) resume_successful_result(
-        this auto& self)
-    {
-        [[assume(*self.m_result->index() == result_index)]];
-
-        return self.variant_result_storage<Result>::return_result<result_index>(
-            *self.m_result);
-    }
-
     decltype(auto) return_exception(
         this auto& self,
         std::exception_ptr exception)
@@ -225,7 +160,7 @@ template<
     typename Promise
 > class task_awaitable
     :
-public extensible_awaitable<Promise>
+public extensible_promise_handle<Promise>
 {
 public:
     task_awaitable(
@@ -235,13 +170,13 @@ public:
     task_awaitable(
         coroutine_handle<Promise> handle
     ) :
-        extensible_awaitable<Promise>{ handle }
+        extensible_promise_handle<Promise>{ handle }
     {}
 
     task_awaitable(
         task_awaitable&& other
     ) :
-        extensible_awaitable<Promise>{ std::move(other) }
+        extensible_promise_handle<Promise>{ std::move(other) }
     {
         other.handle() = nullptr;
     }
@@ -275,6 +210,9 @@ template<
 public task_awaitable<Promise>,
 private basic_task_variant_result<typename Promise::result_type>
 {
+    using task_awaiter::basic_task_variant_result::result_index;
+    using task_awaiter::basic_task_variant_result::exception_index;
+
     template<
         typename Result,
         is_continuation Continuation
@@ -283,6 +221,23 @@ private basic_task_variant_result<typename Promise::result_type>
     using typename task_awaiter::basic_task_variant_result::result_variant_type;
     result_variant_type m_result;
 
+    bool has_exception(
+    ) const noexcept
+    {
+        return m_result.index() == exception_index;
+    }
+
+    [[noreturn]] 
+    void resume_exception(
+    )
+    {
+        std::rethrow_exception(
+            std::move(
+                get<exception_index>(
+                    m_result))
+        );
+    }
+
 public:
     task_awaiter(
         task_awaitable<Promise>&& other
@@ -290,25 +245,54 @@ public:
     {}
 
     bool await_ready(
-        this auto& self
-    ) noexcept
+    ) const noexcept
     {
-        return self.promise().await_ready(self);
+        return false;
     }
 
     auto await_suspend(
-        this auto& self,
         auto awaiter
     ) noexcept
     {
-        return self.promise().await_suspend(self, awaiter);
+        this->promise().continuation() = awaiter;
+        this->promise().m_result = &m_result;
+        return this->handle();
     }
 
     decltype(auto) await_resume(
-        this auto& self
     )
     {
-        return self.promise().await_resume(self);
+        return this->await_resume_value(
+            [&]() -> decltype(auto)
+            {
+                return this->resume_variant_result<result_index>(
+                    m_result);
+            });
+    }
+
+    decltype(auto) get_result_value(
+        std::invocable auto&& expression
+    )
+    {
+        return std::forward<decltype(expression)>(expression)();
+    }
+
+    decltype(auto) await_resume_value(
+        std::invocable auto&& valueFunction)
+    {
+        scope_guard destroyer = [&]()
+        {
+            this->handle().destroy();
+            this->handle() = nullptr;
+        };
+
+        if (this->has_exception())
+        {
+            this->resume_exception();
+        }
+
+        return std::invoke(
+            std::forward<decltype(valueFunction)>(valueFunction));
     }
 };
 

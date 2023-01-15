@@ -1,10 +1,84 @@
 #pragma once
-#include "Phantom.Coroutines/type_traits.h"
+#include "type_traits.h"
+#include "extensible_promise.h"
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
+
+template<
+    typename Value
+> class awaiter_wrapper_storage
+    :
+    private value_storage<Value>
+{
+    template<
+        is_awaitable Awaitable
+    > friend class awaiter_wrapper;
+
+    using awaiter_wrapper_storage::value_storage::value_storage;
+
+public:
+    decltype(auto) awaitable(
+        this auto& self
+    )
+    {
+        return self.awaiter_wrapper_storage::value_storage::value();
+    }
+};
+
+template<
+    is_extensible_promise_handle Object
+> class awaiter_wrapper_storage<
+    Object
+> :
+    public extended_promise_handle<Object>
+{
+    template<
+        is_awaitable Awaitable
+    > friend class awaiter_wrapper;
+
+public:
+    using awaiter_wrapper_storage::extended_promise_handle::extended_promise_handle;
+};
+
+template<
+    is_awaiter Awaiter
+> class awaiter_wrapper_methods
+{
+public:
+    
+    decltype(auto) await_ready(
+        this auto& self,
+        auto&&... args
+    ) noexcept(noexcept(self.awaiter().await_ready(std::forward<decltype(args)>(args)...)))
+    {
+        return self.awaiter().await_ready(
+            std::forward<decltype(args)>(args)...
+        );
+    }
+
+    decltype(auto) await_suspend(
+        this auto& self,
+        auto&&... args
+    ) noexcept(
+        noexcept(self.awaiter().await_suspend(std::forward<decltype(args)>(args)...))
+        )
+    {
+        return self.awaiter().await_suspend(std::forward<decltype(args)>(args)...);
+    }
+
+    decltype(auto) await_resume(
+        this auto& self,
+        auto&&... args
+    ) noexcept(
+        noexcept(self.awaiter().await_resume(std::forward<decltype(args)>(args)...))
+        )
+    {
+        return self.awaiter().await_resume(std::forward<decltype(args)>(args)...);
+    }
+};
 
 template<
     is_awaitable Awaitable
@@ -16,160 +90,69 @@ template<
     is_awaiter Awaiter
 > class awaiter_wrapper<
     Awaiter
->
+> :
+    public awaiter_wrapper_storage<Awaiter>,
+    public awaiter_wrapper_methods<Awaiter>
 {
 protected:
     typedef Awaiter awaiter_type;
 
-private:
-    // This will be the underlying awaiter type, either value, l-value reference, or r-value reference.
-    awaiter_type m_awaiter;
-
-public:
-    explicit awaiter_wrapper(
-        Awaiter awaiter
-    ) noexcept
-        requires std::is_reference_v<Awaiter>
-        : m_awaiter(std::forward<Awaiter>(awaiter))
-    {}
-
-    template<
-        std::invocable AwaiterFunc
-    >
-    requires std::is_invocable_r_v<Awaiter, AwaiterFunc>
-    explicit awaiter_wrapper(
-        AwaiterFunc&& awaiterFunc
-    ) noexcept(noexcept(
-        std::invoke(std::forward<decltype(awaiterFunc)>(awaiterFunc))
-        ))
-        : m_awaiter
-        {
-            std::invoke(std::forward<decltype(awaiterFunc)>(awaiterFunc))
-        }
-    {}
-
-    decltype(auto) await_ready(
-        auto&&... args
-    ) noexcept(noexcept(awaiter().await_ready(std::forward<decltype(args)>(args)...)))
-    {
-        return awaiter().await_ready(
-            std::forward<decltype(args)>(args)...
-        );
-    }
-
-    decltype(auto) await_suspend(
-        auto&&... args
-    ) noexcept(
-        noexcept(awaiter().await_suspend(std::forward<decltype(args)>(args)...))
-        )
-    {
-        return awaiter().await_suspend(std::forward<decltype(args)>(args)...);
-    }
-
-    decltype(auto) await_resume(
-        auto&&... args
-    ) noexcept(
-        noexcept(awaiter().await_resume(std::forward<decltype(args)>(args)...))
-        )
-    {
-        return awaiter().await_resume(std::forward<decltype(args)>(args)...);
-    }
+    using awaiter_wrapper::awaiter_wrapper_storage::awaiter_wrapper_storage;
 
 protected:
     awaiter_type& awaiter() noexcept
     {
-        return m_awaiter;
+        return this->awaitable();
     }
 };
 
-// Stores the Awaitable object for non-reference types of Awaitable objects.
-template<
-    is_awaitable Awaitable
-> class awaiter_wrapper_awaitable_storage
-{
-    Awaitable m_awaitable;
-
-protected:
-    // Construct m_awaitable from the function.
-    template<
-        std::invocable AwaitableFunc
-    >
-    awaiter_wrapper_awaitable_storage(
-        AwaitableFunc& awaitableFunc
-    ) noexcept(noexcept(std::invoke(awaitableFunc))) :
-        m_awaitable(std::invoke(awaitableFunc))
-    {}
-
-    // Get m_awaitable from the constructed value.
-    template<
-        std::invocable AwaitableFunc
-    >
-    Awaitable&& get_awaitable(
-        AwaitableFunc& awaitableFunc
-    ) noexcept
-    {
-        return std::move(m_awaitable);
-    }
-};
-
-// Ignores the Awaitable object for reference types of Awaitable objects.
-template<
-    is_awaitable Awaitable
-> 
-requires std::is_reference_v<Awaitable>
-class awaiter_wrapper_awaitable_storage<
-    Awaitable
->
-{
-protected:
-    // Do nothing.
-    template<
-        std::invocable AwaitableFunc
-    >
-    awaiter_wrapper_awaitable_storage(
-        AwaitableFunc& awaitableFunc
-    ) noexcept
-    {}
-
-    // Get the awaitable object as from the function.
-    template<
-        std::invocable AwaitableFunc
-    >
-    decltype(auto) get_awaitable(
-        AwaitableFunc& awaitableFunc
-    ) noexcept(noexcept(std::invoke(awaitableFunc)))
-    {
-        return std::invoke(awaitableFunc);
-    }
-};
-
-// The primary template for awaiter_wrapper delegates to the
-// is_awaiter specialization for the actual underlying awaiter,
-// and obtains the awaiter from the awaitable object.
 template<
     is_awaitable Awaitable
 > class awaiter_wrapper
     :
     // Note that awaiter_wrapper_awaitable_storage is first so that it is
     // constructed before awaiter_wrapper and destroyed after awaiter_wrapper.
-    private awaiter_wrapper_awaitable_storage<Awaitable>,
-    public awaiter_wrapper<awaiter_type<Awaitable>>
+    public awaiter_wrapper_storage<Awaitable>,
+    public awaiter_wrapper_methods<awaiter_type<Awaitable>>
 {
-public:
-    template<
-        std::invocable AwaitableFunc
-    >
-    requires std::is_invocable_r_v<Awaitable, AwaitableFunc>
-    explicit awaiter_wrapper(
-        AwaitableFunc&& awaitableFunc
-    ) noexcept(noexcept(get_awaiter(this->get_awaitable(awaitableFunc))))
-        : 
-        awaiter_wrapper_awaitable_storage<Awaitable>(awaitableFunc),
-        awaiter_wrapper<awaiter_type<Awaitable>>
+    using awaiter_storage = awaiter_wrapper_storage<awaiter_type<Awaitable>>;
+    std::optional<awaiter_storage> m_awaiter;
+
+    auto get_awaiter_lambda()
     {
-        [&]() -> decltype(auto) { return get_awaiter(this->get_awaitable(awaitableFunc)); }
+        return [&]() -> decltype(auto) 
+        { 
+            return get_awaiter(std::forward<Awaitable>(this->awaitable()));
+        };
+    }
+
+public:
+    using awaiter_type = awaiter_type<Awaitable>;
+
+    awaiter_wrapper()
+    {
+    }
+
+    explicit awaiter_wrapper(
+        std::invocable auto&& awaitableFunction
+    )
+        : 
+        awaiter_wrapper_storage<Awaitable>
+    {
+        std::forward<decltype(awaitableFunction)>(awaitableFunction)
     }
     {}
+
+    decltype(auto) awaiter(
+        this auto& self)
+    {
+        if (!self.awaiter_wrapper::m_awaiter)
+        {
+            self.awaiter_wrapper::m_awaiter.emplace(
+                self.awaiter_wrapper::get_awaiter_lambda());
+        }
+        return self.awaiter_wrapper::m_awaiter->awaitable();
+    }
 };
 
 }

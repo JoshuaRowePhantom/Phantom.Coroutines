@@ -1,4 +1,5 @@
 #include "extensible_promise.h"
+#include "awaiter_wrapper.h"
 
 namespace Phantom::Coroutines
 {
@@ -31,7 +32,8 @@ public derived_promise<BasePromise>
         typename Promise,
         is_awaitable Awaiter
     > class contextual_promise_awaiter :
-        public extended_awaiter<Promise, Awaiter>
+        public awaiter_wrapper<Awaiter>,
+        public extensible_promise_handle<Promise>
     {
         bool m_bSuspended = false;
 
@@ -41,11 +43,9 @@ public derived_promise<BasePromise>
             Leave leave,
             Promise& promise,
             std::invocable auto&& awaitableFunc
-        ) : contextual_promise_awaiter::extended_awaiter::extended_awaiter
-        {
-            promise,
-            std::forward<decltype(awaitableFunc)>(awaitableFunc)
-        }
+        ) : 
+            awaiter_wrapper<Awaiter>{ std::forward<decltype(awaitableFunc)>(awaitableFunc) },
+            extensible_promise_handle<Promise>{ promise }
         {}
 
         bool await_ready(

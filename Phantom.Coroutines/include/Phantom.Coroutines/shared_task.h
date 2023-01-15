@@ -75,9 +75,9 @@ template<
     typename Promise
 > class basic_shared_task
     :
-    public extensible_awaitable<Promise>
+    public extensible_promise_handle<Promise>
 {
-    using basic_shared_task::extensible_awaitable::coroutine_handle_type;
+    using basic_shared_task::extensible_promise_handle::coroutine_handle_type;
 
     template<
         typename Result,
@@ -88,7 +88,7 @@ protected:
     basic_shared_task(
         coroutine_handle<Promise> handle
     ) noexcept 
-        : basic_shared_task::extensible_awaitable(handle)
+        : basic_shared_task::extensible_promise_handle(handle)
     {}
 
     void acquire_reference() noexcept
@@ -111,13 +111,13 @@ public:
     typedef Promise promise_type;
 
     basic_shared_task()
-        : basic_shared_task::extensible_awaitable(nullptr)
+        : basic_shared_task::extensible_promise_handle(nullptr)
     {}
 
     basic_shared_task(
         const basic_shared_task& other
     )  noexcept 
-        : basic_shared_task::extensible_awaitable(other)
+        : basic_shared_task::extensible_promise_handle(other)
     {
         acquire_reference();
     }
@@ -130,7 +130,7 @@ public:
     basic_shared_task(
         basic_shared_task&& other
     )  noexcept 
-        : basic_shared_task::extensible_awaitable(other)
+        : basic_shared_task::extensible_promise_handle(other)
     {
         other.handle() = nullptr;
     }
@@ -173,7 +173,7 @@ template<
     typename Promise
 > class shared_task_awaiter
     :
-    public extensible_awaitable<Promise>,
+    public extensible_promise_handle<Promise>,
     private shared_task_awaiter_list_entry<typename Promise::continuation_type>
 {
     template<
@@ -185,13 +185,13 @@ template<
         typename Promise
     > friend class shared_task_promise_final_suspend_awaiter;
 
-    using typename shared_task_awaiter::extensible_awaitable::coroutine_handle_type;
+    using typename shared_task_awaiter::extensible_promise_handle::coroutine_handle_type;
     using continuation_type = typename Promise::continuation_type;
 
 public:
     shared_task_awaiter(
         coroutine_handle_type handle
-    ) noexcept : shared_task_awaiter::extensible_awaitable(handle)
+    ) noexcept : shared_task_awaiter::extensible_promise_handle(handle)
     {}
 
     bool await_ready(
@@ -231,10 +231,10 @@ template<
     typename Promise
 > struct shared_task_promise_final_suspend_awaiter
     :
-    public extensible_awaitable<Promise>,
+    public extensible_promise_handle<Promise>,
     private shared_task_states
 {
-    using extensible_awaitable<Promise>::extensible_awaitable;
+    using extensible_promise_handle<Promise>::extensible_promise_handle;
 
     bool await_ready(
         this const auto& self

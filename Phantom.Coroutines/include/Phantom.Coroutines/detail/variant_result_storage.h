@@ -70,7 +70,7 @@ template<
     template<
         size_t Index,
         typename Variant
-    > static return_result_type return_result(
+    > static return_result_type resume_variant_result(
         Variant& variant
     )
     {
@@ -106,7 +106,7 @@ template<
     template<
         size_t Index,
         typename Variant
-    > static void return_result(
+    > static void resume_variant_result(
         Variant& variant
     )
     {
@@ -143,7 +143,7 @@ template<
     template<
         size_t Index,
         typename Variant
-    > static T& return_result(
+    > static T& resume_variant_result(
         Variant& variant
     )
     {
@@ -180,7 +180,7 @@ template<
     template<
         size_t Index,
         typename Variant
-    > static T&& return_result(
+    > static T&& resume_variant_result(
         Variant& variant
     )
     {

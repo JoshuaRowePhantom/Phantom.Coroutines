@@ -188,7 +188,7 @@ struct base_promise_type<void>
 
 template<
     typename T
-> concept is_base_promise_type =
+> concept is_base_promise_type_policy =
 is_concrete_policy<T, base_promise_type<>>;
 
 template<
