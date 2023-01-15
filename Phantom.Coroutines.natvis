@@ -1,167 +1,176 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-	<Type Name="Phantom::Coroutines::detail::SingletonStateHandler&lt;void *,*&gt;">
-		<DisplayString>{"$T1"} - {&amp;g_objectWithUniqueAddressValue}</DisplayString>
-	</Type>
-	<Type Name="Phantom::Coroutines::detail::BasicAtomicStateHandlers&lt;*,*,*,*,*,*&gt;">
-		<DisplayString></DisplayString>
-	</Type>
-	<Type Name="Phantom::Coroutines::detail::state&lt;*&gt;">
-		<DisplayString>{reinterpret_cast&lt;void*&gt;(reinterpret_cast&lt;uintptr_t&gt;(m_value) &amp; ~c_StateSetIndexPointerMask)}</DisplayString>
-	</Type>
+    <Type Name="Phantom::Coroutines::detail::SingletonStateHandler&lt;void *,*&gt;">
+        <DisplayString>{"$T1"} - {&amp;g_objectWithUniqueAddressValue}</DisplayString>
+    </Type>
+    <Type Name="Phantom::Coroutines::detail::BasicAtomicStateHandlers&lt;*,*,*,*,*,*&gt;">
+        <DisplayString></DisplayString>
+    </Type>
+    <Type Name="Phantom::Coroutines::detail::state&lt;*&gt;">
+        <DisplayString>{reinterpret_cast&lt;void*&gt;(reinterpret_cast&lt;uintptr_t&gt;(m_value) &amp; ~c_StateSetIndexPointerMask)}</DisplayString>
+    </Type>
 
-	<Type Name="Phantom::Coroutines::detail::single_consumer_event&lt;*&gt;">
-		<DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_event_states::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled</DisplayString>
-		<DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_event_states::NotSignalledState&gt;::g_objectWithUniqueAddressValue">Not Signalled</DisplayString>
-		<DisplayString>Waiting Coroutine: {reinterpret_cast&lt;std::coroutine_handle&lt;void&gt;*&gt;(&amp;m_atomicState.m_atomicRepresentation._Storage._Value)}</DisplayString>
-	</Type>
+    <Type Name="Phantom::Coroutines::detail::single_consumer_event&lt;*&gt;">
+        <DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_event_states::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled</DisplayString>
+        <DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_event_states::NotSignalledState&gt;::g_objectWithUniqueAddressValue">Not Signalled</DisplayString>
+        <DisplayString>Waiting Coroutine: {reinterpret_cast&lt;std::coroutine_handle&lt;void&gt;*&gt;(&amp;m_atomicState.m_atomicRepresentation._Storage._Value)}</DisplayString>
+    </Type>
 
-	<!--<Type Name="Phantom::Coroutines::detail::async_mutex::async_mutex_lock_operation">
-		<DisplayString>Lock waiter {m_continuation}</DisplayString>
-	</Type>-->
+    <!--<Type Name="Phantom::Coroutines::detail::async_mutex::async_mutex_lock_operation">
+        <DisplayString>Lock waiter {m_continuation}</DisplayString>
+    </Type>-->
 
-	<Type Name="Phantom::Coroutines::detail::async_mutex">
-		<DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::async_mutex::UnlockedState&gt;::g_objectWithUniqueAddressValue">Unlocked</DisplayString>
-		<DisplayString>Locked</DisplayString>
+    <Type Name="Phantom::Coroutines::detail::async_mutex">
+        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::async_mutex::UnlockedState&gt;::g_objectWithUniqueAddressValue">Unlocked</DisplayString>
+        <DisplayString>Locked</DisplayString>
 
-		<Expand>
-			<Item Name="Waiters">m_waiters</Item>
-			
-			<LinkedListItems>
-				<HeadPointer>m_waiters</HeadPointer>
-				<NextPointer>m_nextAwaiter</NextPointer>
-				<ValueNode>this</ValueNode>
-			</LinkedListItems>
+        <Expand>
+            <Item Name="Waiters">m_waiters</Item>
+            
+            <LinkedListItems>
+                <HeadPointer>m_waiters</HeadPointer>
+                <NextPointer>m_nextAwaiter</NextPointer>
+                <ValueNode>this</ValueNode>
+            </LinkedListItems>
 
-			<Item Name="Reverse Waiters">m_state</Item>
-			
-			<LinkedListItems>
-				<HeadPointer>static_cast&lt;Phantom::Coroutines::detail::async_mutex::async_mutex_lock_operation*&gt;(m_state.m_atomicRepresentation._Storage._Value)</HeadPointer>
-				<NextPointer>m_nextAwaiter</NextPointer>
-				<ValueNode>this</ValueNode>
-			</LinkedListItems>
-		</Expand>
-	</Type>
+            <Item Name="Reverse Waiters">m_state</Item>
+            
+            <LinkedListItems>
+                <HeadPointer>static_cast&lt;Phantom::Coroutines::detail::async_mutex::async_mutex_lock_operation*&gt;(m_state.m_atomicRepresentation._Storage._Value)</HeadPointer>
+                <NextPointer>m_nextAwaiter</NextPointer>
+                <ValueNode>this</ValueNode>
+            </LinkedListItems>
+        </Expand>
+    </Type>
 
-	<Type Name="Phantom::Coroutines::detail::sequence_barrier&lt;*&gt;::awaiter">
-		<DisplayString>Waiting for {{{m_value}}}: {m_continuation}</DisplayString>
-	</Type>
+    <Type Name="Phantom::Coroutines::detail::sequence_barrier&lt;*&gt;::awaiter">
+        <DisplayString>Waiting for {{{m_value}}}: {m_continuation}</DisplayString>
+    </Type>
 
-	<Type Name="Phantom::Coroutines::detail::sequence_barrier&lt;*&gt;">
-		<DisplayString>Last published {{{m_publishedValue}}}</DisplayString>
+    <Type Name="Phantom::Coroutines::detail::sequence_barrier&lt;*&gt;">
+        <DisplayString>Last published {{{m_publishedValue}}}</DisplayString>
 
-		<Expand>
+        <Expand>
 
-			<Item Name="Queued Waiters">m_queuedAwaiters</Item>
+            <Item Name="Queued Waiters">m_queuedAwaiters</Item>
 
-			<TreeItems>
-				<HeadPointer>m_queuedAwaiters._Storage._Value</HeadPointer>
-				<LeftPointer>m_subtreePointer</LeftPointer>
-				<RightPointer>m_siblingPointer</RightPointer>
-				<ValueNode>this</ValueNode>
-			</TreeItems>
+            <TreeItems>
+                <HeadPointer>m_queuedAwaiters._Storage._Value</HeadPointer>
+                <LeftPointer>m_subtreePointer</LeftPointer>
+                <RightPointer>m_siblingPointer</RightPointer>
+                <ValueNode>this</ValueNode>
+            </TreeItems>
 
-			<Item Name="Coalesced Waiters">m_awaitersHeap</Item>
+            <Item Name="Coalesced Waiters">m_awaitersHeap</Item>
 
-			<TreeItems>
-				<HeadPointer>m_awaitersHeap._Storage._Value</HeadPointer>
-				<LeftPointer>m_subtreePointer</LeftPointer>
-				<RightPointer>m_siblingPointer</RightPointer>
-				<ValueNode>this</ValueNode>
-			</TreeItems>
+            <TreeItems>
+                <HeadPointer>m_awaitersHeap._Storage._Value</HeadPointer>
+                <LeftPointer>m_subtreePointer</LeftPointer>
+                <RightPointer>m_siblingPointer</RightPointer>
+                <ValueNode>this</ValueNode>
+            </TreeItems>
 
-		</Expand>
-	</Type>
+        </Expand>
+    </Type>
 
-	<Type Name="Phantom::Coroutines::detail::auto_reset_event::awaiter">
-		<DisplayString>{m_continuation}</DisplayString>
-	</Type>
-	
-	<Type Name="Phantom::Coroutines::detail::auto_reset_event">
-		<DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled, No Waiters</DisplayString>
-		<DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue">Not Signalled, No Waiters</DisplayString>
-		<DisplayString Condition="(reinterpret_cast&lt;uintptr_t&gt;(m_state.m_atomicRepresentation._Storage._Value) &amp; 0x1) == 0">Not Signalled, Has Waiters</DisplayString>
-		<DisplayString Condition="(reinterpret_cast&lt;uintptr_t&gt;(m_state.m_atomicRepresentation._Storage._Value) &amp; 0x1) == 1">Signalling, Has Waiters</DisplayString>
-		<DisplayString>Unknown state</DisplayString>
-		
-		<Expand>
-			
-			<Item Name="Waiters To Signal Next"
-				  Condition="m_pendingAwaiters">m_pendingAwaiters</Item>
+    <Type Name="Phantom::Coroutines::detail::auto_reset_event::awaiter">
+        <DisplayString>{m_continuation}</DisplayString>
+    </Type>
+    
+    <Type Name="Phantom::Coroutines::detail::auto_reset_event">
+        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled, No Waiters</DisplayString>
+        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue">Not Signalled, No Waiters</DisplayString>
+        <DisplayString Condition="(reinterpret_cast&lt;uintptr_t&gt;(m_state.m_atomicRepresentation._Storage._Value) &amp; 0x1) == 0">Not Signalled, Has Waiters</DisplayString>
+        <DisplayString Condition="(reinterpret_cast&lt;uintptr_t&gt;(m_state.m_atomicRepresentation._Storage._Value) &amp; 0x1) == 1">Signalling, Has Waiters</DisplayString>
+        <DisplayString>Unknown state</DisplayString>
+        
+        <Expand>
+            
+            <Item Name="Waiters To Signal Next"
+                  Condition="m_pendingAwaiters">m_pendingAwaiters</Item>
 
-			<LinkedListItems>
-				<HeadPointer>m_pendingAwaiters</HeadPointer>
-				<NextPointer>m_nextAwaiter</NextPointer>
-				<ValueNode>this</ValueNode>
-			</LinkedListItems>
+            <LinkedListItems>
+                <HeadPointer>m_pendingAwaiters</HeadPointer>
+                <NextPointer>m_nextAwaiter</NextPointer>
+                <ValueNode>this</ValueNode>
+            </LinkedListItems>
 
-			<Item Name="Enqueued Waiters"
-				  Condition="
-				  m_state.m_atomicRepresentation._Storage._Value != &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue
-				  &amp;&amp;
-				  m_state.m_atomicRepresentation._Storage._Value != &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue
-				  ">
-				<![CDATA[
-				reinterpret_cast<Phantom::Coroutines::detail::auto_reset_event::awaiter*>(
-					reinterpret_cast<uintptr_t>(m_state.m_atomicRepresentation._Storage._Value) & ~0x1ULL
-				)
-				]]>
-			</Item>
+            <Item Name="Enqueued Waiters"
+                  Condition="
+                  m_state.m_atomicRepresentation._Storage._Value != &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue
+                  &amp;&amp;
+                  m_state.m_atomicRepresentation._Storage._Value != &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue
+                  ">
+                <![CDATA[
+                reinterpret_cast<Phantom::Coroutines::detail::auto_reset_event::awaiter*>(
+                    reinterpret_cast<uintptr_t>(m_state.m_atomicRepresentation._Storage._Value) & ~0x1ULL
+                )
+                ]]>
+            </Item>
 
-			<LinkedListItems>
-				<HeadPointer>
-					<![CDATA[
-					reinterpret_cast<Phantom::Coroutines::detail::auto_reset_event::awaiter*>
-						(
-						reinterpret_cast<uintptr_t>(m_state.m_atomicRepresentation._Storage._Value) & ~0x1ULL
-					)]]>
-				</HeadPointer>
-				<NextPointer>m_nextAwaiter</NextPointer>
-				<ValueNode>this</ValueNode>
-			</LinkedListItems>
-		</Expand>
+            <LinkedListItems>
+                <HeadPointer>
+                    <![CDATA[
+                    reinterpret_cast<Phantom::Coroutines::detail::auto_reset_event::awaiter*>
+                        (
+                        reinterpret_cast<uintptr_t>(m_state.m_atomicRepresentation._Storage._Value) & ~0x1ULL
+                    )]]>
+                </HeadPointer>
+                <NextPointer>m_nextAwaiter</NextPointer>
+                <ValueNode>this</ValueNode>
+            </LinkedListItems>
+        </Expand>
 
-	</Type>
+    </Type>
 
-	<Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;">
-		<DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
-		<Expand>
-			<Item Name="current value">
-				m_valueHolderSoftReference->m_value
-			</Item>
-		</Expand>
-	</Type>
+    <Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;">
+        <DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
+        <Expand>
+            <Item Name="current value">
+                m_valueHolderSoftReference->m_value
+            </Item>
+        </Expand>
+    </Type>
 
-	<Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;::update_operation">
-		<DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
-		<Expand>
-			<Item Name="current value">
-				m_valueHolderSoftReference->m_value
-			</Item>
-			<Item Name="replacement value">
-				m_replacementValueHolder._Ptr->m_value
-			</Item>
-		</Expand>
-	</Type>
+    <Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;::update_operation">
+        <DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
+        <Expand>
+            <Item Name="current value">
+                m_valueHolderSoftReference->m_value
+            </Item>
+            <Item Name="replacement value">
+                m_replacementValueHolder._Ptr->m_value
+            </Item>
+        </Expand>
+    </Type>
 
-	<Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;::read_operation">
-		<DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
-		<Expand>
-			<Item Name="current value">
-				m_valueHolderSoftReference->m_value
-			</Item>
-		</Expand>
-	</Type>
+    <Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;::read_operation">
+        <DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
+        <Expand>
+            <Item Name="current value">
+                m_valueHolderSoftReference->m_value
+            </Item>
+        </Expand>
+    </Type>
 
-	<Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;::write_operation">
-		<DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
-		<Expand>
-			<Item Name="current value">
-				m_valueHolderSoftReference->m_value
-			</Item>
-			<Item Name="replacement value">
-				*m_replacementValueHolder._Ptr->m_value
-			</Item>
-		</Expand>
-	</Type>
+    <Type Name="Phantom::Coroutines::detail::read_copy_update_section&lt;*&gt;::write_operation">
+        <DisplayString>{m_valueHolderSoftReference->m_value}</DisplayString>
+        <Expand>
+            <Item Name="current value">
+                m_valueHolderSoftReference->m_value
+            </Item>
+            <Item Name="replacement value">
+                *m_replacementValueHolder._Ptr->m_value
+            </Item>
+        </Expand>
+    </Type>
+
+    <Type Name="Phantom::Coroutines::detail::extended_promise_handle&lt;*&gt;">
+        <DisplayString>{m_value}</DisplayString>
+        <Expand>
+            <Item Name="promise handle">
+                m_value
+            </Item>
+        </Expand>
+    </Type>
 </AutoVisualizer>
