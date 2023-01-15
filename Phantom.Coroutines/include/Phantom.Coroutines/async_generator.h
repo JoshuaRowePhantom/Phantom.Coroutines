@@ -45,7 +45,7 @@ public:
         std::coroutine_handle<>
     )
     {
-        return self.promise().m_continuation;
+        return self.promise().continuation();
     }
 
     void await_resume() const noexcept 
@@ -102,7 +102,6 @@ private:
     > current_value_holder_type;
 
     current_value_holder_type m_currentValue;
-    coroutine_handle<> m_continuation;
 
 public:
     template<
@@ -203,7 +202,6 @@ public:
         auto&&... args)
     {
         self.currentValue().emplace<EmptyIndex>();
-        self.promise().m_continuation = continuation;
 
         return self.awaiter().await_suspend(
             continuation,
@@ -222,6 +220,11 @@ public:
                 [&]() { return async_generator_iterator<Generator>{ &self.m_generator }; }
             );
         }
+
+        scope_guard clearGenerator = [&]
+        {
+            self.m_generator.handle() = nullptr;
+        };
 
         return self.awaiter().await_resume_value(
             [] { return async_generator_iterator<Generator>{}; }
@@ -310,7 +313,8 @@ public:
         this auto& self
         ) 
     {
-        return m_generator
+        return self.m_generator
+            && self.m_generator->handle()
             && self.promise().m_currentValue.index() != EmptyIndex;
     }
 
@@ -318,14 +322,15 @@ public:
         const async_generator_iterator& other
         ) const
     {
-        return m_generator == other.m_generator;
+        return m_generator == other.m_generator
+            || !*this && !other;
     }
 
     auto operator !=(
         const async_generator_iterator& other
         ) const
     {
-        return m_generator != other.m_generator;
+        return !(*this == other);
     }
 };
 

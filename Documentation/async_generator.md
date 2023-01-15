@@ -159,6 +159,10 @@ the backing promise type, which defaults to [```task_promise<Result>```](task.md
    coroutine body, or by an exception. In the exception case, the ```resume_result```
    method should throw the exception or return the expected error type.
 
+7. The ```Promise``` object has a method ```continuation()``` which
+   returns the continuation from the most recent call to the awaiter's
+   ```await_suspend()``` invocation.
+
 Phantom.Coroutines provides these core promise types that meet these requirements:
 
 * [```task_promise```](task.md)
