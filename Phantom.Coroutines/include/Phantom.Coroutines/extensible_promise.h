@@ -3,6 +3,7 @@
 #include <concepts>
 #include <type_traits>
 #include "type_traits.h"
+#include "detail/scope_guard.h"
 #include "detail/coroutine.h"
 
 namespace Phantom::Coroutines
@@ -382,6 +383,11 @@ public:
             this->handle().destroy();
             this->handle() = {};
         }
+    }
+
+    [[nodiscard]] auto destroy_on_scope_exit()
+    {
+        return scope_guard{ [&]() { this->destroy(); } };
     }
 
     ~single_owner_promise_handle()

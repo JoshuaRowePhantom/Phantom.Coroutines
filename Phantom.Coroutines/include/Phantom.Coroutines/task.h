@@ -4,7 +4,6 @@
 #include "detail/final_suspend_transfer.h"
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
-#include "detail/scope_guard.h"
 #include "detail/variant_result_storage.h"
 #include "single_consumer_promise.h"
 #include <concepts>
@@ -240,11 +239,7 @@ public:
     decltype(auto) await_resume_value(
         std::invocable auto&& valueFunction)
     {
-        scope_guard destroyer = [&]()
-        {
-            this->handle().destroy();
-            this->handle() = nullptr;
-        };
+        auto destroyer = this->destroy_on_scope_exit();
 
         if (this->has_exception())
         {
