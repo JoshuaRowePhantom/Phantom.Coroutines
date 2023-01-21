@@ -34,31 +34,177 @@ public:
     void get_success_value(invalid_return_value);
 };
 
-class basic_early_termination_promise_identity {};
-
-template<
-    typename Continuation
-> class error_handling_early_termination_task_error_reporter
+class early_termination_error_propagator
 {
-    template<
-        typename ErrorResult,
-        typename Continuation
-    > friend class basic_early_termination_promise;
+public:
+    // Propagate the error to some caller.
+    // Return the coroutine handle of the coroutine
+    // to resume.
+    // This coroutine handle may be the result of 
+    // early_termination_error_propagator::propagate_error
+    virtual coroutine_handle<> propagate_error() = 0;
 
-
-    template<
-        typename Promise
-    >
-    friend class early_termination_awaiter;
-
-protected:
-    Continuation m_errorHandlingContinuation;
-
-    // This is set to non-null if an error is reported from a chain
-    // of promises, and will point to the promise reporting the error.
-    basic_early_termination_promise_identity* m_errorReportingPromise = nullptr;
+    // Propagate the exception to some caller.
+    // Return the coroutine handle of the coroutine
+    // to resume.
+    // This coroutine handle may be the result of 
+    // early_termination_error_propagator::propagate_error
+    virtual coroutine_handle<> propagate_exception() = 0;
 };
 
+class early_termination_exception_sink
+{
+public:
+    // Propagate the currently unhandled exception to the error handling awaiter.
+    // Return the coroutine handle of the coroutine
+    // to resume.
+    virtual void return_unhandled_exception() = 0;
+};
+
+template<
+    typename ErrorResult
+>
+class early_termination_result_sink
+    :
+    public early_termination_error_propagator
+{
+public:
+    virtual void return_value(
+        ErrorResult&& errorResult
+    ) = 0;
+};
+
+class early_termination_error_propagator_loop
+{
+    template<
+        typename CallingPromise,
+        typename CalledPromise
+    > friend class basic_non_error_handling_early_termination_task_awaiter;
+
+public:
+    class promise_type
+    {
+        friend class early_termination_error_propagator_loop;
+
+        // The error propagator to invoke next.
+        // This is set by propagate_error() and propagate_exception().
+        early_termination_error_propagator* m_nextErrorPropagator;
+        // The function to invoke on the error propagator.
+        // This is set by propagate_error() and propagate_exception().
+        coroutine_handle<>(early_termination_error_propagator::* m_nextErrorPropagatorFunction)();
+
+    public:
+        auto get_return_object()
+        {
+            return early_termination_error_propagator_loop{ *this };
+        }
+
+        suspend_always initial_suspend() const noexcept
+        {
+            return {};
+        }
+
+        [[noreturn]]
+        suspend_never final_suspend() const noexcept
+        {
+            // This should never be called, because the error propagator
+            // loop should run forever.
+            std::terminate();
+        }
+
+        [[noreturn]]
+        void unhandled_exception() const noexcept
+        {
+            // This should never be called, because the error propagator
+            // loop should run forever.
+            std::terminate();
+        }
+
+        [[noreturn]]
+        void return_void() const noexcept
+        {
+            // This should never be called, because the error propagator
+            // loop should run forever.
+            std::terminate();
+        }
+    };
+
+    // Propagate an error using the current thread-local error reporter,
+    // resuming the coroutine returned by the error reporter.
+    class propagate_early_termination_awaiter
+    {
+    public:
+        bool await_ready() const noexcept
+        {
+            return false;
+        }
+
+        coroutine_handle<> await_suspend(
+            coroutine_handle<promise_type> propagator
+        ) const noexcept
+        {
+            auto& promise = propagator.promise();
+            return (promise.m_nextErrorPropagator->*promise.m_nextErrorPropagatorFunction)();
+        }
+
+        void await_resume() const noexcept
+        {
+        }
+    };
+
+private:
+    promise_type& m_promise;
+
+    early_termination_error_propagator_loop(
+        promise_type& promise
+    ) : m_promise{ promise }
+    {
+    }
+
+    static thread_local early_termination_error_propagator_loop t_errorPropagatorLoop;
+
+    static early_termination_error_propagator_loop do_propagation_loop()
+    {
+        while (true)
+        {
+            co_await propagate_early_termination_awaiter{};
+        }
+    }
+
+    // Obtain a thread-local coroutine handle to resume in order to
+    // propagate an error using the passed-in errorReporter.
+    // The returned coroutine will be an instance of early_termination_error_propagator_loop(),
+    // which will then simply resume the correct coroutine.
+    static coroutine_handle<> propagate_error(
+        early_termination_error_propagator* errorPropagator)
+    {
+        t_errorPropagatorLoop.m_promise.m_nextErrorPropagator = errorPropagator;
+        t_errorPropagatorLoop.m_promise.m_nextErrorPropagatorFunction = &early_termination_error_propagator::propagate_error;
+
+        return coroutine_handle<promise_type>::from_promise(
+            t_errorPropagatorLoop.m_promise
+        );
+    }
+
+    // Obtain a thread-local coroutine handle to resume in order to
+    // propagate an exception using the passed-in errorReporter.
+    // The returned coroutine will be an instance of early_termination_error_propagator_loop(),
+    // which will then simply resume the correct coroutine.
+    static coroutine_handle<> propagate_exception(
+        early_termination_error_propagator* errorPropagator)
+    {
+        t_errorPropagatorLoop.m_promise.m_nextErrorPropagator = errorPropagator;
+        t_errorPropagatorLoop.m_promise.m_nextErrorPropagatorFunction = &early_termination_error_propagator::propagate_exception;
+
+        return coroutine_handle<promise_type>::from_promise(
+            t_errorPropagatorLoop.m_promise
+        );
+    }};
+
+inline thread_local early_termination_error_propagator_loop early_termination_error_propagator_loop::t_errorPropagatorLoop 
+    = early_termination_error_propagator_loop::do_propagation_loop();
+
+// An early_termination_transformed_awaiter can cause a promise to terminate early.
 template<
     typename Promise
 >
@@ -68,20 +214,14 @@ class early_termination_awaiter
     public extensible_promise_handle<Promise>
 {
 protected:
-    auto error_handling_continuation(
-        this auto& self
-    ) noexcept
-    {
-        return self.promise().error_handling_continuation();
-    }
-
-    void return_error_value(
+    auto return_error_value(
         this auto& self,
         auto&& value
     )
     {
-        return self.promise().return_error_value(
+        self.promise().return_error_value(
             std::forward<decltype(value)>(value));
+        return self.promise().m_continuation;
     }
 
 public:
@@ -99,7 +239,9 @@ class early_termination_synchronous_awaiter;
 
 template<
     typename Awaiter
-> concept is_early_termination_synchronous_awaiter = requires (Awaiter awaiter)
+> concept is_early_termination_synchronous_awaiter = 
+is_derived_instantiation<Awaiter, early_termination_synchronous_awaiter>
+&& requires (Awaiter awaiter)
 {
     { awaiter.is_error() } -> std::same_as<bool>;
     // Implemented by a early_termination_synchronous_awaiter derived class to get
@@ -146,14 +288,12 @@ public:
     {
         static_assert(is_early_termination_synchronous_awaiter<decltype(self)>);
         
-        self.return_error_value(
-            self.get_error_result()
-        );
-
         // This method is only called if is_error() was true,
         // so it represents an error situation.
         // We should resume the error-handling continuation of the promise.
-        return self.error_handling_continuation();
+        return self.return_error_value(
+            self.get_error_result()
+        );
     }
 };
 
@@ -199,77 +339,202 @@ template<
     >
 {};
 
-// This class is returned from the co_await
-// operator of basic_early_termination_task.
-// It is noticeably NOT an awaiter.
-// It is turned into an awaiter in the await_transform method of basic_early_termination_promise,
-// or by the handle_errors() method.
+// This awaiter is used to capture and return the successful or error result of
+// executing an early_termination_task.
 template<
-    typename Promise
-> class basic_early_termination_task_co_await_operation
+    typename ResultType
+> struct basic_error_handling_early_termination_task_result
+{
+    using variant_result_storage = variant_result_storage<ResultType>;
+    using result_variant_member_type = typename variant_result_storage::result_variant_member_type;
+    using variant_type = std::variant<
+        std::monostate,
+        result_variant_member_type,
+        std::exception_ptr
+    >;
+};
+
+template<
+    typename CalledPromise
+> class basic_error_handling_early_termination_task_awaiter
     :
-    public task_awaitable<Promise>
+    public single_owner_promise_handle<CalledPromise>,
+    private early_termination_exception_sink,
+    private early_termination_result_sink<typename CalledPromise::result_type>
 {
     template<
         typename ErrorResult,
         typename Continuation
     > friend class basic_early_termination_promise;
 
-    void do_static_assert_cannot_await()
+    using result_type = typename CalledPromise::result_type;
+    using variant_result = basic_error_handling_early_termination_task_result<result_type>;
+    using variant_result_storage = typename variant_result::variant_result_storage;
+    using result_variant_member_type = typename variant_result::result_variant_member_type;
+    using variant_type = typename variant_result::variant_type;
+    
+    static constexpr size_t result_index = 1;
+    static constexpr size_t exception_index = 2;
+
+    variant_type m_result;
+
+    // An error_handling awaiter should always continue the coroutine
+    // that is awaiting it.
+    virtual coroutine_handle<> propagate_error() override
     {
-        static_assert(always_false<Promise>, "Cannot co_await an early_termination_task except by calling handle_errors() or inside a early_termination_task coroutine.");
+        return this->promise().m_continuation;
+    }
+
+    // An error_handling awaiter should always continue the coroutine
+    // that is awaiting it.
+    virtual coroutine_handle<> propagate_exception() override
+    {
+        return this->promise().m_continuation;
+    }
+
+    // Propagate the exception to awaiting coroutine.
+    virtual void return_unhandled_exception() override
+    {
+        this->m_result.emplace<exception_index>(
+            std::current_exception());
+    }
+
+    virtual void return_value(
+        result_type&& result
+    ) override
+    {
+        m_result.emplace<result_index>(
+            std::forward<result_type>(result));
     }
 
 public:
-    basic_early_termination_task_co_await_operation(
-        task_awaitable<Promise>&& other
-    ) : task_awaitable<Promise>{ std::move(other) }
-    {}
-
-    // Implement the awaiter methods so that we can emit a useful static_assert message.
-    void await_ready()
+    basic_error_handling_early_termination_task_awaiter(
+        single_owner_promise_handle<CalledPromise>&& task
+    ) :
+        single_owner_promise_handle<CalledPromise>(std::move(task))
     {
-        do_static_assert_cannot_await();
     }
 
-    void await_suspend(auto)
+    bool await_ready() const noexcept
     {
-        do_static_assert_cannot_await();
+        return false;
     }
 
-    void await_resume()
+    auto await_suspend(
+        auto continuation
+    )
     {
-        do_static_assert_cannot_await();
+        this->promise().m_continuation = continuation;
+        this->promise().m_resultSink = this;
+        this->promise().m_exceptionSink = this;
+        return this->handle();
+    }
+
+    decltype(auto) await_resume(
+        this auto& self
+    )
+    {
+        auto destroyer = self.destroy_on_scope_exit();
+
+        if (self.m_result.index() == exception_index)
+        {
+            std::rethrow_exception(
+                get<exception_index>(self.m_result));
+        }
+
+        return variant_result_storage::resume_variant_result<result_index>(
+            self.m_result);
     }
 };
 
 template<
-    typename Promise
-> class basic_error_handling_early_termination_task_awaiter
+    typename CallingPromise,
+    typename CalledPromise
+> class basic_non_error_handling_early_termination_task_awaiter
     :
-    public task_awaiter<Promise>,
-    private error_handling_early_termination_task_error_reporter<typename Promise::continuation_type>
+    public single_owner_promise_handle<CalledPromise>,
+    public early_termination_result_sink<typename CalledPromise::result_type>
 {
     template<
         typename ErrorResult,
         typename Continuation
     > friend class basic_early_termination_promise;
 
-public:
-    basic_error_handling_early_termination_task_awaiter(
-        task_awaitable<Promise>&& other
-    ) : task_awaiter<Promise>(
-        std::move(other))
+    using result_type = typename CalledPromise::result_type;
+    using variant_result = basic_error_handling_early_termination_task_result<result_type>;
+    using variant_result_storage = typename variant_result::variant_result_storage;
+    using result_variant_member_type = typename variant_result::result_variant_member_type;
+    using variant_type = typename variant_result::variant_type;
+
+    static constexpr size_t result_index = 1;
+
+    variant_type m_result;
+    coroutine_handle<CallingPromise> m_continuation;
+
+    basic_non_error_handling_early_termination_task_awaiter(
+        single_owner_promise_handle<CalledPromise>&& task
+    ) : 
+        single_owner_promise_handle<CalledPromise> { std::move(task) }
     {}
 
+    // An error_handling awaiter should always continue the coroutine
+    // that is awaiting it.
+    virtual coroutine_handle<> propagate_error() override
+    {
+        m_continuation.promise().return_error_value(
+            variant_result_storage::template resume_variant_result<result_index>(
+                m_result));
+
+        return early_termination_error_propagator_loop::propagate_error(
+            m_continuation.promise().m_resultSink);
+    }
+
+    // An error_handling awaiter should always continue the coroutine
+    // that is awaiting it.
+    virtual coroutine_handle<> propagate_exception() override
+    {
+        return early_termination_error_propagator_loop::propagate_exception(
+            m_continuation.promise().m_resultSink);
+    }
+
+    virtual void return_value(
+        typename CalledPromise::result_type&& value
+    ) override
+    {
+        m_result.emplace<result_index>(
+            std::forward<decltype(value)>(value));
+    }
+
+public:
+    bool await_ready() const noexcept
+    {
+        return false;
+    }
+
     auto await_suspend(
-        this auto& self,
+        // continuation is guaranteed to be an std::coroutine_handle<> of a basic_early_termination_promise.
         auto continuation
     )
     {
-        self.m_errorHandlingContinuation = continuation;
-        return self.task_awaiter<Promise>::await_suspend(
-            continuation);
+        this->m_continuation = continuation;
+        this->promise().m_continuation = continuation;
+        this->promise().m_resultSink = this;
+        this->promise().m_exceptionSink = continuation.promise().m_exceptionSink;
+        return this->handle();
+    }
+
+    decltype(auto) await_resume(
+        this auto& self
+    )
+    {
+        auto destroyer = self.destroy_on_scope_exit();
+
+        // The task is guaranteed to have succeeded,
+        // otherwise we would have resumed an error-handling awaiter.
+        // Transform the result into the final result type.
+        return self.promise().get_success_value(
+            variant_result_storage::template resume_variant_result<result_index>(
+                self.m_result));
     }
 };
 
@@ -277,31 +542,25 @@ template<
     typename Promise
 > class basic_early_termination_task
     :
-public basic_task<Promise>
+public single_owner_promise_handle<Promise>
 {
 public:
-    basic_early_termination_task(
-        coroutine_handle<Promise> promise
-    ) : basic_early_termination_task::basic_task{ promise }
-    {}
+    using basic_early_termination_task::single_owner_promise_handle::single_owner_promise_handle;
 
-    using basic_early_termination_task::basic_task::basic_task;
-
-    auto operator co_await (
+    void operator co_await(
         this std::movable auto&& self
         ) noexcept
     {
-        return basic_early_termination_task_co_await_operation<Promise>
-        {
-            std::move(self),
-        };
+        static_assert(
+            always_false<Promise>,
+            "Cannot co_await an early_termination_task except using handle_errors() or inside an early_termination_task.");
     }
 
     auto handle_errors(
         this auto&& self
     ) noexcept
     {
-        return basic_error_handling_early_termination_task_awaiter
+        return basic_error_handling_early_termination_task_awaiter<Promise>
         {
             std::move(self)
         };
@@ -309,38 +568,8 @@ public:
 };
 
 template<
-    typename ErrorResult
-> class non_error_handling_awaiter_error_retriever
-{
-public:
-    virtual ErrorResult get_error_result(
-        basic_early_termination_promise_identity* errorReportingPromise
-    ) = 0;
-};
-
-template<
-    typename ErrorResult,
     typename Promise
-> class non_error_handling_awaiter
-    :
-    public task_awaiter<Promise>,
-    non_error_handling_awaiter_error_retriever<ErrorResult>
-{
-    template<
-        typename ErrorResult,
-        typename Continuation
-    > friend class basic_early_termination_promise;
-
-    using non_error_handling_awaiter::task_awaiter::task_awaiter;
-
-    virtual typename ErrorResult get_error_result(
-        basic_early_termination_promise_identity* errorReportingPromise
-    ) override
-    {
-        return this->promise().get_error_result_from_error_reporter(
-            errorReportingPromise);
-    }
-};
+> basic_early_termination_task(coroutine_handle<Promise>) -> basic_early_termination_task<Promise>;
 
 template<
     typename ErrorResult,
@@ -348,8 +577,7 @@ template<
 > class basic_early_termination_promise
     :
     public basic_task_promise<ErrorResult, Continuation>,
-    public await_all_await_transform,
-    private basic_early_termination_promise_identity
+    public await_all_await_transform
 {
     template<
         typename ErrorResult,
@@ -359,70 +587,37 @@ template<
     template<
         typename Promise
     > friend class early_termination_awaiter;
-    
+
     template<
-        typename ErrorResult,
         typename Promise
-    > friend class non_error_handling_awaiter;
+    > friend class basic_error_handling_early_termination_task_awaiter;
 
-    error_handling_early_termination_task_error_reporter<Continuation>* m_errorReporter;
-    non_error_handling_awaiter_error_retriever<ErrorResult>* m_errorRetriever;
+    template<
+        typename CallingPromise,
+        typename CalledPromise
+    > friend class basic_non_error_handling_early_termination_task_awaiter;
 
-    ErrorResult get_error_result_from_error_reporter(
-        this auto& self,
-        basic_early_termination_promise_identity* errorReportingPromise)
-    {
-        if (errorReportingPromise == &self)
-        {
-            return self.get_error_result<ErrorResult>(
-                // Note that we do not use resume_successful_result here,
-                // as the "error" may be a C++ exception. If it is a C++ exception,
-                // we need to _throw_ the exception.
-                self.resume_result());
-        }
-        else
-        {
-            return self.m_errorRetriever->get_error_result(
-                errorReportingPromise);
-        }
-    }
+    early_termination_exception_sink* m_exceptionSink;
+    early_termination_result_sink<ErrorResult>* m_resultSink;
 
-    void internal_return_value(
-        this auto& self,
-        auto&& value
-    )
-    {
-        self.basic_task_promise<ErrorResult, Continuation>::return_value(
-            std::forward<decltype(value)>(value));
-    }
-
-    void set_has_error(
-        this auto& self)
-    {
-        self.continuation() = self.error_handling_continuation();
-        self.m_errorReporter->m_errorReportingPromise = &self;
-    }
+    // The continuation to resume from final_suspend.
+    // This value starts by being the value passed to await_suspend,
+    // but can be reset via unhandled_exception() or
+    // return_value() when the value represents an error.
+    Continuation m_continuation;
 
 public:
     using typename basic_task_promise<ErrorResult, Continuation>::result_type;
-
-    auto error_handling_continuation(
-        this auto& self
-    )
-    {
-        return self.m_errorReporter->m_errorHandlingContinuation;
-    }
 
     void return_error_value(
         this auto& self,
         auto&& value
     )
     {
-        self.set_has_error();
-
-        self.internal_return_value(
+        self.basic_early_termination_promise::m_resultSink->return_value(
             self.get_error_result<ErrorResult>(
                 std::forward<decltype(value)>(value)));
+        self.basic_early_termination_promise::m_continuation = self.basic_early_termination_promise::m_resultSink->propagate_error();
     }
 
     void return_result_value(
@@ -437,7 +632,7 @@ public:
         }
         else
         {
-            self.internal_return_value(
+            self.basic_early_termination_promise::m_resultSink->return_value(
                 self.get_result_value(
                     std::forward<decltype(value)>(value)));
         }
@@ -465,15 +660,29 @@ public:
         this auto& self
     ) noexcept
     {
-        return basic_early_termination_task{ self.handle() };
+        return basic_early_termination_task
+        { 
+            self.basic_early_termination_promise::handle() 
+        };
     }
 
     void unhandled_exception(
         this auto& self
     ) noexcept
     {
-        self.set_has_error();
-        self.basic_early_termination_promise::basic_task_promise::unhandled_exception();
+        self.basic_early_termination_promise::m_exceptionSink->return_unhandled_exception();
+        self.basic_early_termination_promise::m_continuation = 
+            self.basic_early_termination_promise::m_resultSink->propagate_exception();
+    }
+
+    auto final_suspend(
+        this auto& self
+    ) noexcept
+    {
+        return final_suspend_transfer
+        {
+            self.basic_early_termination_promise::m_continuation
+        };
     }
 
     using await_all_await_transform::await_transform;
@@ -483,94 +692,17 @@ public:
     template<
         typename Promise
     > auto await_transform(
+        this auto& self,
         basic_early_termination_task<Promise>&& operation
     ) noexcept
     {
-        return non_error_handling_awaiter<result_type, Promise>
+        return basic_non_error_handling_early_termination_task_awaiter<
+            std::decay_t<decltype(self)>,
+            Promise
+        >
         {
             std::move(operation),
         };
-    }
-
-    // Suspend error-handling awaiters for this promise.
-    template<
-        std::derived_from<basic_early_termination_promise> Promise
-    >
-    auto await_suspend(
-        this Promise& self,
-        basic_error_handling_early_termination_task_awaiter<Promise>& awaiter,
-        auto continuation
-    )
-    {
-        // Use the continuation for this awaiter as the error handling.
-        self.m_errorReporter = &awaiter;
-        
-        return self.basic_early_termination_promise::basic_task_promise::await_suspend(
-            awaiter,
-            continuation
-        );
-    }
-
-    // Suspend non-error-handling awaiters for this promise.
-    template<
-        typename ErrorResult,
-        std::derived_from<basic_early_termination_promise> Promise
-    >
-    auto await_suspend(
-        this Promise& self,
-        non_error_handling_awaiter<ErrorResult, Promise>& nonErrorHandlingAwaiter,
-        auto continuation
-    )
-    {
-        // Use the error handling continuation of the promise associated
-        // with the non-error-handling continuation.
-        // continuation is guaranteed to be the coroutine handle of a basic_early_termination_promise.
-        self.m_errorReporter = continuation.promise().m_errorReporter;
-        continuation.promise().m_errorRetriever = &nonErrorHandlingAwaiter;
-
-        return self.basic_early_termination_promise::basic_task_promise::await_suspend(
-            nonErrorHandlingAwaiter,
-            continuation
-        );
-    }
-
-    // Resume error-handling awaiters for this promise.
-    template<
-        std::derived_from<basic_early_termination_promise> Promise
-    >
-    decltype(auto) await_resume(
-        this Promise& self,
-        basic_error_handling_early_termination_task_awaiter<Promise>& awaiter
-    )
-    {
-        if (awaiter.m_errorReportingPromise
-            && awaiter.m_errorReportingPromise != &self)
-        {
-            self.internal_return_value(
-                self.get_error_result_from_error_reporter(
-                    awaiter.m_errorReportingPromise));
-        }
-
-        return self.basic_early_termination_promise::basic_task_promise::await_resume(
-            awaiter);
-    }
-
-    // Resume non-error-handling awaiters for this promise.
-    template<
-        typename ErrorResult,
-        std::derived_from<basic_early_termination_promise> Promise
-    >
-    decltype(auto) await_resume(
-        this Promise& self,
-        non_error_handling_awaiter<ErrorResult, Promise>& awaiter
-    )
-    {
-        // The task is guaranteed to have succeeded,
-        // otherwise we would have resumed an error-handling awaiter.
-        // Transform the result into the final result type.
-        return self.get_success_value(
-            self.resume_successful_result()
-        );
     }
 };
 
