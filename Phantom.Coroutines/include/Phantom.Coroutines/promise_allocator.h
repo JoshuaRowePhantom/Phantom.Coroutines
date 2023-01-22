@@ -33,10 +33,35 @@ private:
     {
         char_allocator_type charAllocator{ allocator };
         size += extra_allocation_size;
-        auto memory = charAllocator.allocate(size);
+
+        char* memory;
+
+        if constexpr (has_get_return_object_on_allocation_failure<Promise>)
+        {
+            try
+            {
+                memory = charAllocator.allocate(size);
+                if (!memory)
+                {
+                    return nullptr;
+                }
+            }
+            catch (const std::bad_alloc&)
+            {
+                return nullptr;
+            }
+        }
+        else
+        {
+            memory = charAllocator.allocate(size);
+        }
+
         if constexpr (!allocator_is_empty)
         {
-            new (memory) char_allocator_type (std::move(charAllocator));
+            if (memory)
+            {
+                new (memory) char_allocator_type(std::move(charAllocator));
+            }
         }
         return memory + extra_allocation_size;
     }
@@ -77,7 +102,9 @@ public:
     static void* operator new(
         size_t size,
         auto& arg,
-        auto&... args)
+        auto&... args
+        )
+        requires !std::same_as<std::nothrow_t, std::remove_cvref_t<decltype(arg)>>
     {
         return operator new(
             size,
@@ -87,9 +114,12 @@ public:
     static void* operator new(
         size_t size
         )
+        requires std::is_default_constructible_v<allocator_type>
     {
         allocator_type allocator;
-        return allocate(allocator, size);
+        return operator new(
+            size,
+            allocator);
     }
 
     static void operator delete(

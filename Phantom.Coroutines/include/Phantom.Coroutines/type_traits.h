@@ -265,6 +265,14 @@ template<
     typename Promise
 > concept has_await_suspend = has_await_suspend_v<Promise>;
 
+
+template<
+    typename Promise
+> concept has_get_return_object_on_allocation_failure = requires
+{
+    { Promise::get_return_object_on_allocation_failure() };
+};
+
 template<
     typename TAwaiter,
     typename CoroutineHandle = coroutine_handle<>
@@ -639,5 +647,6 @@ using detail::is_coroutine_handle;
 using detail::is_continuation;
 using detail::has_return_void;
 using detail::has_await_transform;
+using detail::has_get_return_object_on_allocation_failure;
 
 } // namespace Phantom::Coroutines
