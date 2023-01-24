@@ -87,6 +87,11 @@ Provides policy parameters to other classes, such as [async_mutex.h](Documentati
 
 Schedule coroutines to resume on other threads.
 
+### [```shared_task.h```](Documentation/shared_task.md)
+
+A [```task<>```](Documentation/task.md)-like object that can be ```co_await```'ed
+multiple times, moved, and copied.
+
 ### [```suspend_result.h```](Documentation/suspend_result.md)
 
 Discover whether a co_await operation suspended or not.

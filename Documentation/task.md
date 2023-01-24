@@ -24,7 +24,6 @@ task<> DoSomethingThatDoesntReturnAnything() { co_return; }
 ## ```task<typename Result = void>```
 
 ```task<Result>``` is an alias for ```basic_task<task_promise<Result>>```. 
-```basic_task<Promise>```.
 
 ## [```task_promise<typename Result, is_task_promise_policy Policies...>```](#task_promise)
 
@@ -34,7 +33,6 @@ policies applied.
 ## ```basic_task<typename Promise>```
 
 ```task<Result>``` is an alias for ```basic_task<task_promise<Result>>```. 
-```basic_task<Promise>```.
 
 ## ```basic_task_promise<typename Result, ...>```
 
