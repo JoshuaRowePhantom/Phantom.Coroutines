@@ -32,7 +32,7 @@ By and large, this library aims to be source-level compatible with cppcoro.  Cpp
 includes, and type aliases are provided.
 
 The library also aims to support different behavior axes that are convenient for certain use cases.
-It does so via pol[policies.h](Documentation/policies.md)icies.
+It does so via [policies.h](Documentation/policies.md).
 
 The #1 goal of the library is high performance. Most defaults are oriented towards
 high performance operation. 
