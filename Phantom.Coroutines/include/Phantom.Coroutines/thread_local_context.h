@@ -51,20 +51,20 @@ public:
     template<
         typename Value
     >
-    thread_local_context_scope(
+    explicit thread_local_context_scope(
         Value&& value
     ) :
         m_previousValue
     {
-            std::move(ThreadLocalContext::current())
+        std::move(ThreadLocalContext::current())
     }
     {
-        ThreadLocalContext::current() = std::move(value);
+        ThreadLocalContext::current() = std::forward<Value>(value);
     }
 
     ~thread_local_context_scope()
     {
-        ThreadLocalContext::current() = std::move(m_previousValue);
+        ThreadLocalContext::current() = std::forward<decltype(m_previousValue)>(m_previousValue);
     }
 };
 

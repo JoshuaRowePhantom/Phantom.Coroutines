@@ -7,17 +7,17 @@ namespace detail
 {
 
 template<
-    typename BasePromise,
     is_thread_local_context ThreadLocalContext,
-    typename ExtendedPromise = thread_local_contextual_promise<BasePromise, ThreadLocalContext>
+    typename BasePromise
 > class thread_local_contextual_promise
     :
-    public derived_promise<
-    contextual_promise<
-    BasePromise,
-    thread_local_contextual_promise,
-    ExtendedPromise
-    >>
+    public derived_promise
+    <
+        contextual_promise
+        <
+            BasePromise
+        >
+    >
 {
     using base_promise = thread_local_contextual_promise::derived_promise;
     using thread_local_context_scope = thread_local_context_scope<ThreadLocalContext>;
@@ -45,7 +45,7 @@ public:
 
     void enter()
     {
-        m_scope.emplace(thread_local_context_scope{ std::move(*m_value) });
+        m_scope.emplace(std::move(*m_value));
         m_value.reset();
     }
 
@@ -57,4 +57,5 @@ public:
 };
 
 }
+using detail::thread_local_contextual_promise;
 }
