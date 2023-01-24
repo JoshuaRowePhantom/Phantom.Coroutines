@@ -85,7 +85,7 @@ Provides policy parameters to other classes, such as [async_mutex.h](Documentati
 
 ### [schedulers](Documentation/schedulers.md)
 
-Discover whether a co_await operation suspended or not.
+Schedule coroutines to resume on other threads.
 
 ### [```suspend_result.h```](Documentation/suspend_result.md)
 
