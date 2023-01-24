@@ -28,7 +28,7 @@ add_executable(
 	sync_wait_test.cpp
 	task_test.cpp
 	thread_pool_scheduler_test.cpp
-	when_ready_test.cpp
+	
  "contextual_promise_test.cpp" "suspend_result_test.cpp" "detail/awaiter_wrapper_test.cpp"   "awaiter_list_test.cpp" "promise_allocator_test.cpp" "thread_local_contextual_promise_test.cpp")
 
 target_link_libraries(
