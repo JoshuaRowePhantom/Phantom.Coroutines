@@ -55,6 +55,18 @@ default high-performance policies for typical uses.
 
 Library contents:
 
+### [```async_auto_reset_event.h```](Documentation/async_auto_reset_event.md)
+
+Auto reset event.
+
+### [```async_generator.h```](Documentation/async_generator.md)
+
+Async generator.
+
+### [```async_manual_reset_event.h```](Documentation/async_manual_reset_event.md)
+
+Manual reset event.
+
 ### [```async_mutex.h```](Documentation/async_mutex.md)
    
 Mutual exclusion inside coroutines.
@@ -78,6 +90,10 @@ Coroutines that terminate execution when termination conditions are encountered.
 ### [```extensible_promise.h```](Documentation/extensible_promise.md)
    
 Write promise types that can be extended or do extend other promise types.
+
+### [```extensible_promise.h```](Documentation/generator.md)
+   
+Non-async generator.
 
 ### [```policies.h```](Documentation/policies.md)
 
