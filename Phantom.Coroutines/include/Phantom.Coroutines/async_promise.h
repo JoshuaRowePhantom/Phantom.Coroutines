@@ -2,6 +2,7 @@
 #include "detail/storage_for.h"
 #include "Phantom.Coroutines/type_traits.h"
 #include "async_manual_reset_event.h"
+#include "awaiter_wrapper.h"
 
 namespace Phantom::Coroutines
 {
@@ -26,8 +27,7 @@ template<
     is_template_instantiation<basic_async_manual_reset_event> Event
 > class basic_async_promise
     :
-    storage_for<Value>,
-    immovable_object
+    storage_for<Value>
 {
     Event m_event;
 
@@ -36,9 +36,10 @@ template<
     struct awaiter_key {};
 
     class awaiter
+        :
+    public awaiter_wrapper<Event&>
     {
         basic_async_promise& m_promise;
-        manual_reset_event_awaiter_type m_manualResetEventAwaiter;
 
     public:
         awaiter(
@@ -46,22 +47,12 @@ template<
             awaiter_key = {}
         ) :
             m_promise(promise),
-            m_manualResetEventAwaiter(get_awaiter(promise.m_event))
+            awaiter_wrapper<Event&>{ [&]() -> decltype(auto) { return (promise.basic_async_promise::m_event); } }
         {}
-
-        bool await_ready() const noexcept
-        {
-            return m_manualResetEventAwaiter.await_ready();
-        }
-
-        auto await_suspend(auto coroutine) const noexcept
-        {
-            return m_manualResetEventAwaiter.await_suspend(coroutine);
-        }
 
         Value& await_resume() const noexcept
         {
-            return m_promise->as<Value>();
+            return m_promise.basic_async_promise::as<Value>();
         }
     };
 
@@ -88,24 +79,27 @@ public:
         }
     }
 
-    awaiter operator co_await() const noexcept
+    awaiter operator co_await(
+        this auto& self
+        ) noexcept
     {
-        return awaiter{ *this };
+        return awaiter{ self };
     }
 
     template<
         typename ... Args
     > Value& emplace(
+        this auto& self,
         Args&&... args
     )
     {
-        assert(!m_event.is_set());
+        assert(!self.basic_async_promise::m_event.is_set());
 
-        auto& result = basic_async_promise::storage_for::emplace(
+        auto& result = self.basic_async_promise::storage_for::emplace<Value>(
             std::forward<Args>(args)...
         );
 
-        m_event.set();
+        self.basic_async_promise::m_event.set();
 
         return result;
     }

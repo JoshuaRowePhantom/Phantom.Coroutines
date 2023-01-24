@@ -1,46 +1,49 @@
 cmake_minimum_required (VERSION 3.17)
 
 add_executable(
-	Phantom.Coroutines.Test
-	detail/awaiters.h
-	detail/fibonacci_heap_test.cpp
-	detail/scope_guard_test.cpp
-	"type_traits_test.cpp"
-	
-	"async_auto_reset_event_test.cpp"
-	async_generator_test.cpp
-	"async_manual_reset_event_test.cpp"
-	async_mutex_test.cpp
+    Phantom.Coroutines.Test
+    detail/awaiters.h
+    detail/fibonacci_heap_test.cpp
+    detail/scope_guard_test.cpp
+    "type_traits_test.cpp"
+    "async_auto_reset_event_test.cpp"
+    async_generator_test.cpp
+    "async_manual_reset_event_test.cpp"
+    async_mutex_test.cpp
     "async_promise_test.cpp" 
-	async_scope_test.cpp
-	async_test.h
-	atomic_state_test.cpp
-	"early_termination_task_test.cpp"
-	generator_test.cpp
-	inline_scheduler_test.cpp
-	read_copy_update_test.cpp
-	reusable_consecutive_global_id_test.cpp
-	sequence_barrier_test.cpp
-	shared_task_test.cpp
-	single_consumer_auto_reset_event_test.cpp
-	single_consumer_manual_reset_event_test.cpp
-	single_consumer_promise_test.cpp
-	sync_wait_test.cpp
-	task_test.cpp
-	thread_pool_scheduler_test.cpp
-	
- "contextual_promise_test.cpp" "suspend_result_test.cpp" "detail/awaiter_wrapper_test.cpp"   "awaiter_list_test.cpp" "promise_allocator_test.cpp" "thread_local_contextual_promise_test.cpp")
+    async_scope_test.cpp
+    async_test.h
+    atomic_state_test.cpp
+    "early_termination_task_test.cpp"
+    generator_test.cpp
+    inline_scheduler_test.cpp
+    read_copy_update_test.cpp
+    reusable_consecutive_global_id_test.cpp
+    sequence_barrier_test.cpp
+    shared_task_test.cpp
+    single_consumer_auto_reset_event_test.cpp
+    single_consumer_manual_reset_event_test.cpp
+    sync_wait_test.cpp
+    task_test.cpp
+    thread_pool_scheduler_test.cpp
+    "contextual_promise_test.cpp" 
+    "suspend_result_test.cpp" 
+    "detail/awaiter_wrapper_test.cpp"   
+    "awaiter_list_test.cpp" 
+    "promise_allocator_test.cpp" 
+    "thread_local_contextual_promise_test.cpp"
+)
 
 target_link_libraries(
-	Phantom.Coroutines.Test
-	PUBLIC
-	Phantom.Coroutines
-	GTest::gtest
-	GTest::gtest_main
+    Phantom.Coroutines.Test
+    PUBLIC
+    Phantom.Coroutines
+    GTest::gtest
+    GTest::gtest_main
 )
 
 enable_testing()
 
 gtest_discover_tests(
-	Phantom.Coroutines.Test
-	EXTRA_ARGS "--gtest_break_on_failure")
+    Phantom.Coroutines.Test
+    EXTRA_ARGS "--gtest_break_on_failure")

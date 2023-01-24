@@ -44,7 +44,8 @@ public:
 };
 
 template<
-    is_awaiter Awaiter
+    is_awaiter Awaiter,
+    typename Scope
 > class awaiter_wrapper_methods
 {
 public:
@@ -52,9 +53,9 @@ public:
     decltype(auto) await_ready(
         this auto& self,
         auto&&... args
-    ) noexcept(noexcept(self.awaiter().await_ready(std::forward<decltype(args)>(args)...)))
+    ) noexcept(noexcept(self.Scope::awaiter().await_ready(std::forward<decltype(args)>(args)...)))
     {
-        return self.awaiter().await_ready(
+        return self.Scope::awaiter().await_ready(
             std::forward<decltype(args)>(args)...
         );
     }
@@ -63,20 +64,20 @@ public:
         this auto& self,
         auto&&... args
     ) noexcept(
-        noexcept(self.awaiter().await_suspend(std::forward<decltype(args)>(args)...))
+        noexcept(self.Scope::awaiter().await_suspend(std::forward<decltype(args)>(args)...))
         )
     {
-        return self.awaiter().await_suspend(std::forward<decltype(args)>(args)...);
+        return self.Scope::awaiter().await_suspend(std::forward<decltype(args)>(args)...);
     }
 
     decltype(auto) await_resume(
         this auto& self,
         auto&&... args
     ) noexcept(
-        noexcept(self.awaiter().await_resume(std::forward<decltype(args)>(args)...))
+        noexcept(self.Scope::awaiter().await_resume(std::forward<decltype(args)>(args)...))
         )
     {
-        return self.awaiter().await_resume(std::forward<decltype(args)>(args)...);
+        return self.Scope::awaiter().await_resume(std::forward<decltype(args)>(args)...);
     }
 };
 
@@ -92,7 +93,7 @@ template<
     Awaiter
 > :
     public awaiter_wrapper_storage<Awaiter>,
-    public awaiter_wrapper_methods<Awaiter>
+    public awaiter_wrapper_methods<Awaiter, awaiter_wrapper<Awaiter>>
 {
 protected:
     typedef Awaiter awaiter_type;
@@ -113,7 +114,7 @@ template<
     // Note that awaiter_wrapper_awaitable_storage is first so that it is
     // constructed before awaiter_wrapper and destroyed after awaiter_wrapper.
     public awaiter_wrapper_storage<Awaitable>,
-    public awaiter_wrapper_methods<awaiter_type<Awaitable>>
+    public awaiter_wrapper_methods<awaiter_type<Awaitable>, awaiter_wrapper<Awaitable>>
 {
     template<
         is_awaitable Awaitable

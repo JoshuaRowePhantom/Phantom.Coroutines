@@ -5,7 +5,6 @@
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
 #include "detail/variant_result_storage.h"
-#include "single_consumer_promise.h"
 #include <concepts>
 #include <exception>
 #include <type_traits>
