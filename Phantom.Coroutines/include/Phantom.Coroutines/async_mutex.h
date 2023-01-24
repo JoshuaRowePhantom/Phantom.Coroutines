@@ -23,7 +23,7 @@ class basic_async_mutex;
 template<
     typename T
 > concept is_async_mutex_policy =
-is_await_cancellation_policy<T>
+is_concrete_policy<T, await_is_not_cancellable>
 || is_await_result_on_destruction_policy<T>
 // It might appear that allowing only a single awaiter for a mutex
 // wouldn't be useful, but actually it is:

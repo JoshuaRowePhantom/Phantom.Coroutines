@@ -11,7 +11,7 @@ namespace detail
 {
 
 template<
-    std::derived_from<await_is_not_cancellable> AwaitCancellationPolicy,
+    is_concrete_policy<await_is_not_cancellable> AwaitCancellationPolicy,
     is_continuation Continuation,
     is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
     is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
@@ -21,8 +21,13 @@ class basic_async_auto_reset_event;
 template<
     typename T
 > concept is_async_auto_reset_event_policy =
-std::derived_from<T, await_is_not_cancellable>
-|| is_await_result_on_destruction_policy<T>
+is_concrete_policy<T, await_is_not_cancellable>
+// Technically, we have no special support for failing on destroy with awaiters yet,
+// but the user-visible functionality is identical to noop in release builds.
+|| is_concrete_policy<T, noop_on_destroy>
+|| is_concrete_policy<T, fail_on_destroy_with_awaiters>
+// Technically, we have no special support for single awaiters yet,
+// but the user-visible functionality is identical to multi awaiters.
 || is_awaiter_cardinality_policy<T>
 || is_continuation_type_policy<T>;
 
@@ -36,21 +41,12 @@ template<
 >;
 
 template<
-    std::derived_from<await_is_not_cancellable> AwaitCancellationPolicy,
+    is_concrete_policy<await_is_not_cancellable> AwaitCancellationPolicy,
     is_continuation Continuation,
     is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
     is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
 > class basic_async_auto_reset_event
 {
-    // Since there is no user-visible behavior change except in debug builds,
-    // we support single_awaiter cardinality, so don't explicitly require it here.
-    // static_assert(std::is_base_of_v<multiple_awaiters, AwaiterCardinalityPolicy>);
-    static_assert(
-        std::is_base_of_v<noop_on_destroy, AwaitResultOnDestructionPolicy>
-        ||
-        std::is_base_of_v<fail_on_destroy_with_awaiters, AwaitResultOnDestructionPolicy>
-        );
-
     // This class follows the algorithm in AutoResetEvent.tla
 
     class awaiter;

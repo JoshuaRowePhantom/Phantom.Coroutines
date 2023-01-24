@@ -23,11 +23,12 @@ class basic_async_scope;
 template<
     typename T
 > concept is_async_scope_policy =
-is_await_cancellation_policy<T>
-|| is_await_result_on_destruction_policy<T>
-|| is_awaiter_cardinality_policy<T>
+is_concrete_policy<T, await_is_not_cancellable>
+|| is_concrete_policy<T, noop_on_destroy>
+|| is_concrete_policy<T, fail_on_destroy_with_awaiters>
+|| is_concrete_policy<T, single_awaiter>
 || is_continuation_type_policy<T>
-|| is_use_after_join_policy<T>;
+|| is_concrete_policy<T, fail_on_use_after_join>;
 
 template<
     is_async_scope_policy ... Policy
@@ -49,9 +50,7 @@ template<
 class basic_async_scope
 {
     // Assert we're using implemented behaviors for now.
-    static_assert(std::same_as<fail_on_use_after_join, AwaitAfterJoinPolicy>);
     static_assert(std::same_as<single_awaiter, AwaiterCardinalityPolicy>);
-    static_assert(std::same_as<await_is_not_cancellable, AwaitCancellationPolicy>);
 
     std::atomic<size_t> m_outstandingTasks = 1;
     coroutine_handle<> m_continuation;

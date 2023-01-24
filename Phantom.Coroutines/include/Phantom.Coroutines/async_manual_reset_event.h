@@ -11,7 +11,7 @@ namespace detail
 {
 
 template<
-    std::derived_from<await_is_not_cancellable> AwaitCancellationPolicy,
+    is_concrete_policy<await_is_not_cancellable> AwaitCancellationPolicy,
     is_continuation Continuation,
     is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
     is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
@@ -21,7 +21,7 @@ class basic_async_manual_reset_event;
 template<
     typename T
 > concept is_async_manual_reset_event_policy =
-std::derived_from<T, await_is_not_cancellable>
+is_concrete_policy<T, await_is_not_cancellable>
 || is_await_result_on_destruction_policy<T>
 || is_awaiter_cardinality_policy<T>
 || is_continuation_type_policy<T>;
@@ -36,7 +36,7 @@ template<
 >;
 
 template<
-    std::derived_from<await_is_not_cancellable> AwaitCancellationPolicy,
+    is_concrete_policy<await_is_not_cancellable> AwaitCancellationPolicy,
     is_continuation Continuation,
     is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
     is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
