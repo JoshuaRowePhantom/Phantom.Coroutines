@@ -1,6 +1,6 @@
 # Phantom.Coroutines
 
-A C++20 coroutine library.
+A C++23 coroutine library.
 
 ## Goals 
 
