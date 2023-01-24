@@ -21,7 +21,12 @@ template<
 
 template<
     typename Policy
-> concept is_sequence_barrier_policy = true;
+> concept is_sequence_barrier_policy =
+is_continuation_type_policy<Policy>
+|| is_concrete_policy<Policy, noop_on_destroy>
+|| is_concrete_policy<Policy, fail_on_destroy_with_awaiters>
+|| is_concrete_policy<Policy, awaiter_cardinality_policy>
+|| is_concrete_policy<Policy, await_is_not_cancellable>;
 
 template<
     typename Value = size_t,
