@@ -59,6 +59,10 @@ Library contents:
    
 Mutual exclusion inside coroutines.
 
+### [```async_promise.h```](Documentation/async_promise.md)
+   
+Delayed acquisition of values.
+
 ### [```async_scope.h```](Documentation/async_scope.md)
    
 Start background tasks asynchronously and wait for them to complete.
