@@ -6,13 +6,13 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
-static_assert(std::same_as<std::size_t, awaitable_result_type_t<decltype(std::declval<sequence_barrier<>>().wait_until_published(0))>>);
-static_assert(is_awaiter<decltype(std::declval<sequence_barrier<>>().wait_until_published(0))>);
+static_assert(std::same_as<std::size_t, awaitable_result_type_t<decltype(std::declval<sequence_barrier<>&>().wait_until_published(0))>>);
+static_assert(is_awaiter<decltype(std::declval<sequence_barrier<>&>().wait_until_published(0))>);
 
 ASYNC_TEST(sequence_barrier_test, Can_await_barrier_at_zero)
 {
     suspend_result suspendResult;
-    sequence_barrier sequenceBarrier;
+    sequence_barrier<> sequenceBarrier;
     co_await (suspendResult << sequenceBarrier.wait_until_published(0));
     EXPECT_FALSE(suspendResult.did_suspend());
 }
@@ -20,7 +20,7 @@ ASYNC_TEST(sequence_barrier_test, Can_await_barrier_at_zero)
 TEST(sequence_barrier_test, Publish_resumes_an_awaiter)
 {
     suspend_result suspendResult;
-    sequence_barrier sequenceBarrier;
+    sequence_barrier<> sequenceBarrier;
     std::optional<size_t> result;
 
     auto future = as_future([&]() -> task<>
@@ -39,7 +39,7 @@ TEST(sequence_barrier_test, Publish_resumes_an_awaiter)
 TEST(sequence_barrier_test, Publish_permits_await_without_suspending_awaiter)
 {
     suspend_result suspendResult;
-    sequence_barrier sequenceBarrier;
+    sequence_barrier<> sequenceBarrier;
     std::optional<size_t> result;
 
     sequenceBarrier.publish(1);

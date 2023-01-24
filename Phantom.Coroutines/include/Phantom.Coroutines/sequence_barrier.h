@@ -4,57 +4,54 @@
 #include "detail/coroutine.h"
 #include "detail/fibonacci_heap.h"
 #include "detail/immovable_object.h"
+#include "policies.h"
 #include <concepts>
 #include <limits>
 
 namespace Phantom::Coroutines
 {
-template<
-    typename Traits
-> concept SequenceBarrierTraits = requires (
-    typename Traits::value_type value
-    )
-{
-    typename Traits::value_type;
-    typename Traits::atomic_value_type;
-    { Traits::precedes(value, value) } -> std::convertible_to<bool>;
-};
-
-template<
-    typename Value
->
-struct sequence_barrier_traits
-{
-    typedef Value value_type;
-    typedef std::atomic<Value> atomic_value_type;
-
-    static constexpr bool precedes(
-        const Value& value1,
-        const Value& value2
-    )
-    {
-        return value1 < value2;
-    }
-};
-
 namespace detail
 {
 
 template<
+    typename Value,
+    typename Less,
+    typename Continuation
+> class basic_sequence_barrier;
+
+template<
+    typename Policy
+> concept is_sequence_barrier_policy = true;
+
+template<
     typename Value = size_t,
-    SequenceBarrierTraits Traits = sequence_barrier_traits<Value>
-> class sequence_barrier
+    typename Comparer = std::less<Value>,
+    is_sequence_barrier_policy ... Policies
+> using sequence_barrier =
+basic_sequence_barrier<
+    Value,
+    Comparer,
+    select_continuation_type<Policies..., default_continuation_type>
+>;
+
+template<
+    typename Value,
+    typename Comparer,
+    typename Continuation
+> class basic_sequence_barrier
     :
     private immovable_object
 {
-    using value_type = typename Traits::value_type;
-    using atomic_value_type = typename Traits::atomic_value_type;
+    using value_type = Value;
+    using atomic_value_type = std::atomic<value_type>;
 
     class awaiter;
+    struct awaiter_heap_builder;
 
     atomic_value_type m_publishedValue;
     std::atomic<awaiter*> m_queuedAwaiters;
     std::atomic<awaiter*> m_awaitersHeap;
+    awaiter_heap_builder m_heapBuilder;
 
     static constexpr size_t maximumAwaiterDegree = std::numeric_limits<size_t>::digits;
     typedef size_t degree_type;
@@ -63,23 +60,24 @@ template<
     {
         template<
             typename Value,
-            SequenceBarrierTraits Traits
-        > friend class sequence_barrier;
+            typename Less,
+            typename Continuation
+        > friend class basic_sequence_barrier;
 
         value_type m_value;
 
-        sequence_barrier* m_sequenceBarrier;
+        basic_sequence_barrier* m_sequenceBarrier;
         awaiter* m_siblingPointer;
         awaiter* m_subtreePointer = nullptr;
         degree_type m_degree = 0;
-        coroutine_handle<> m_continuation;
+        Continuation m_continuation;
 
         awaiter(
-            sequence_barrier* sequenceBarrier,
+            basic_sequence_barrier* sequenceBarrier,
             value_type value
-        ) : 
-            m_sequenceBarrier { sequenceBarrier },
-            m_value { value }
+        ) :
+            m_sequenceBarrier{ sequenceBarrier },
+            m_value{ value }
         {}
 
     public:
@@ -89,7 +87,7 @@ template<
                 std::memory_order_acquire
             );
 
-            if (!Traits::precedes(
+            if (!m_sequenceBarrier->m_heapBuilder.m_comparer(
                 publishedValue,
                 m_value
             ))
@@ -102,21 +100,20 @@ template<
         }
 
         bool await_suspend(
-            coroutine_handle<> continuation
+            auto continuation
         ) noexcept
         {
             m_continuation = continuation;
 
             // Enqueue this awaiter into the linked list of awaiters.
-            auto nextQueuedAwaiter = m_sequenceBarrier->m_queuedAwaiters.load(
+            auto nextQueuedAwaiter = m_sequenceBarrier->basic_sequence_barrier::m_queuedAwaiters.load(
                 std::memory_order_relaxed
             );
 
             do
             {
                 m_siblingPointer = nextQueuedAwaiter;
-            }
-            while (!m_sequenceBarrier->m_queuedAwaiters.compare_exchange_weak(
+            } while (!m_sequenceBarrier->basic_sequence_barrier::m_queuedAwaiters.compare_exchange_weak(
                 nextQueuedAwaiter,
                 this,
                 std::memory_order_release,
@@ -124,11 +121,11 @@ template<
             ));
 
             // Double check to see if the value has been published.
-            auto publishedValue = m_sequenceBarrier->m_publishedValue.load(
+            auto publishedValue = m_sequenceBarrier->basic_sequence_barrier::m_publishedValue.load(
                 std::memory_order_acquire
             );
 
-            if (!Traits::precedes(
+            if (!m_sequenceBarrier->basic_sequence_barrier::m_heapBuilder.m_comparer(
                 publishedValue,
                 m_value))
             {
@@ -139,7 +136,7 @@ template<
                 // do not suspend.
                 bool resumeThisAwaiter = false;
 
-                m_sequenceBarrier->resume_awaiters(
+                m_sequenceBarrier->basic_sequence_barrier::resume_awaiters(
                     m_value,
                     this,
                     resumeThisAwaiter
@@ -157,15 +154,18 @@ template<
         }
     };
 
-    struct awaiter_heap_traits
+    struct awaiter_heap_builder
+        :
+        public fibonacci_heap_builder<awaiter*>
     {
-        typedef awaiter* heap_type;
+        Comparer m_comparer;
 
-        static bool precedes(
+        bool precedes(
             awaiter* left,
             awaiter* right
-        ) {
-            return Traits::precedes(
+        )
+        {
+            return m_comparer(
                 left->m_value,
                 right->m_value);
         }
@@ -200,9 +200,8 @@ template<
         }
     };
 
-    static_assert(FibonacciHeapTraits<awaiter_heap_traits>);
-
     void resume_awaiters(
+        this auto& self,
         value_type& publishedValue,
         awaiter* specialAwaiter,
         bool& resumeSpecialAwaiter
@@ -214,7 +213,7 @@ template<
         // Take ownership of the enqueued awaiters.
         // We only need to do this once, since any new queued awaiter after this step
         // that would need to be resumed will itself do this sequence on its thread.
-        awaiter* newAwaitersHeap = m_queuedAwaiters.exchange(
+        awaiter* newAwaitersHeap = self.basic_sequence_barrier::m_queuedAwaiters.exchange(
             nullptr,
             std::memory_order_acquire
         );
@@ -224,16 +223,16 @@ template<
             auto previousPublishedValue = publishedValue;
 
             // Take ownership of the awaiters heap
-            auto oldAwaitersHeap = m_awaitersHeap.exchange(
+            auto oldAwaitersHeap = self.basic_sequence_barrier::m_awaitersHeap.exchange(
                 nullptr,
                 std::memory_order_acquire
             );
 
-            auto predicate = fibonacci_heap_collect_predicate<awaiter_heap_traits>(
+            auto predicate = self.basic_sequence_barrier::m_heapBuilder.collect_predicate(
                 &awaitersToResume,
                 [&](awaiter* heap)
                 {
-                    return !Traits::precedes(
+                    return !self.basic_sequence_barrier::m_heapBuilder.m_comparer(
                         heap->m_value,
                         publishedValue
                     );
@@ -244,18 +243,15 @@ template<
                 newAwaitersHeap
             };
 
-            newAwaitersHeap = fibonacci_heap_extract<
-                awaiter_heap_traits, 
-                std::initializer_list<awaiter_heap_traits::heap_type>>(
-                    std::move(predicate),
-                    std::move(heapsToExtract)
-                );
+            newAwaitersHeap = self.basic_sequence_barrier::m_heapBuilder.extract(
+                std::move(predicate),
+                std::move(heapsToExtract));
 
             // Put back the heap if we can
             oldAwaitersHeap = nullptr;
             if (newAwaitersHeap != nullptr
                 &&
-                !m_awaitersHeap.compare_exchange_strong(
+                !self.basic_sequence_barrier::m_awaitersHeap.compare_exchange_strong(
                     oldAwaitersHeap,
                     newAwaitersHeap,
                     std::memory_order_release,
@@ -276,7 +272,7 @@ template<
             // We do the load now so that we don't stay in the loop
             // in case we have waiters to resume and that resumption
             // causes this thread to wait a long time.
-            publishedValue = m_publishedValue.load(
+            publishedValue = self.basic_sequence_barrier::m_publishedValue.load(
                 std::memory_order_acquire
             );
 
@@ -311,25 +307,30 @@ template<
     }
 
 public:
-    sequence_barrier() {}
-    sequence_barrier(
-        value_type initialPublishedValue
+    explicit basic_sequence_barrier(
+        value_type initialPublishedValue = 0,
+        Comparer comparer = {}
     ) :
-        m_publishedValue { initialPublishedValue }
+        m_publishedValue { initialPublishedValue },
+        m_heapBuilder
+        {
+            .m_comparer = { std::move(comparer) },
+        }
     {}
 
     void publish(
+        this auto& self,
         value_type value
     )
     {
-        m_publishedValue.store(
+        self.basic_sequence_barrier::m_publishedValue.store(
             value,
             std::memory_order_release
         );
 
         bool resumeSpecialAwaiter;
 
-        resume_awaiters(
+        self.basic_sequence_barrier::resume_awaiters(
             value,
             nullptr,
             resumeSpecialAwaiter
@@ -337,12 +338,14 @@ public:
     }
 
     awaiter wait_until_published(
+        this auto& self,
         value_type value
     )
     {
-        return awaiter{ this, value };
+        return awaiter{ &self, value };
     }
 };
-
 }
+
+using detail::sequence_barrier;
 }

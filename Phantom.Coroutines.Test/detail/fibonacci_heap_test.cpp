@@ -16,9 +16,9 @@ struct TestFibonacciHeapNode
 };
 
 struct TestFibonacciHeapTraits
+    :
+    public fibonacci_heap_builder<std::shared_ptr<TestFibonacciHeapNode>>
 {
-    typedef std::shared_ptr<TestFibonacciHeapNode> heap_type;
-
     static bool precedes(
         heap_type node1,
         heap_type node2
@@ -122,7 +122,7 @@ return std::make_shared<TestFibonacciHeapNode>(
 
 }
 
-static_assert(FibonacciHeapTraits<TestFibonacciHeapTraits>);
+static_assert(is_fibonacci_heap_builder<TestFibonacciHeapTraits>);
 
 TEST(fibonacci_heap_test, test_heap_equality_comparisons)
 {
@@ -282,8 +282,9 @@ void DoFibonacciHeapTest(
 )
 {
     TestFibonacciHeapTraits::heap_type collectedHeap;
-    auto resultHeap = fibonacci_heap_extract<TestFibonacciHeapTraits>(
-        fibonacci_heap_collect_predicate<TestFibonacciHeapTraits>(&collectedHeap, predicate),
+    TestFibonacciHeapTraits heapBuilder;
+    auto resultHeap = heapBuilder.extract(
+        heapBuilder.collect_predicate(&collectedHeap, predicate),
         heaps
         );
 
