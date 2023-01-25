@@ -4,7 +4,7 @@ A C++23 coroutine library.
 
 ## Goals 
 
-This is effort, much inspired by Lewis Baker's cppcoro library, is an ab-initio
+This is effort, much inspired by Lewis Baker's [cppcoro library](https://github.com/lewissbaker/cppcoro), is an ab-initio
 set of C++ classes designed to implement coroutines with great efficiency and
 flexibility.  This implementation is intended to work _only_ on compilers
 with the latest and greatest features, especially symmetric transfer and "deduced this".
