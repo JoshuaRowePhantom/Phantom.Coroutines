@@ -299,5 +299,6 @@ public:
 }
 
 using detail::async_mutex;
+using detail::is_async_mutex_policy;
 
 }
