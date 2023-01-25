@@ -1,8 +1,8 @@
 #include <string>
 #include <type_traits>
 #include <gtest/gtest.h>
+#include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/type_traits.h"
-#include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "lifetime_tracker.h"
@@ -121,7 +121,7 @@ TEST(task_test, Returned_object_is_by_rvalue_reference_to_caller_in_rvalue_conte
 TEST(task_test, Task_destroys_coroutine_if_not_awaited)
 {
     lifetime_statistics statistics;
-    single_consumer_manual_reset_event event;
+    async_manual_reset_event<> event;
 
     {
         // Create a task and destroy it
@@ -188,7 +188,7 @@ ASYNC_TEST(task_test, Task_destroys_coroutine_before_resumption_of_calling_corou
 TEST(task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
 {
     lifetime_statistics statistics;
-    single_consumer_manual_reset_event event;
+    async_manual_reset_event<> event;
 
     {
         // Create and suspend a task, then destroy it.
@@ -279,7 +279,7 @@ TEST(task_test, Can_use_returned_rvalue_reference_with_same_address)
 
 TEST(task_test, Can_suspend_and_resume)
 {
-    single_consumer_manual_reset_event event;
+    async_manual_reset_event<> event;
     int stage = 0;
 
     auto future = as_future(

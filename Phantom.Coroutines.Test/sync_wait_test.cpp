@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
+#include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/shared_task.h"
-#include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 #include "detail/awaiters.h"
@@ -84,7 +84,7 @@ TEST(as_future_test, Create_future_from_task)
 
 TEST(as_future_test, Suspends_on_event_object)
 {
-    single_consumer_manual_reset_event event;
+    async_manual_reset_event<> event;
     auto future = as_future(event);
     ASSERT_EQ(std::future_status::timeout, future.wait_for(0ms));
     event.set();

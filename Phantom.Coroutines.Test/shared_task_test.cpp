@@ -2,7 +2,7 @@
 #include <type_traits>
 #include <gtest/gtest.h>
 #include "async_test.h"
-#include "Phantom.Coroutines/single_consumer_manual_reset_event.h"
+#include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/shared_task.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/type_traits.h"
@@ -155,7 +155,7 @@ TEST(shared_task_test, Return_by_value_returns_reference_to_same_object_to_all_c
 TEST(shared_task_test, Task_destroys_coroutine_if_not_awaited)
 {
     lifetime_statistics statistics;
-    single_consumer_manual_reset_event event;
+    async_manual_reset_event<> event;
 
     {
         // Create a task and destroy it
@@ -172,7 +172,7 @@ TEST(shared_task_test, Task_destroys_coroutine_if_not_awaited)
 TEST(shared_task_test, Task_destroys_coroutine_if_awaited)
 {
     lifetime_statistics statistics;
-    single_consumer_manual_reset_event event;
+    async_manual_reset_event<> event;
 
     sync_wait([&, tracker = statistics.tracker()]()->shared_task<>
         {
@@ -185,7 +185,7 @@ TEST(shared_task_test, Task_destroys_coroutine_if_awaited)
 TEST(shared_task_test, Task_does_destroy_coroutine_if_destroyed_while_suspended)
 {
     lifetime_statistics statistics;
-    single_consumer_manual_reset_event event;
+    async_manual_reset_event<> event;
 
     {
         // Create and suspend a task, then destroy it.
@@ -211,7 +211,7 @@ TEST(shared_task_test, Task_does_destroy_coroutine_if_destroyed_while_suspended)
 
 TEST(shared_task_test, Can_suspend_and_resume)
 {
-    single_consumer_manual_reset_event event;
+    async_manual_reset_event<> event;
     int stage = 0;
 
     auto future = as_future(
