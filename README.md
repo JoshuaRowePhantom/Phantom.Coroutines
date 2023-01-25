@@ -46,6 +46,9 @@ Put the ```include/Phantom.Coroutines``` directory in your include path.  Then,
 #include <Phantom.Coroutines/task.h>
 ```
 
+The library is so far only tested on the lastest versions of Microsoft Visual C++.
+It requires the ```/std:c++latest``` flag to enable C++ 23 features.
+
 The contents of the ```Phantom::Coroutines``` namespace are available for use as documented.  Everything
 in ```Phantom::Coroutines::detail``` is undocumented.  At some point, this will be
 enforced through C++ modules.
@@ -57,7 +60,7 @@ Library contents:
 
 ### [```async_auto_reset_event.h```](Documentation/async_auto_reset_event.md)
 
-Auto reset event.
+Auto reset event that releases one waiter upon being signalled.
 
 ### [```async_generator.h```](Documentation/async_generator.md)
 
@@ -65,7 +68,7 @@ Async generator.
 
 ### [```async_manual_reset_event.h```](Documentation/async_manual_reset_event.md)
 
-Manual reset event.
+Manual reset event that releases all waiters upon being signalled.
 
 ### [```async_mutex.h```](Documentation/async_mutex.md)
    
@@ -73,7 +76,7 @@ Mutual exclusion inside coroutines.
 
 ### [```async_promise.h```](Documentation/async_promise.md)
    
-Delayed acquisition of values.
+Delayed acquisition of published values.
 
 ### [```async_scope.h```](Documentation/async_scope.md)
    
@@ -86,12 +89,16 @@ Wrap awaitable objects with an awaiter implementation.
 ### [```early_termination_task.h```](Documentation/early_termination_task.md)
    
 Coroutines that terminate execution when termination conditions are encountered.
+This or [```task<>```](Documentation/task.md) are expected to be the most
+heavily used classes.
 
 ### [```extensible_promise.h```](Documentation/extensible_promise.md)
    
 Write promise types that can be extended or do extend other promise types.
+Most promise types in the Phantom.Coroutines library are built using
+these types.
 
-### [```extensible_promise.h```](Documentation/generator.md)
+### [```generator.h```](Documentation/generator.md)
    
 Non-async generator.
 
@@ -102,6 +109,10 @@ Provides policy parameters to other classes, such as [async_mutex.h](Documentati
 ### [schedulers](Documentation/schedulers.md)
 
 Schedule coroutines to resume on other threads.
+
+### [sequence_barrier](Documentation/sequence_barrier.md)
+
+Wait for a number to be published.
 
 ### [```shared_task.h```](Documentation/shared_task.md)
 
