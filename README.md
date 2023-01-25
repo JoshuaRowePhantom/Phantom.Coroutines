@@ -106,6 +106,10 @@ Non-async generator.
 
 Provides policy parameters to other classes, such as [async_mutex.h](Documentation/async_mutex.md). 
 
+### [```promise_allocator.h```](Documentation/promise_allocator.md)
+
+Support custom allocators for promise objects.
+
 ### [schedulers](Documentation/schedulers.md)
 
 Schedule coroutines to resume on other threads.

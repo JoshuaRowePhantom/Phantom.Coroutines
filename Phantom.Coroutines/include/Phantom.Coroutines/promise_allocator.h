@@ -27,8 +27,8 @@ private:
         (sizeof(Allocator) + __STDCPP_DEFAULT_NEW_ALIGNMENT__ - 1) / __STDCPP_DEFAULT_NEW_ALIGNMENT__ * __STDCPP_DEFAULT_NEW_ALIGNMENT__;
 
     static void* allocate(
-        allocator_type& allocator,
-        size_t size
+        size_t size,
+        allocator_type& allocator
     )
     {
         char_allocator_type charAllocator{ allocator };
@@ -87,39 +87,52 @@ private:
         }
     }
 
+    static void* allocate(
+        size_t size
+    )
+        requires std::is_default_constructible_v<allocator_type>
+    {
+        allocator_type allocator;
+        return allocate(
+            size,
+            allocator);
+    }
+
+    static void* allocate(
+        size_t size,
+        auto& arg,
+        auto&... args
+    )
+        requires requires
+    {
+        { allocate(size, args...) };
+    }
+    {
+        return allocate(size, args...);
+    }
+
+    static void* allocate(
+        size_t size,
+        Allocator& arg,
+        auto&... args
+    )
+    {
+        return allocate(size, arg);
+    }
+
 public:
     using allocator_type = Allocator;
     using derived_promise<Promise>::derived_promise;
 
     static void* operator new(
         size_t size,
-        allocator_type& allocator,
-        auto&... args)
-    {
-        return allocate(allocator, size);
-    }
-
-    static void* operator new(
-        size_t size,
-        auto& arg,
         auto&... args
-        )
-        requires !std::same_as<std::nothrow_t, std::remove_cvref_t<decltype(arg)>>
+        ) requires requires
     {
-        return operator new(
-            size,
-            args...);
+        { allocate(size, args...) };
     }
-
-    static void* operator new(
-        size_t size
-        )
-        requires std::is_default_constructible_v<allocator_type>
     {
-        allocator_type allocator;
-        return operator new(
-            size,
-            allocator);
+        return allocate(size, args...);
     }
 
     static void operator delete(
