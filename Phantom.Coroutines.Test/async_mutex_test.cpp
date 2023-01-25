@@ -91,13 +91,13 @@ TEST(async_mutex_test, double_release_scoped_lock_does_not_unlock)
 task<> foo()
 {
     async_mutex<> mutex;
-    co_await mutex.lock();
+    co_await mutex.lock_async();
 }
 
 ASYNC_TEST(async_mutex_test, lock_on_unlocked_mutex_acquires_mutex)
 {
     async_mutex<> mutex;
-    co_await mutex.lock();
+    co_await mutex.lock_async();
     EXPECT_FALSE(mutex.try_lock());
 }
 
@@ -112,7 +112,7 @@ TEST(async_mutex_test, lock_acquires_in_order)
     {
         return as_future([&mutex](int& order, int expectedOrder)->task<>
             {
-                co_await mutex.lock();
+                co_await mutex.lock_async();
                 EXPECT_EQ(order, expectedOrder);
                 order = expectedOrder + 1;
             }(order, expectedOrder));
@@ -139,11 +139,11 @@ TEST(async_mutex_test, lock_acquires_in_order)
 ASYNC_TEST(async_mutex_test, noop_on_destroy_destructor_does_nothing)
 {
     std::optional<async_mutex<noop_on_destroy>> mutex{std::in_place};
-    co_await mutex->lock();
+    co_await mutex->lock_async();
 
     auto future = as_future([&]() -> task<>
         {
-            co_await mutex->lock();
+            co_await mutex->lock_async();
             EXPECT_TRUE(false);
         });
 
@@ -154,11 +154,11 @@ ASYNC_TEST(async_mutex_test, noop_on_destroy_destructor_does_nothing)
 ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_causes_awaiters_to_get_exception)
 {
     std::optional<async_mutex<throw_on_destroy>> mutex{ std::in_place };
-    co_await mutex->lock();
+    co_await mutex->lock_async();
 
     auto future = as_future([&]() -> task<>
         {
-            co_await mutex->lock();
+            co_await mutex->lock_async();
             EXPECT_TRUE(false);
         });
     mutex.reset();
@@ -170,7 +170,7 @@ ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_causes_awaiters_to_get_
 ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_no_awaiters_works_fine)
 {
     std::optional<async_mutex<throw_on_destroy>> mutex{ std::in_place };
-    co_await mutex->lock();
+    co_await mutex->lock_async();
     mutex.reset();
 
     co_return;

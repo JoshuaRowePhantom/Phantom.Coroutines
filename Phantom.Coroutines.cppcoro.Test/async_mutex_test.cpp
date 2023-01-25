@@ -8,3 +8,12 @@ static_assert(std::same_as<
         Phantom::Coroutines::default_continuation_type,
         Phantom::Coroutines::await_is_not_cancellable
     >>);
+
+static_assert(
+    std::same_as<
+        std::unique_lock<
+            cppcoro::async_mutex
+        >,
+        cppcoro::async_mutex_lock
+    >
+    );

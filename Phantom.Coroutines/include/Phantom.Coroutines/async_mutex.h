@@ -198,12 +198,14 @@ public:
         }
     }
 
-    async_mutex_lock_operation lock()  noexcept
+    // We name this method lock_async
+    // so that std::unique_lock::lock cannot find it.
+    async_mutex_lock_operation lock_async()  noexcept
     {
         return async_mutex_lock_operation{ this };
     }
 
-    async_mutex_scoped_lock_operation scoped_lock() noexcept
+    async_mutex_scoped_lock_operation scoped_lock_async() noexcept
     {
         return async_mutex_scoped_lock_operation{ this };
     }
