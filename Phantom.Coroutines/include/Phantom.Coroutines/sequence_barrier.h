@@ -315,7 +315,7 @@ public:
     explicit basic_sequence_barrier(
         value_type initialPublishedValue = 0,
         Comparer comparer = {}
-    ) :
+    ) noexcept :
         m_publishedValue { initialPublishedValue },
         m_heapBuilder
         {
@@ -326,7 +326,7 @@ public:
     void publish(
         this auto& self,
         value_type value
-    )
+    ) noexcept
     {
         self.basic_sequence_barrier::m_publishedValue.store(
             value,
@@ -345,9 +345,15 @@ public:
     awaiter wait_until_published(
         this auto& self,
         value_type value
-    )
+    ) noexcept
     {
         return awaiter{ &self, value };
+    }
+
+    auto last_published() const noexcept
+    {
+        return m_publishedValue.load(
+            std::memory_order_acquire);
     }
 };
 }

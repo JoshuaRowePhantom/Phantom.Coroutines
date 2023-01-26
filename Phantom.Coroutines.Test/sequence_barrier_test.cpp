@@ -17,6 +17,22 @@ ASYNC_TEST(sequence_barrier_test, Can_await_barrier_at_zero)
     EXPECT_FALSE(suspendResult.did_suspend());
 }
 
+ASYNC_TEST(sequence_barrier_test, last_published_returns_last_published_value)
+{
+    suspend_result suspendResult;
+    sequence_barrier<> sequenceBarrier;
+    EXPECT_EQ(0, sequenceBarrier.last_published());
+    co_return;
+}
+
+ASYNC_TEST(sequence_barrier_test, can_start_at_nonzero_value)
+{
+    suspend_result suspendResult;
+    sequence_barrier<> sequenceBarrier(5);
+    EXPECT_EQ(5, sequenceBarrier.last_published());
+    co_return;
+}
+
 TEST(sequence_barrier_test, Publish_resumes_an_awaiter)
 {
     suspend_result suspendResult;
