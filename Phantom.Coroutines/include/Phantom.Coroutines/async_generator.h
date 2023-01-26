@@ -353,11 +353,12 @@ template<
     using awaiter_wrapper_type = typename basic_async_generator::extended_promise_handle::promise_handle_type;
     using awaitable_type = typename awaiter_wrapper_type::awaiter_type;
 
+protected:
     decltype(auto) awaiter(
         this auto& self
     )
     {
-        return self.basic_async_generator::awaitable().awaiter();
+        return self.basic_async_generator::extended_promise_handle::awaitable().awaiter();
     }
 
 public:

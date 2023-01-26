@@ -252,7 +252,8 @@ public:
 
 template<
     typename Promise
-> class basic_task
+> 
+class [[nodiscard]] basic_task
     :
     public task_awaitable<Promise>
 {

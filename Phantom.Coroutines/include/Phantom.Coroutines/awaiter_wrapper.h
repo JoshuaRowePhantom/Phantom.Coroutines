@@ -120,6 +120,15 @@ template<
         is_awaitable Awaitable
     > friend class awaiter_wrapper;
 
+    template<
+        is_awaiter Awaiter,
+        typename Scope
+    > friend class awaiter_wrapper_methods;
+
+    template<
+        typename PromiseHandle
+    > class extended_promise_handle;
+
 public:
     using awaitable_type = Awaitable;
     using awaiter_type = awaiter_type<Awaitable>;
@@ -182,6 +191,7 @@ public:
     }
     {}
 
+protected:
     decltype(auto) awaiter(
         this auto& self)
     {
