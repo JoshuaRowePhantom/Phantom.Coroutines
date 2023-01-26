@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/type_traits.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/sync_wait.h"
@@ -42,9 +43,9 @@ static_assert(std::same_as<detail::awaitable_result_type_t<task<std::string>>, s
 static_assert(std::same_as<detail::awaitable_result_type_t<task<std::string&>>, std::string&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<std::string&&>>, std::string&&>);
 
-TEST(task_test, Can_await_void_task)
+ASYNC_TEST(task_test, Can_await_void_task)
 {
-    sync_wait(
+    co_await (
         []() -> task<>
     {
         co_return;
@@ -52,11 +53,11 @@ TEST(task_test, Can_await_void_task)
     );
 }
 
-TEST(task_test, Can_handle_thrown_exception)
+ASYNC_TEST(task_test, Can_handle_thrown_exception)
 {
-    ASSERT_THROW(
+    EXPECT_THROW(
         {
-            sync_wait(
+            co_await(
                 []() -> task<>
             {
                 throw 5;
@@ -67,31 +68,31 @@ TEST(task_test, Can_handle_thrown_exception)
         int);
 }
 
-TEST(task_test, Can_await_string_task)
+ASYNC_TEST(task_test, Can_await_string_task)
 {
-    auto result = sync_wait(
+    auto result = co_await(
         []() -> task<std::string>
     {
         co_return "hello world";
     }());
 
-    ASSERT_EQ("hello world", result);
+    EXPECT_EQ("hello world", result);
 }
 
-TEST(task_test, Can_return_reference)
+ASYNC_TEST(task_test, Can_return_reference)
 {
     int value = 1;
 
-    auto& result = sync_wait(
+    auto& result = co_await(
         [&]() -> task<int&>
     {
         co_return value;
     }());
 
-    ASSERT_EQ(&value, &result);
+    EXPECT_EQ(&value, &result);
 }
 
-TEST(task_test, Returned_object_is_by_rvalue_reference_to_caller_in_rvalue_context)
+ASYNC_TEST(task_test, Returned_object_is_by_rvalue_reference_to_caller_in_rvalue_context)
 {
     lifetime_statistics statistics;
     std::optional<lifetime_statistics> intermediateStatistics;
@@ -110,12 +111,12 @@ TEST(task_test, Returned_object_is_by_rvalue_reference_to_caller_in_rvalue_conte
         intermediateStatistics = statistics;
     };
 
-    sync_wait(
+    co_await(
         myOuterTask());
 
-    ASSERT_EQ(1, intermediateStatistics->move_construction_count);
-    ASSERT_EQ(0, intermediateStatistics->copy_construction_count);
-    ASSERT_EQ(0, intermediateStatistics->instance_count);
+    EXPECT_EQ(1, intermediateStatistics->move_construction_count);
+    EXPECT_EQ(0, intermediateStatistics->copy_construction_count);
+    EXPECT_EQ(0, intermediateStatistics->instance_count);
 }
 
 TEST(task_test, Task_destroys_coroutine_if_not_awaited)
@@ -132,7 +133,7 @@ TEST(task_test, Task_destroys_coroutine_if_not_awaited)
         }();
     }
 
-    ASSERT_EQ(0, statistics.instance_count);
+    EXPECT_EQ(0, statistics.instance_count);
 }
 
 namespace
@@ -210,92 +211,96 @@ TEST(task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
         // This will destroy the awaiter.
     }
 
-    ASSERT_EQ(0, statistics.instance_count);
+    EXPECT_EQ(0, statistics.instance_count);
 }
 
-TEST(task_test, Can_return_rvalue_reference_Address_doesnt_change)
+ASYNC_TEST(task_test, Can_return_rvalue_reference_Address_doesnt_change)
 {
     std::string value = "hello world";
     std::string* finalAddress = nullptr;
 
-    sync_wait([&]() -> task<>
+    co_await([&]() -> task<>
     {
-        auto& v = reinterpret_cast<std::string&>(co_await[&]() -> task<std::string&&>
+        auto&& v = std::move(co_await[&]() -> task<std::string&&>
         {
-            co_return value;
+            co_return std::move(value);
         }());
 
         finalAddress = &v;
     }());
 
-    ASSERT_EQ(&value, finalAddress);
+    EXPECT_EQ(&value, finalAddress);
 }
 
-TEST(task_test, Can_use_returned_rvalue_reference)
+ASYNC_TEST(task_test, Can_use_returned_rvalue_reference)
 {
     detail::lifetime_statistics statistics;
     detail::lifetime_tracker initialValue = statistics.tracker();
 
-    sync_wait([&]() -> task<>
+    co_await([&]() -> task<>
     {
         auto endValue = co_await[&]() -> task<detail::lifetime_tracker&&>
         {
-            co_return initialValue;
+            co_return std::move(initialValue);
         }();
 
         [&]() {
-            ASSERT_EQ(2, statistics.instance_count);
-            ASSERT_EQ(1, statistics.move_construction_count);
+            EXPECT_EQ(2, statistics.instance_count);
+            EXPECT_EQ(1, statistics.move_construction_count);
         }();
     }());
 
-    ASSERT_TRUE(initialValue.moved_from());
-    ASSERT_EQ(1, statistics.instance_count);
+    EXPECT_TRUE(initialValue.moved_from());
+    EXPECT_EQ(1, statistics.instance_count);
 }
 
-TEST(task_test, Can_use_returned_rvalue_reference_with_same_address)
+ASYNC_TEST(task_test, Can_use_returned_rvalue_reference_with_same_address)
 {
     detail::lifetime_statistics statistics;
     detail::lifetime_tracker initialValue = statistics.tracker();
 
-    sync_wait([&]() -> task<>
+    co_await([&]() -> task<>
     {
         [&](detail::lifetime_tracker&& endValue) {
 
             endValue.use();
-            ASSERT_EQ(1, statistics.instance_count);
-            ASSERT_EQ(0, statistics.move_construction_count);
+            EXPECT_EQ(1, statistics.instance_count);
+            EXPECT_EQ(0, statistics.move_construction_count);
         }(
             co_await[&]() -> task<detail::lifetime_tracker&&>
         {
-            co_return initialValue;
+            co_return std::move(initialValue);
         }());
     }());
 
-    ASSERT_FALSE(initialValue.moved_from());
-    ASSERT_EQ(1, statistics.instance_count);
-    ASSERT_FALSE(statistics.used_after_move);
+    EXPECT_FALSE(initialValue.moved_from());
+    EXPECT_EQ(1, statistics.instance_count);
+    EXPECT_FALSE(statistics.used_after_move);
 }
 
-TEST(task_test, Can_suspend_and_resume)
+ASYNC_TEST(task_test, Can_suspend_and_resume)
 {
     async_manual_reset_event<> event;
     int stage = 0;
 
-    auto future = as_future(
-        [&]() -> task<>
+    auto lambda = [&]() -> task<>
     {
         stage = 1;
         co_await event;
         stage = 2;
-    }());
+    };
 
-    ASSERT_EQ(1, stage);
+    async_scope<> scope;
+    scope.spawn(
+        lambda());
+
+    EXPECT_EQ(1, stage);
     event.set();
-    ASSERT_EQ(2, stage);
+    EXPECT_EQ(2, stage);
+    co_await scope.join();
 }
 
-TEST(task_test, Can_loop_without_stackoverflow)
+ASYNC_TEST(task_test, Can_loop_without_stackoverflow)
 {
     auto innerTaskLambda = []() -> task<int> { co_return 1; };
     auto outerTaskLambda = [&]() -> task<int>
@@ -310,12 +315,12 @@ TEST(task_test, Can_loop_without_stackoverflow)
         co_return sum;
     };
 
-    auto actualSum = sync_wait(
+    auto actualSum = co_await(
         outerTaskLambda());
-    ASSERT_EQ(1000000, actualSum);
+    EXPECT_EQ(1000000, actualSum);
 }
 
-TEST(task_test, Destroys_returned_value)
+ASYNC_TEST(task_test, Destroys_returned_value)
 {
     lifetime_statistics statistics;
     std::optional<size_t> instanceCountBeforeDestruction;
@@ -326,7 +331,7 @@ TEST(task_test, Destroys_returned_value)
         co_return statistics.tracker();
     };
 
-    sync_wait([&]() -> task<>
+    co_await([&]() -> task<>
     {
         {
             auto tracker = co_await taskWithReturnValueLambda();
@@ -335,11 +340,11 @@ TEST(task_test, Destroys_returned_value)
         instanceCountAfterDestruction = statistics.instance_count;
     }());
 
-    ASSERT_EQ(1, instanceCountBeforeDestruction);
-    ASSERT_EQ(0, instanceCountAfterDestruction);
+    EXPECT_EQ(1, instanceCountBeforeDestruction);
+    EXPECT_EQ(0, instanceCountAfterDestruction);
 }
 
-TEST(task_test, Destroys_thrown_exception)
+ASYNC_TEST(task_test, Destroys_thrown_exception)
 {
     lifetime_statistics statistics;
     std::optional<size_t> instanceCountBeforeDestruction;
@@ -351,7 +356,7 @@ TEST(task_test, Destroys_thrown_exception)
         co_return 5;
     };
 
-    sync_wait([&]() -> task<>
+    auto outerTask = [&]() -> task<>
     {
         {
             auto task = taskWithReturnValueLambda();
@@ -365,8 +370,10 @@ TEST(task_test, Destroys_thrown_exception)
             }
         }
         instanceCountAfterDestruction = statistics.instance_count;
-    }());
+    };
 
-    ASSERT_EQ(1, instanceCountBeforeDestruction);
-    ASSERT_EQ(0, instanceCountAfterDestruction);
+    co_await outerTask();
+
+    EXPECT_EQ(1, instanceCountBeforeDestruction);
+    EXPECT_EQ(0, instanceCountAfterDestruction);
 }

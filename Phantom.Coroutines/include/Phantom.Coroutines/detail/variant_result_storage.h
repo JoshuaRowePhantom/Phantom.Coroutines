@@ -10,14 +10,52 @@ template<
 {
     void return_value(
         this auto& self,
+        T& value
+    )
+    {
+        static_assert(!std::is_rvalue_reference_v<T>, "Cannot convert T& to T&&.");
+        if constexpr (std::is_lvalue_reference_v<T>)
+        {
+            return self.return_variant_result(
+                std::reference_wrapper(value));
+        }
+        else
+        {
+            return self.return_variant_result(
+                value);
+        }
+    }
+
+    void return_value(
+        this auto& self,
+        std::remove_reference_t<T>&& value
+    )
+    {
+        static_assert(!std::is_lvalue_reference_v<T>, "Cannot convert T&& to T&.");
+        if constexpr (std::is_rvalue_reference_v<T>)
+        {
+            return self.return_variant_result(
+                std::reference_wrapper(value));
+        }
+        else
+        {
+            return self.return_variant_result(
+                std::move(value));
+        }
+    }
+
+    void return_value(
+        this auto& self,
         auto&& value
     )
+        requires !std::same_as<std::decay_t<T>, std::decay_t<decltype(value)>>
     {
         return self.return_variant_result(
             std::forward<decltype(value)>(value)
         );
     }
 
+    // Allow {} syntax to return default-constructed objects of type T.
     void return_value(
         this auto& self,
         std::monostate

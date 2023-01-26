@@ -103,6 +103,14 @@ static_assert(!is_awaiter<not_awaitable>);
 static_assert(has_co_await_member<typed_awaitable<void>>);
 static_assert(!has_co_await_member<not_awaitable>);
 
+static_assert(!has_co_await_member<generic_awaitable_lvalue<>>);
+static_assert(has_co_await_member<generic_awaitable_lvalue<>&>);
+static_assert(!has_co_await_member<generic_awaitable_lvalue<>&&>);
+
+static_assert(has_co_await_member<generic_awaitable_rvalue<>>);
+static_assert(!has_co_await_member<generic_awaitable_rvalue<>&>);
+static_assert(has_co_await_member<generic_awaitable_rvalue<>&&>);
+
 static_assert(std::same_as<typed_awaiter<void>, awaiter_type<typed_awaiter<void>>>);
 static_assert(std::same_as<typed_awaiter<int>, awaiter_type<typed_awaiter<int>>>);
 static_assert(std::same_as<typed_awaiter<int&>, awaiter_type<typed_awaiter<int&>>>);

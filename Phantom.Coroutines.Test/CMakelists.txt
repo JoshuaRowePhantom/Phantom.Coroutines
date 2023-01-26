@@ -31,7 +31,7 @@ add_executable(
     "awaiter_list_test.cpp" 
     "promise_allocator_test.cpp" 
     "thread_local_contextual_promise_test.cpp"
-)
+ "reusable_task_test.cpp")
 
 target_link_libraries(
     Phantom.Coroutines.Test

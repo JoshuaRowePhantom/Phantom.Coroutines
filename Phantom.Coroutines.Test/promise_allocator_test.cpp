@@ -175,7 +175,7 @@ ASYNC_TEST(promise_allocator_test, allocated_promise_does_not_use_nothrow_if_no_
         co_return;
     };
 
-    EXPECT_THROW(lambda(allocator), std::bad_alloc);
+    EXPECT_THROW(std::ignore = lambda(allocator), std::bad_alloc);
     co_return;
 }
 
