@@ -127,7 +127,7 @@ template<
 
     template<
         typename PromiseHandle
-    > class extended_promise_handle;
+    > friend class extended_promise_handle;
 
 public:
     using awaitable_type = Awaitable;
@@ -191,7 +191,7 @@ public:
     }
     {}
 
-protected:
+public:
     decltype(auto) awaiter(
         this auto& self)
     {
@@ -207,9 +207,9 @@ protected:
         this auto& self
     )
     {
-        return self.retrieve_from_extended_promise_handle(
+        return self.awaiter_wrapper::retrieve_from_extended_promise_handle(
             [](auto&& awaiter) -> decltype(auto) { return awaiter.handle(); },
-            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper_storage<Awaitable>::handle(); }
+            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper::awaiter_wrapper_storage<Awaitable>::handle(); }
         );
     }
 
@@ -217,9 +217,9 @@ protected:
         this auto& self
     )
     {
-        return self.retrieve_from_extended_promise_handle(
+        return self.awaiter_wrapper::retrieve_from_extended_promise_handle(
             [](auto&& awaiter) -> decltype(auto) { return awaiter.promise(); },
-            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper_storage<Awaitable>::promise(); }
+            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper::awaiter_wrapper_storage<Awaitable>::promise(); }
         );
     }
 };

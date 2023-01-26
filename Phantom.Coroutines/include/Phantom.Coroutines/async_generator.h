@@ -53,15 +53,15 @@ public:
     }
 };
 
-struct async_generator_current_value_index
+enum class async_generator_current_value_index : size_t
 {
     // The iterator needs to be advanced,
     // or the underlying coroutine has completed.
-    static const std::size_t EmptyIndex = 0;
+    EmptyIndex = 0,
     // The iterator holds a reference to a value.
-    static const std::size_t ValueRefIndex = 1;
+    ValueRefIndex = 1,
     // The iterator holds a copy of a value.
-    static const std::size_t ValueIndex = 2;
+    ValueIndex = 2,
 };
 
 template<
@@ -69,9 +69,9 @@ template<
     typename BasePromise
 > class basic_async_generator_promise
     :
-    public derived_promise<BasePromise>,
-    private async_generator_current_value_index
+    public derived_promise<BasePromise>
 {
+    using enum async_generator_current_value_index;
 public:
     using value_type = Result;
     using async_generator_base_promise_type = BasePromise;
@@ -131,13 +131,13 @@ public:
                 || std::is_rvalue_reference_v<Value&&>
             ))
         {
-            self.m_currentValue.emplace<ValueRefIndex>(
+            self.m_currentValue.emplace<size_t(ValueRefIndex)>(
                 static_cast<std::add_lvalue_reference_t<value_type>>(
                     value));
         }
         else
         {
-            self.m_currentValue.emplace<ValueIndex>(
+            self.m_currentValue.emplace<size_t(ValueIndex)>(
                 std::forward<Value>(value));
         }
 
@@ -148,9 +148,9 @@ public:
 template<
     is_derived_instantiation<basic_async_generator> Generator
 > class async_generator_increment_awaiter
-    :
-private async_generator_current_value_index
 {
+    using enum async_generator_current_value_index;
+
     template<
         is_derived_instantiation<basic_async_generator> Generator
     > friend class async_generator_begin_awaiter;
@@ -201,7 +201,7 @@ public:
         auto continuation,
         auto&&... args)
     {
-        self.currentValue().emplace<EmptyIndex>();
+        self.currentValue().emplace<size_t(EmptyIndex)>();
 
         return self.awaiter().await_suspend(
             continuation,
@@ -213,8 +213,8 @@ public:
         this auto& self
         )
     {
-        if (self.currentValue().index() == ValueRefIndex
-            || self.currentValue().index() == ValueIndex)
+        if (self.currentValue().index() == size_t(ValueRefIndex)
+            || self.currentValue().index() == size_t(ValueIndex))
         {
             return self.awaiter().get_result_value(
                 [&]() { return async_generator_iterator<Generator>{ &self.m_generator }; }
@@ -249,9 +249,9 @@ template<
 template<
     is_derived_instantiation<basic_async_generator> Generator
 > class async_generator_iterator
-    :
-    private async_generator_current_value_index
 {
+    using enum async_generator_current_value_index;
+
     friend class async_generator_increment_awaiter<Generator>;
     friend class basic_async_generator<typename Generator::promise_type>;
 
@@ -284,7 +284,7 @@ public:
     auto operator++(
         this auto& self)
     {
-        self.promise().m_currentValue.emplace<EmptyIndex>();
+        self.promise().m_currentValue.emplace<size_t(EmptyIndex)>();
         return async_generator_increment_awaiter
         { 
             *self.m_generator,
@@ -293,13 +293,13 @@ public:
 
     reference operator*()
     {
-        if (promise().m_currentValue.index() == ValueIndex)
+        if (promise().m_currentValue.index() == size_t(ValueIndex))
         {
-            return std::get<ValueIndex>(
+            return std::get<size_t(ValueIndex)>(
                 promise().m_currentValue);
         }
 
-        return std::get<ValueRefIndex>(
+        return std::get<size_t(ValueRefIndex)>(
             promise().m_currentValue);
     }
 
@@ -315,7 +315,7 @@ public:
     {
         return self.m_generator
             && self.m_generator->handle()
-            && self.promise().m_currentValue.index() != EmptyIndex;
+            && self.promise().m_currentValue.index() != size_t(EmptyIndex);
     }
 
     auto operator ==(
@@ -354,11 +354,9 @@ template<
     using awaitable_type = typename awaiter_wrapper_type::awaiter_type;
 
 protected:
-    decltype(auto) awaiter(
-        this auto& self
-    )
+    decltype(auto) awaiter()
     {
-        return self.basic_async_generator::extended_promise_handle::awaitable().awaiter();
+        return basic_async_generator::extended_promise_handle::awaitable().awaiter();
     }
 
 public:
