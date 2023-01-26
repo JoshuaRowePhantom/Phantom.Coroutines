@@ -399,3 +399,24 @@ ASYNC_TEST(reusable_task_test, Can_await_twice)
     auto& tracker1 = co_await task;
     auto& tracker2 = co_await task;
 }
+
+ASYNC_TEST(reusable_task_test, when_ready_does_not_throw_exception)
+{
+    auto lambda = [&]() -> reusable_task<std::string>
+    {
+        throw 0;
+        co_return{};
+    };
+
+    auto task = lambda();
+    co_await task.when_ready();
+
+    try
+    {
+        co_await task;
+        EXPECT_TRUE(false);
+    }
+    catch (int)
+    {
+    }
+}

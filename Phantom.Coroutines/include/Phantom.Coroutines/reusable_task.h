@@ -243,9 +243,9 @@ public:
 
     auto operator co_await(
         this auto&& self
-        )
+        ) noexcept
     {
-        struct awaiter : reusable_task_awaiter_base<Promise>
+        struct [[nodiscard]] awaiter : reusable_task_awaiter_base<Promise>
         {
             using awaiter::reusable_task_awaiter_base::reusable_task_awaiter_base;
 
@@ -273,6 +273,26 @@ public:
             self.promise(),
         };
     }
+
+    auto when_ready(
+        this auto& self
+    ) noexcept
+    {
+        struct [[nodiscard]] awaiter : reusable_task_awaiter_base<Promise>
+        {
+            using awaiter::reusable_task_awaiter_base::reusable_task_awaiter_base;
+
+            void await_resume()
+            {
+            }
+        };
+
+        return awaiter
+        {
+            self.promise(),
+        };
+    }
+
 };
 
 template<
