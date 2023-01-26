@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Phantom.Coroutines/type_traits.h"
 
 namespace cppcoro

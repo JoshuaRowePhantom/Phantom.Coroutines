@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Phantom.Coroutines/sync_wait.h"
 
 namespace cppcoro

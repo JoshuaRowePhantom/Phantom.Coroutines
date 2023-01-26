@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Phantom.Coroutines/shared_task.h"
 
 namespace cppcoro
