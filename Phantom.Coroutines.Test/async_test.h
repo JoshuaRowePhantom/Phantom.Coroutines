@@ -14,7 +14,7 @@ public: \
 \
 GTEST_TEST_(test_suite_name, test_name, ASYNC_TEST_CLASS_NAME(test_suite_name, test_name), ::testing::internal::GetTestTypeId()) \
 { \
-    sync_wait(AsyncTestBody()); \
+    ::Phantom::Coroutines::sync_wait(AsyncTestBody()); \
 } \
 \
 ::Phantom::Coroutines::task<> ASYNC_TEST_CLASS_NAME(test_suite_name, test_name)::AsyncTestBody()
