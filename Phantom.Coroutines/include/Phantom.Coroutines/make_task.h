@@ -1,3 +1,5 @@
+#pragma once
+
 #include "task.h"
 #include "type_traits.h"
 
