@@ -48,7 +48,7 @@ template<
         this auto& self,
         auto&& value
     )
-        requires !std::same_as<std::decay_t<T>, std::decay_t<decltype(value)>>
+        requires !std::same_as<T&, decltype(value)&>
     {
         return self.return_variant_result(
             std::forward<decltype(value)>(value)

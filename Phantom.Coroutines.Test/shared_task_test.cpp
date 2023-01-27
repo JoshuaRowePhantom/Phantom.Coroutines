@@ -136,6 +136,7 @@ ASYNC_TEST(shared_task_test, when_ready_doesnt_return_exception)
     {
         co_await detail::suspend_never{};
         throw 1;
+        co_return "hello world";
     };
 
     auto task = lambda();
@@ -530,6 +531,19 @@ TEST(shared_task_test, Default_constructor_produces_invalid_task)
 {
     shared_task<> task;
     ASSERT_FALSE(task);
+}
+
+ASYNC_TEST(shared_task_test, can_return_const_reference_as_value_type)
+{
+    const std::string result = "hello world";
+    auto lambda = [&]() -> shared_task<std::string>
+    {
+        co_return result;
+    };
+    auto task = lambda();
+    auto& actualResult = co_await task;
+    EXPECT_NE(&actualResult, &result);
+    EXPECT_EQ(actualResult, result);
 }
 
 }
