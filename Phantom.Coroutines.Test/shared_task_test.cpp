@@ -128,6 +128,29 @@ ASYNC_TEST(shared_task_test, is_ready_returns_true_if_complete)
     co_await scope.join();
 }
 
+ASYNC_TEST(shared_task_test, when_ready_doesnt_return_exception)
+{
+    async_manual_reset_event<> event;
+
+    auto lambda = [&]() -> shared_task<std::string>
+    {
+        co_await detail::suspend_never{};
+        throw 1;
+    };
+
+    auto task = lambda();
+
+    static_assert(std::same_as<void, detail::awaitable_result_type_t<decltype(task.when_ready())>>);
+    co_await task.when_ready();
+    EXPECT_THROW(
+        {
+            co_await task;
+        },
+        int);
+
+    co_return;
+}
+
 TEST(shared_task_test, Can_return_reference)
 {
     int value = 1;

@@ -168,6 +168,22 @@ public:
         return shared_task_awaiter{ self.handle() };
     }
 
+    auto when_ready(
+        this auto&& self
+    ) noexcept
+    {
+        struct awaiter : shared_task_awaiter<Promise>
+        {
+            using awaiter::shared_task_awaiter::shared_task_awaiter;
+
+            void await_resume() const noexcept
+            {
+            }
+        };
+
+        return awaiter{ self.handle() };
+    }
+
     bool is_ready(
         this auto& self
     ) noexcept
