@@ -43,6 +43,13 @@ TEST(thread_pool_scheduler_test, schedules_on_different_thread)
     sync_wait(scope.join());
 }
 
+ASYNC_TEST(thread_pool_scheduler_test, thread_count_is_provided_at_construction_time)
+{
+    static_thread_pool scheduler(4);
+    EXPECT_EQ(4, scheduler.thread_count());
+    co_return;
+}
+
 void thread_pool_scheduler_test_do_many_work_items_test(
     size_t numberOfItems,
     size_t numberOfThreads

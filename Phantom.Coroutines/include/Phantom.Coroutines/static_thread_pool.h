@@ -19,9 +19,10 @@ class static_thread_pool
     std::latch m_stopLatch;
 
 public:
-    static_thread_pool(
-        std::size_t threadCount
-    ) : m_stopLatch(threadCount)
+    explicit static_thread_pool(
+        std::size_t threadCount = std::thread::hardware_concurrency()
+    ) : 
+        m_stopLatch(threadCount)
     {
         for (int threadCounter = 0; threadCounter < threadCount; threadCounter++)
         {
@@ -31,6 +32,11 @@ public:
                 m_stopLatch.count_down();
             }).detach();
         }
+    }
+
+    auto thread_count() const noexcept
+    {
+        return m_stopLatch.max();
     }
 
     ~static_thread_pool()
