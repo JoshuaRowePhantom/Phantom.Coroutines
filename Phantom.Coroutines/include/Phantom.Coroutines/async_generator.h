@@ -291,7 +291,7 @@ public:
         };
     }
 
-    reference operator*()
+    reference operator*() const noexcept
     {
         if (promise().m_currentValue.index() == size_t(ValueIndex))
         {
@@ -303,24 +303,22 @@ public:
             promise().m_currentValue);
     }
 
-    std::remove_reference_t<value_type>* operator->(
-        this auto& self)
+    std::remove_reference_t<value_type>* operator->() const noexcept
     {
-        return &*self;
+        return std::addressof(**this);
     }
 
     explicit operator bool(
-        this auto& self
-        ) 
+        )  const noexcept
     {
-        return self.m_generator
-            && self.m_generator->handle()
-            && self.promise().m_currentValue.index() != size_t(EmptyIndex);
+        return this->m_generator
+            && this->m_generator->handle()
+            && this->promise().m_currentValue.index() != size_t(EmptyIndex);
     }
 
     auto operator ==(
         const async_generator_iterator& other
-        ) const
+        ) const noexcept
     {
         return m_generator == other.m_generator
             || !*this && !other;
@@ -328,7 +326,7 @@ public:
 
     auto operator !=(
         const async_generator_iterator& other
-        ) const
+        ) const noexcept
     {
         return !(*this == other);
     }
