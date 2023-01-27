@@ -17,11 +17,13 @@ class static_thread_pool
     ThreadPoolScheduler m_scheduler;
     std::stop_source m_stopSource;
     std::latch m_stopLatch;
+    unsigned int m_threadCount;
 
 public:
     explicit static_thread_pool(
-        std::size_t threadCount = std::thread::hardware_concurrency()
+        unsigned int threadCount = std::thread::hardware_concurrency()
     ) : 
+        m_threadCount(threadCount),
         m_stopLatch(threadCount)
     {
         for (int threadCounter = 0; threadCounter < threadCount; threadCounter++)
@@ -36,7 +38,7 @@ public:
 
     auto thread_count() const noexcept
     {
-        return m_stopLatch.max();
+        return m_threadCount;
     }
 
     ~static_thread_pool()
