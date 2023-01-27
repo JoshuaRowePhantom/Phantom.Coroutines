@@ -165,9 +165,9 @@ public:
             NotSignalledState);
     }
 
-    awaiter operator co_await() noexcept
+    awaiter operator co_await() const noexcept
     {
-        return awaiter{ this };
+        return awaiter{ const_cast<basic_async_manual_reset_event*>(this) };
     }
 };
 
