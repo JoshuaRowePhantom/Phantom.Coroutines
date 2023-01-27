@@ -60,10 +60,11 @@ private:
     struct DestroyedState {};
     struct LockedState;
 
-    class [[nodiscard]] async_mutex_lock_operation
+public:
+    class [[nodiscard]] lock_operation
         :
         private immovable_object,
-        public awaiter_list_entry<AwaiterCardinalityPolicy, async_mutex_lock_operation>
+        public awaiter_list_entry<AwaiterCardinalityPolicy, lock_operation>
     {
         friend class basic_async_mutex;
 
@@ -71,7 +72,7 @@ private:
 
         Continuation m_continuation;
 
-        async_mutex_lock_operation(
+        lock_operation(
             basic_async_mutex* mutex
         ) :
             m_mutex(mutex)
@@ -127,16 +128,16 @@ private:
         }
     };
 
-    class [[nodiscard]] async_mutex_scoped_lock_operation
+    class [[nodiscard]] scoped_lock_operation
         :
         private immovable_object
     {
         friend class basic_async_mutex;
 
         basic_async_mutex& m_mutex;
-        async_mutex_lock_operation m_lockOperation;
+        lock_operation m_lockOperation;
 
-        async_mutex_scoped_lock_operation(
+        scoped_lock_operation(
             basic_async_mutex& mutex
         ) :
             m_mutex{mutex},
@@ -163,17 +164,19 @@ private:
         }
     };
 
+private:
+
     typedef atomic_state<
         SingletonState<UnlockedState>,
         SingletonState<DestroyedState>,
-        StateSet<LockedState, async_mutex_lock_operation*>
+        StateSet<LockedState, lock_operation*>
     > atomic_state_type;
     typedef atomic_state_type::state_type state_type;
 
     static inline const state_type LockedNoWaitersState = nullptr;
 
     atomic_state_type m_state = UnlockedState{};
-    async_mutex_lock_operation* m_awaiters = nullptr;
+    lock_operation* m_awaiters = nullptr;
 
 public:
     bool try_lock() noexcept
@@ -200,14 +203,14 @@ public:
 
     // We name this method lock_async
     // so that std::unique_lock::lock cannot find it.
-    async_mutex_lock_operation lock_async()  noexcept
+    lock_operation lock_async()  noexcept
     {
-        return async_mutex_lock_operation{ this };
+        return lock_operation{ this };
     }
 
-    async_mutex_scoped_lock_operation scoped_lock_async() noexcept
+    scoped_lock_operation scoped_lock_async() noexcept
     {
-        return async_mutex_scoped_lock_operation{ *this };
+        return scoped_lock_operation{ *this };
     }
 
     void unlock() noexcept

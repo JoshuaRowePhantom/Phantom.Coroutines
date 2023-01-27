@@ -22,6 +22,18 @@ static_assert(
     >
     );
 
+static_assert(
+    std::same_as<
+    ::Phantom::Coroutines::async_mutex<>::lock_operation,
+    ::cppcoro::async_mutex_lock_operation
+    >);
+
+static_assert(
+    std::same_as<
+    ::Phantom::Coroutines::async_mutex<>::scoped_lock_operation,
+    ::cppcoro::async_mutex_scoped_lock_operation
+    >);
+
 namespace cppcoro
 {
 ASYNC_TEST(cppcoro_async_mutex_test, mutex_is_mutually_exclusive)
