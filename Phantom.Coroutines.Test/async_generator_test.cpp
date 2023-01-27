@@ -16,12 +16,25 @@ static_assert(!std::is_copy_assignable_v<async_generator<int>>);
 static_assert(std::is_move_constructible_v<async_generator<int>>);
 static_assert(std::is_move_assignable_v<async_generator<int>>);
 
-ASYNC_TEST(async_generator_test, Can_enumerate_empty_async_generator)
+ASYNC_TEST(async_generator_test, Can_enumerate_async_generator_returning_no_elements)
 {
     auto myGenerator = []()->async_generator<int>
     {
         co_return;
     }();
+    auto count = 0;
+
+    for (auto iterator = co_await myGenerator.begin();
+        iterator != myGenerator.end();
+        co_await ++iterator)
+    {
+        ADD_FAILURE();
+    }
+}
+
+ASYNC_TEST(async_generator_test, Can_enumerate_default_constructed_async_generator)
+{
+    async_generator<int> myGenerator;
     auto count = 0;
 
     for (auto iterator = co_await myGenerator.begin();

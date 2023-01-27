@@ -191,9 +191,16 @@ public:
         auto&&... args
     )
     {
-        return self.awaiter().await_ready(
-            std::forward<decltype(args)>(args)...
-        );
+        return
+            // If the generator does not refer to a promise,
+            // then this increment operation is complete
+            !self.m_generator.handle()
+            ||
+            // Otherwise the increment operation is complete
+            // based on the underlying awaiter.
+            self.awaiter().await_ready(
+                std::forward<decltype(args)>(args)...
+            );
     }
 
     auto await_suspend(
@@ -213,8 +220,15 @@ public:
         this auto& self
         )
     {
-        if (self.currentValue().index() == size_t(ValueRefIndex)
-            || self.currentValue().index() == size_t(ValueIndex))
+        if (
+            // If the generator refers to a promise,
+            // then this increment operation should return the current value.
+            self.m_generator.handle()
+            && 
+            (
+                self.currentValue().index() == size_t(ValueRefIndex)
+                || self.currentValue().index() == size_t(ValueIndex)
+                ))
         {
             return self.awaiter().get_result_value(
                 [&]() { return async_generator_iterator<Generator>{ &self.m_generator }; }
