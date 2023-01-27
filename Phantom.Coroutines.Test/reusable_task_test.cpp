@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/async_scope.h"
+#include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/type_traits.h"
 #include "Phantom.Coroutines/reusable_task.h"
@@ -385,7 +386,7 @@ ASYNC_TEST(reusable_task_test, Destroys_thrown_exception)
     EXPECT_EQ(0, instanceCountAfterDestruction);
 }
 
-ASYNC_TEST(reusable_task_test, Can_await_twice)
+ASYNC_TEST(reusable_task_test, Can_be_awaited_twice)
 {
     lifetime_statistics statistics;
 
@@ -398,6 +399,33 @@ ASYNC_TEST(reusable_task_test, Can_await_twice)
 
     auto& tracker1 = co_await task;
     auto& tracker2 = co_await task;
+}
+
+ASYNC_TEST(reusable_task_test, Can_await_twice)
+{
+    lifetime_statistics statistics;
+    async_auto_reset_event<> event;
+    bool reached1 = false;
+    bool reached2 = false;
+
+    auto lambda = [&]() -> reusable_task<>
+    {
+        co_await event;
+        reached1 = true;
+        co_await event;
+        reached2 = true;
+    };
+    async_scope<> scope;
+    scope.spawn(lambda());
+
+    EXPECT_FALSE(reached1);
+    event.set();
+    EXPECT_TRUE(reached1);
+    EXPECT_FALSE(reached2);
+    event.set();
+    EXPECT_TRUE(reached2);
+
+    co_await scope.join();
 }
 
 ASYNC_TEST(reusable_task_test, when_ready_does_not_throw_exception)

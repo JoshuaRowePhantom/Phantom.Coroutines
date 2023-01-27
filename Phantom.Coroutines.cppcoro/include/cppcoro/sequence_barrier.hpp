@@ -1,12 +1,30 @@
 #pragma once
 
-#include "Phantom.Coroutines/sequence_barrier.h"
+#include "Phantom.Coroutines/async_sequence_barrier.h"
+#include "task.hpp"
 
 namespace cppcoro
 {
 
 template<
     typename Value
-> using sequence_barrier = ::Phantom::Coroutines::sequence_barrier<Value>;
+> class sequence_barrier
+    :
+    public ::Phantom::Coroutines::async_sequence_barrier<Value> 
+{
+    using ::Phantom::Coroutines::async_sequence_barrier<Value>::async_sequence_barrier;
+
+public:
+    task<Value> wait_until_published(
+        Value value,
+        auto& scheduler
+    )
+    {
+        auto result = co_await this->::Phantom::Coroutines::async_sequence_barrier<Value>::wait_until_published(
+            value);
+        co_await scheduler.schedule();
+        co_return result;
+    }
+};
 
 }

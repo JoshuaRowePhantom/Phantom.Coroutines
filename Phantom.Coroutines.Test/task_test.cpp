@@ -12,6 +12,11 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
+static_assert(!std::is_copy_constructible_v<task<>>);
+static_assert(!std::is_copy_assignable_v<task<>>);
+static_assert(std::is_move_constructible_v<task<>>);
+static_assert(std::is_move_assignable_v<task<>>);
+
 static_assert(detail::is_awaiter<task_awaiter<task_promise<void>>>);
 static_assert(detail::is_awaiter<task_awaiter<task_promise<int>>>);
 static_assert(detail::is_awaiter<task_awaiter<task_promise<int&>>>);

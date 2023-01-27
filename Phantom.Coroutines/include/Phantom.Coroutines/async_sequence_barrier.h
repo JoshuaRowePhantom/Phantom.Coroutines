@@ -17,11 +17,11 @@ template<
     typename Value,
     typename Less,
     typename Continuation
-> class basic_sequence_barrier;
+> class basic_async_sequence_barrier;
 
 template<
     typename Policy
-> concept is_sequence_barrier_policy =
+> concept is_async_sequence_barrier_policy =
 is_continuation_type_policy<Policy>
 || is_concrete_policy<Policy, noop_on_destroy>
 || is_concrete_policy<Policy, fail_on_destroy_with_awaiters>
@@ -31,9 +31,9 @@ is_continuation_type_policy<Policy>
 template<
     typename Value = size_t,
     typename Comparer = std::less<Value>,
-    is_sequence_barrier_policy ... Policies
-> using sequence_barrier =
-basic_sequence_barrier<
+    is_async_sequence_barrier_policy ... Policies
+> using async_sequence_barrier =
+basic_async_sequence_barrier<
     Value,
     Comparer,
     select_continuation_type<Policies..., default_continuation_type>
@@ -43,7 +43,7 @@ template<
     typename Value,
     typename Comparer,
     typename Continuation
-> class basic_sequence_barrier
+> class basic_async_sequence_barrier
     :
     private immovable_object
 {
@@ -78,18 +78,18 @@ template<
             typename Value,
             typename Less,
             typename Continuation
-        > friend class basic_sequence_barrier;
+        > friend class basic_async_sequence_barrier;
 
         value_type m_lowestUnpublishedValue;
 
-        basic_sequence_barrier* m_sequenceBarrier;
+        basic_async_sequence_barrier* m_sequenceBarrier;
         awaiter* m_siblingPointer;
         awaiter* m_subtreePointer = nullptr;
         degree_type m_degree = 0;
         Continuation m_continuation;
 
         awaiter(
-            basic_sequence_barrier* sequenceBarrier,
+            basic_async_sequence_barrier* sequenceBarrier,
             value_type lowestUnpublishedValue
         ) :
             m_sequenceBarrier{ sequenceBarrier },
@@ -121,14 +121,14 @@ template<
             m_continuation = continuation;
 
             // Enqueue this awaiter into the linked list of awaiters.
-            auto nextQueuedAwaiter = m_sequenceBarrier->basic_sequence_barrier::m_queuedAwaiters.load(
+            auto nextQueuedAwaiter = m_sequenceBarrier->basic_async_sequence_barrier::m_queuedAwaiters.load(
                 std::memory_order_relaxed
             );
 
             do
             {
                 m_siblingPointer = nextQueuedAwaiter;
-            } while (!m_sequenceBarrier->basic_sequence_barrier::m_queuedAwaiters.compare_exchange_weak(
+            } while (!m_sequenceBarrier->basic_async_sequence_barrier::m_queuedAwaiters.compare_exchange_weak(
                 nextQueuedAwaiter,
                 this,
                 std::memory_order_release,
@@ -136,7 +136,7 @@ template<
             ));
 
             // Double check to see if the value has been published.
-            auto lowestUnpublishedValue = m_sequenceBarrier->basic_sequence_barrier::m_lowestUnpublishedValue.load(
+            auto lowestUnpublishedValue = m_sequenceBarrier->basic_async_sequence_barrier::m_lowestUnpublishedValue.load(
                 std::memory_order_acquire
             );
 
@@ -151,7 +151,7 @@ template<
                 // do not suspend.
                 bool resumeThisAwaiter = false;
 
-                m_sequenceBarrier->basic_sequence_barrier::resume_awaiters(
+                m_sequenceBarrier->basic_async_sequence_barrier::resume_awaiters(
                     lowestUnpublishedValue,
                     this,
                     resumeThisAwaiter
@@ -228,7 +228,7 @@ template<
         // Take ownership of the enqueued awaiters.
         // We only need to do this once, since any new queued awaiter after this step
         // that would need to be resumed will itself do this sequence on its thread.
-        awaiter* newAwaitersHeap = self.basic_sequence_barrier::m_queuedAwaiters.exchange(
+        awaiter* newAwaitersHeap = self.basic_async_sequence_barrier::m_queuedAwaiters.exchange(
             nullptr,
             std::memory_order_acquire
         );
@@ -238,16 +238,16 @@ template<
             auto previousLowestUnpublishedValue = lowestUnpublishedValue;
 
             // Take ownership of the awaiters heap
-            auto oldAwaitersHeap = self.basic_sequence_barrier::m_awaitersHeap.exchange(
+            auto oldAwaitersHeap = self.basic_async_sequence_barrier::m_awaitersHeap.exchange(
                 nullptr,
                 std::memory_order_acquire
             );
 
-            auto predicate = self.basic_sequence_barrier::m_heapBuilder.collect_predicate(
+            auto predicate = self.basic_async_sequence_barrier::m_heapBuilder.collect_predicate(
                 &awaitersToResume,
                 [&](awaiter* heap)
                 {
-                    return self.basic_sequence_barrier::is_published(
+                    return self.basic_async_sequence_barrier::is_published(
                         lowestUnpublishedValue,
                         heap->m_lowestUnpublishedValue
                     );
@@ -258,7 +258,7 @@ template<
                 newAwaitersHeap
             };
 
-            newAwaitersHeap = self.basic_sequence_barrier::m_heapBuilder.extract(
+            newAwaitersHeap = self.basic_async_sequence_barrier::m_heapBuilder.extract(
                 std::move(predicate),
                 std::move(heapsToExtract));
 
@@ -266,7 +266,7 @@ template<
             oldAwaitersHeap = nullptr;
             if (newAwaitersHeap != nullptr
                 &&
-                !self.basic_sequence_barrier::m_awaitersHeap.compare_exchange_strong(
+                !self.basic_async_sequence_barrier::m_awaitersHeap.compare_exchange_strong(
                     oldAwaitersHeap,
                     newAwaitersHeap,
                     std::memory_order_release,
@@ -287,7 +287,7 @@ template<
             // We do the load now so that we don't stay in the loop
             // in case we have waiters to resume and that resumption
             // causes this thread to wait a long time.
-            lowestUnpublishedValue = self.basic_sequence_barrier::m_lowestUnpublishedValue.load(
+            lowestUnpublishedValue = self.basic_async_sequence_barrier::m_lowestUnpublishedValue.load(
                 std::memory_order_acquire
             );
 
@@ -322,7 +322,7 @@ template<
     }
 
 public:
-    explicit basic_sequence_barrier(
+    explicit basic_async_sequence_barrier(
         value_type initialPublishedValue = -1,
         Comparer comparer = {}
     ) noexcept :
@@ -340,13 +340,13 @@ public:
     {
         auto lowestUnpublishedValue = value + 1;
         
-        self.basic_sequence_barrier::m_lowestUnpublishedValue.store(
+        self.basic_async_sequence_barrier::m_lowestUnpublishedValue.store(
             lowestUnpublishedValue,
             std::memory_order_release
         );
 
         bool resumeSpecialAwaiter;
-        self.basic_sequence_barrier::resume_awaiters(
+        self.basic_async_sequence_barrier::resume_awaiters(
             lowestUnpublishedValue,
             nullptr,
             resumeSpecialAwaiter
@@ -370,5 +370,5 @@ public:
 };
 }
 
-using detail::sequence_barrier;
+using detail::async_sequence_barrier;
 }

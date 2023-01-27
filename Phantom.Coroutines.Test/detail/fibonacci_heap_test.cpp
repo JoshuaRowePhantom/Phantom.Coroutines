@@ -497,4 +497,32 @@ TEST(fibonacci_heap_test, fibonacci_heap_extract_builds_canonical_heap_from_sepa
             MakeTestHeap(20, 0),
         }
     ); 
+
+    DoFibonacciHeapTest(
+        "[(1,2,[(3,1,[(4,0,[])]),(2,0,[])])]",
+        "[(20,0,[]),(19,0,[]),(18,0,[]),(17,0,[]),(16,0,[]),(15,0,[]),(14,0,[]),(13,0,[]),(12,0,[]),(11,0,[]),(10,0,[]),(9,0,[]),(8,0,[]),(7,0,[]),(6,0,[]),(5,0,[])]",
+        AboveOrEqual(5),
+        {
+            MakeTestHeap(1, 0),
+            MakeTestHeap(2, 0),
+            MakeTestHeap(3, 0),
+            MakeTestHeap(4, 0),
+            MakeTestHeap(5, 0),
+            MakeTestHeap(6, 0),
+            MakeTestHeap(7, 0),
+            MakeTestHeap(8, 0),
+            MakeTestHeap(9, 0),
+            MakeTestHeap(10, 0),
+            MakeTestHeap(11, 0),
+            MakeTestHeap(12, 0),
+            MakeTestHeap(13, 0),
+            MakeTestHeap(14, 0),
+            MakeTestHeap(15, 0),
+            MakeTestHeap(16, 0),
+            MakeTestHeap(17, 0),
+            MakeTestHeap(18, 0),
+            MakeTestHeap(19, 0),
+            MakeTestHeap(20, 0),
+        }
+    ); 
 }

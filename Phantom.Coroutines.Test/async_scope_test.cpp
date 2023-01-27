@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "async_test.h"
 #include "Phantom.Coroutines/async_scope.h"
-#include "Phantom.Coroutines/sequence_barrier.h"
+#include "Phantom.Coroutines/async_sequence_barrier.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/reusable_task.h"
 #include "Phantom.Coroutines/sync_wait.h"
@@ -107,7 +107,7 @@ ASYNC_TEST(async_scope_test, Can_await_non_copyable_task_by_value)
     async_scope<> scope;
     bool completeTask1 = false;
     bool completeTask2 = false;
-    sequence_barrier<size_t> barrier;
+    async_sequence_barrier<size_t> barrier;
 
     auto lambda = [&]() -> reusable_task<>
     {

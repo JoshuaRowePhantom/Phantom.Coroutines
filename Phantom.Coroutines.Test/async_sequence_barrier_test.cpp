@@ -1,7 +1,7 @@
 #include "async_test.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
-#include "Phantom.Coroutines/sequence_barrier.h"
+#include "Phantom.Coroutines/async_sequence_barrier.h"
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include <random>
@@ -9,13 +9,13 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
-static_assert(std::same_as<std::size_t, awaitable_result_type_t<decltype(std::declval<sequence_barrier<>&>().wait_until_published(0))>>);
-static_assert(is_awaiter<decltype(std::declval<sequence_barrier<>&>().wait_until_published(0))>);
+static_assert(std::same_as<std::size_t, awaitable_result_type_t<decltype(std::declval<async_sequence_barrier<>&>().wait_until_published(0))>>);
+static_assert(is_awaiter<decltype(std::declval<async_sequence_barrier<>&>().wait_until_published(0))>);
 
-ASYNC_TEST(sequence_barrier_test, Awaiting_at_nothing_published_with_default_constructor_does_suspend)
+ASYNC_TEST(async_sequence_barrier_test, Awaiting_at_nothing_published_with_default_constructor_does_suspend)
 {
     suspend_result suspendResult;
-    sequence_barrier<> sequenceBarrier;
+    async_sequence_barrier<> sequenceBarrier;
     bool isCompleted = false;
 
     auto awaiter = [&]() -> task<>
@@ -32,10 +32,10 @@ ASYNC_TEST(sequence_barrier_test, Awaiting_at_nothing_published_with_default_con
     co_await scope.join();
 }
 
-ASYNC_TEST(sequence_barrier_test, last_published_returns_last_published_value)
+ASYNC_TEST(async_sequence_barrier_test, last_published_returns_last_published_value)
 {
     suspend_result suspendResult;
-    sequence_barrier<> sequenceBarrier;
+    async_sequence_barrier<> sequenceBarrier;
     sequenceBarrier.publish(0);
     EXPECT_EQ(0, sequenceBarrier.last_published());
     sequenceBarrier.publish(5);
@@ -43,18 +43,18 @@ ASYNC_TEST(sequence_barrier_test, last_published_returns_last_published_value)
     co_return;
 }
 
-ASYNC_TEST(sequence_barrier_test, can_start_at_nonzero_value)
+ASYNC_TEST(async_sequence_barrier_test, can_start_at_nonzero_value)
 {
     suspend_result suspendResult;
-    sequence_barrier<> sequenceBarrier(5);
+    async_sequence_barrier<> sequenceBarrier(5);
     EXPECT_EQ(5, sequenceBarrier.last_published());
     co_return;
 }
 
-TEST(sequence_barrier_test, Publish_resumes_an_awaiter_on_the_dot)
+TEST(async_sequence_barrier_test, Publish_resumes_an_awaiter_on_the_dot)
 {
     suspend_result suspendResult;
-    sequence_barrier<> sequenceBarrier;
+    async_sequence_barrier<> sequenceBarrier;
     std::optional<size_t> result;
 
     auto future = as_future([&]() -> task<>
@@ -72,10 +72,10 @@ TEST(sequence_barrier_test, Publish_resumes_an_awaiter_on_the_dot)
     EXPECT_EQ(std::optional<size_t>{1}, result);
 }
 
-TEST(sequence_barrier_test, Publish_permits_await_without_suspending_awaiter)
+TEST(async_sequence_barrier_test, Publish_permits_await_without_suspending_awaiter)
 {
     suspend_result suspendResult;
-    sequence_barrier<> sequenceBarrier;
+    async_sequence_barrier<> sequenceBarrier;
     std::optional<size_t> result;
 
     sequenceBarrier.publish(1);
@@ -89,10 +89,45 @@ TEST(sequence_barrier_test, Publish_permits_await_without_suspending_awaiter)
     EXPECT_EQ(std::optional<size_t>{1}, result);
 }
 
-ASYNC_TEST(sequence_barrier_test, Publish_steps_through_published_items)
+ASYNC_TEST(async_sequence_barrier_test, wait_until_published_can_do_multiple_single_awaits)
+{
+    async_sequence_barrier<size_t> barrier;
+
+    bool reached5 = false;
+    bool reached7 = false;
+
+    auto waitForLambda = [&](auto value) -> task<>
+    {
+        co_await barrier.wait_until_published(value);
+    };
+
+    auto lambda = [&]() -> task<>
+    {
+        co_await waitForLambda(5);
+        reached5 = true;
+        co_await waitForLambda(7);
+        reached7 = true;
+    };
+
+    async_scope<> scope;
+    scope.spawn(lambda());
+
+    barrier.publish(4);
+    EXPECT_EQ(false, reached5);
+    barrier.publish(5);
+    EXPECT_EQ(true, reached5);
+    barrier.publish(6);
+    EXPECT_EQ(false, reached7);
+    barrier.publish(7);
+    EXPECT_EQ(true, reached7);
+
+    co_await scope.join();
+}
+
+ASYNC_TEST(async_sequence_barrier_test, Publish_steps_through_published_items)
 {
     std::multimap<size_t, bool> completedItems;
-    sequence_barrier<> sequenceBarrier;
+    async_sequence_barrier<> sequenceBarrier;
     std::mt19937 random;
     std::uniform_int<size_t> distribution(0, 100);
 

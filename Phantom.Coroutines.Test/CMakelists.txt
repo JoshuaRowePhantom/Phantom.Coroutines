@@ -19,7 +19,7 @@ add_executable(
     inline_scheduler_test.cpp
     read_copy_update_test.cpp
     reusable_consecutive_global_id_test.cpp
-    sequence_barrier_test.cpp
+    "async_sequence_barrier_test.cpp"
     shared_task_test.cpp
     
     sync_wait_test.cpp
@@ -31,7 +31,7 @@ add_executable(
     "awaiter_list_test.cpp" 
     "promise_allocator_test.cpp" 
     "thread_local_contextual_promise_test.cpp"
- "reusable_task_test.cpp" "make_Task_test.cpp")
+ "reusable_task_test.cpp" "make_Task_test.cpp" "manual_scheduler.h")
 
 target_link_libraries(
     Phantom.Coroutines.Test
