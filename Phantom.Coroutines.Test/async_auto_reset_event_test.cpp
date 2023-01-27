@@ -38,7 +38,7 @@ TEST(async_auto_reset_event_test, Can_be_reset_after_set)
     ASSERT_FALSE(event.is_set());
 }
 
-TEST(async_auto_reset_event_test, Set_after_await_continues_one_awaiter_in_reverse_order_and_leaves_reset)
+TEST(async_auto_reset_event_test, Set_after_await_continues_one_awaiter_in_order_and_leaves_reset)
 {
     async_auto_reset_event<> event;
     async_scope<> asyncScope;
@@ -71,15 +71,15 @@ TEST(async_auto_reset_event_test, Set_after_await_continues_one_awaiter_in_rever
     ASSERT_EQ(false, allComplete);
     ASSERT_EQ(false, event.is_set());
     event.set();
-    ASSERT_EQ(false, complete1);
+    ASSERT_EQ(true, complete1);
     ASSERT_EQ(false, complete2);
-    ASSERT_EQ(true, complete3);
+    ASSERT_EQ(false, complete3);
     ASSERT_EQ(false, allComplete);
     ASSERT_EQ(false, event.is_set());
     event.set();
-    ASSERT_EQ(false, complete1);
+    ASSERT_EQ(true, complete1);
     ASSERT_EQ(true, complete2);
-    ASSERT_EQ(true, complete3);
+    ASSERT_EQ(false, complete3);
     ASSERT_EQ(false, allComplete);
     ASSERT_EQ(false, event.is_set());
     event.set();

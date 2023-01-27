@@ -204,7 +204,16 @@ Signal_ObtainPendingAwaiters(thread) ==
         {
             nextState = state_type{ SignallingState{}, lastState.as<SignallingState>() };
         }
-        m_pendingAwaiters = lastState.as<SignallingState>();
+
+        // Reverse the pending awaiters so that they are signalled in FIFO order.
+        auto pendingAwaiter = lastState.as<SignallingState>();
+        while (pendingAwaiter)
+        {
+            auto nextAwaiter = pendingAwaiter->m_nextAwaiter;
+            pendingAwaiter->m_nextAwaiter = m_pendingAwaiters;
+            m_pendingAwaiters = pendingAwaiter;
+            pendingAwaiter = nextAwaiter;
+        }
         lastState = nextState;
     }
 
