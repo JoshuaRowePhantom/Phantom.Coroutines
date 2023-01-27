@@ -349,7 +349,11 @@ template<
 {
     friend class async_generator_increment_awaiter<basic_async_generator>;
     friend class async_generator_iterator<basic_async_generator>;
-    
+    template<
+        typename Result,
+        typename BasePromise
+    > friend class basic_async_generator_promise;
+
     using awaiter_wrapper_type = typename basic_async_generator::extended_promise_handle::promise_handle_type;
     using awaitable_type = typename awaiter_wrapper_type::awaiter_type;
 
@@ -369,6 +373,7 @@ public:
     basic_async_generator()
     {}
 
+private:
     basic_async_generator(
         std::invocable auto&& awaitableFunction
     ) :
@@ -381,6 +386,7 @@ public:
     }
     {}
 
+public:
     auto begin()
     {
         return async_generator_begin_awaiter{ *this };

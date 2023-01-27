@@ -11,9 +11,19 @@ class async_generator
     :
     public ::Phantom::Coroutines::async_generator<T>
 {
-    using ::Phantom::Coroutines::async_generator<T>::async_generator;
+    using base_generator_type = ::Phantom::Coroutines::async_generator<T>;
 
-    using iterator = typename ::Phantom::Coroutines::async_generator<T>::iterator_type;
+public:
+    async_generator()
+    {}
+
+    async_generator(
+        auto&& generator
+    ) : 
+        base_generator_type{ std::forward<decltype(generator)>(generator) }
+    {}
+
+    using iterator = typename base_generator_type::iterator_type;
 };
 
 }
