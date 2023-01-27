@@ -546,4 +546,16 @@ ASYNC_TEST(shared_task_test, can_return_const_reference_as_value_type)
     EXPECT_EQ(actualResult, result);
 }
 
+ASYNC_TEST(shared_task_test, can_return_const_reference)
+{
+    const std::string result = "hello world";
+    auto lambda = [&]() -> shared_task<const std::string &>
+    {
+        co_return result;
+    };
+    auto task = lambda();
+    auto& actualResult = co_await task;
+    EXPECT_EQ(&actualResult, &result);
+}
+
 }
