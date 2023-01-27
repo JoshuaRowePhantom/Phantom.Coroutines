@@ -77,7 +77,7 @@
         <DisplayString>{m_continuation}</DisplayString>
     </Type>
     
-    <Type Name="Phantom::Coroutines::detail::auto_reset_event">
+    <Type Name="Phantom::Coroutines::detail::basic_async_auto_reset_event&lt;*,*,*,*&gt;">
         <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled, No Waiters</DisplayString>
         <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue">Not Signalled, No Waiters</DisplayString>
         <DisplayString Condition="(reinterpret_cast&lt;uintptr_t&gt;(m_state.m_atomicRepresentation._Storage._Value) &amp; 0x1) == 0">Not Signalled, Has Waiters</DisplayString>

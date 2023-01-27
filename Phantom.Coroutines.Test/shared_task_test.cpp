@@ -184,6 +184,31 @@ TEST(shared_task_test, Multiple_co_awaits_cause_only_one_invocation)
     ASSERT_EQ(1, invocationCount);
 }
 
+ASYNC_TEST(shared_task_test, All_awaiters_are_signalled_at_task_completion)
+{
+    async_scope<> scope;
+    async_manual_reset_event<> event;
+    
+    auto sharedTaskLambda = [&]() -> shared_task<>
+    {
+        co_await event;
+    };
+    auto sharedTask = sharedTaskLambda();
+    scope.spawn(sharedTask);
+
+    auto waitingTask = [&]() -> task<>
+    {
+        co_await sharedTask;
+    };
+
+    scope.spawn(waitingTask);
+    scope.spawn(waitingTask);
+    scope.spawn(waitingTask);
+    
+    event.set();
+    co_await scope.join();
+}
+
 TEST(shared_task_test, Return_by_value_returns_reference_to_same_object_to_all_calling_awaiters)
 {
     auto task = []() -> shared_task<int> { co_return 5; }();
