@@ -265,17 +265,25 @@ protected:
     }
 
 public:
-    operator bool() const noexcept
+    explicit operator bool() const noexcept
     {
         return handle().operator bool();
     }
 
     friend auto operator <=> (
-        const extensible_promise_handle<Promise>& left,
-        const extensible_promise_handle<Promise>& right
+        const extensible_promise_handle& left,
+        const extensible_promise_handle& right
         ) noexcept
     {
         return left.handle() <=> right.handle();
+    }
+
+    friend auto operator == (
+        const extensible_promise_handle& left,
+        const extensible_promise_handle& right
+        ) noexcept
+    {
+        return left.handle() == right.handle();
     }
 };
 
@@ -325,6 +333,14 @@ protected:
         this auto& self)
     {
         return self.extended_promise_handle::awaitable().promise();
+    }
+
+    friend auto operator <=> (
+        const extended_promise_handle& left,
+        const extended_promise_handle& right
+        ) noexcept
+    {
+        return left.handle() <=> right.handle();
     }
 };
 

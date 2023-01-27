@@ -583,4 +583,39 @@ ASYNC_TEST(shared_task_test, can_return_const_reference)
     EXPECT_EQ(&actualResult, &result);
 }
 
+ASYNC_TEST(shared_task_test, equality_comparison_is_correct)
+{
+    auto lambda = [&]() -> shared_task<>
+    {
+        co_return;
+    };
+
+    auto task1 = lambda();
+    auto task2 = lambda();
+    auto task3 = task1;
+
+    EXPECT_EQ(true, task1 == task1);
+    EXPECT_EQ(false, task1 == task2);
+    EXPECT_EQ(true, task1 == task3);
+    EXPECT_EQ(false, task2 == task1);
+    EXPECT_EQ(true, task2 == task2);
+    EXPECT_EQ(false, task2 == task3);
+    EXPECT_EQ(true, task3 == task1);
+    EXPECT_EQ(false, task3 == task2);
+    EXPECT_EQ(true, task3 == task3);
+
+
+    EXPECT_EQ(false, task1 != task1);
+    EXPECT_EQ(true, task1 != task2);
+    EXPECT_EQ(false, task1 != task3);
+    EXPECT_EQ(true, task2 != task1);
+    EXPECT_EQ(false, task2 != task2);
+    EXPECT_EQ(true, task2 != task3);
+    EXPECT_EQ(false, task3 != task1);
+    EXPECT_EQ(true, task3 != task2);
+    EXPECT_EQ(false, task3 != task3);
+
+    co_return;
+}
+
 }
