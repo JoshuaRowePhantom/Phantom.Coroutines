@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include "async_test.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/shared_task.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/type_traits.h"
@@ -105,6 +106,26 @@ TEST(shared_task_test, Can_await_string_task)
         }());
 
     ASSERT_EQ("hello world", result);
+}
+
+ASYNC_TEST(shared_task_test, is_ready_returns_true_if_complete)
+{
+    async_manual_reset_event<> event;
+    async_scope<> scope;
+
+    auto lambda = [&]() -> shared_task<>
+    {
+        co_await event;
+    };
+
+    auto task = lambda();
+    EXPECT_EQ(false, task.is_ready());
+    scope.spawn(task);
+    EXPECT_EQ(false, task.is_ready());
+    event.set();
+    EXPECT_EQ(true, task.is_ready());
+
+    co_await scope.join();
 }
 
 TEST(shared_task_test, Can_return_reference)
@@ -408,7 +429,7 @@ ASYNC_TEST(shared_task_test, Move_assign_of_task_leaves_old_task_invalid_and_doe
     EXPECT_EQ(1, statistics.instance_count);
 }
 
-ASYNC_TEST(shared_task_test, Copy_asign_reduces_reference_count_of_destination_Task)
+ASYNC_TEST(shared_task_test, Copy_assign_reduces_reference_count_of_destination_Task)
 {
     lifetime_statistics statistics;
 
@@ -427,7 +448,7 @@ ASYNC_TEST(shared_task_test, Copy_asign_reduces_reference_count_of_destination_T
     EXPECT_EQ(1, statistics.instance_count);
 }
 
-ASYNC_TEST(shared_task_test, Move_asign_reduces_reference_count_of_destination_Task)
+ASYNC_TEST(shared_task_test, Move_assign_reduces_reference_count_of_destination_Task)
 {
     lifetime_statistics statistics;
 
@@ -446,7 +467,7 @@ ASYNC_TEST(shared_task_test, Move_asign_reduces_reference_count_of_destination_T
     EXPECT_EQ(1, statistics.instance_count);
 }
 
-ASYNC_TEST(shared_task_test, Copy_asign_doesnt_modify_itself)
+ASYNC_TEST(shared_task_test, Copy_assign_doesnt_modify_itself)
 {
     lifetime_statistics statistics;
 
@@ -464,7 +485,7 @@ ASYNC_TEST(shared_task_test, Copy_asign_doesnt_modify_itself)
     EXPECT_EQ(2, statistics.instance_count);
 }
 
-ASYNC_TEST(shared_task_test, Move_asign_doesnt_modify_itself)
+ASYNC_TEST(shared_task_test, Move_assign_doesnt_modify_itself)
 {
     lifetime_statistics statistics;
 

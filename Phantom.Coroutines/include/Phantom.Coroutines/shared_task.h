@@ -167,6 +167,13 @@ public:
     {
         return shared_task_awaiter{ self.handle() };
     }
+
+    bool is_ready(
+        this auto& self
+    ) noexcept
+    {
+        return self.handle() && self.promise().m_state.load(std::memory_order_acquire) == shared_task_states::Completed{};
+    }
 };
 
 template<
