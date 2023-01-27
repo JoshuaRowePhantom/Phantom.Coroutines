@@ -38,7 +38,7 @@ using reusable_task_promise = basic_reusable_task_promise<
 
 template<
     typename Promise
-> class basic_reusable_task;
+> class [[nodiscard]] basic_reusable_task;
 
 template<
     typename Result = void,
@@ -63,8 +63,8 @@ public:
         std::exception_ptr
     > result_variant_type;
 
-    static const size_t result_index = 1;
-    static const size_t exception_index = 2;
+    static constexpr size_t result_index = 1;
+    static constexpr size_t exception_index = 2;
 };
 
 template<
