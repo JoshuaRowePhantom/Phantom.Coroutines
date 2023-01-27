@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "async_test.h"
+#include "lifetime_tracker.h"
 #include "Phantom.Coroutines/async_generator.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
@@ -154,4 +155,21 @@ ASYNC_TEST(async_generator_test, Can_enumerate_async_actions)
     EXPECT_EQ(enumeratedResults, (std::vector<int>{ 1, 2, 3, 4 }));
     co_await scope.join();
     EXPECT_EQ(enumeratedResults, (std::vector<int>{ 1, 2, 3, 4 }));
+}
+
+ASYNC_TEST(async_generator_test, Destroys_coroutine_when_not_iterated)
+{
+    detail::lifetime_statistics statistics;
+
+    auto lambda = [](auto tracker)->async_generator<std::string&>
+    {
+        co_return;
+    };
+
+    {
+        auto myGenerator = lambda(statistics.tracker());
+        EXPECT_EQ(1, statistics.instance_count);
+    }
+    EXPECT_EQ(0, statistics.instance_count);
+    co_return;
 }
