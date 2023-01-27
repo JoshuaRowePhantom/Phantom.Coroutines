@@ -53,13 +53,24 @@ template<
     class awaiter;
     struct awaiter_heap_builder;
 
-    atomic_value_type m_publishedValue;
+    atomic_value_type m_lowestUnpublishedValue;
     std::atomic<awaiter*> m_queuedAwaiters;
     std::atomic<awaiter*> m_awaitersHeap;
     awaiter_heap_builder m_heapBuilder;
 
     static constexpr size_t maximumAwaiterDegree = std::numeric_limits<size_t>::digits;
     typedef size_t degree_type;
+
+    bool is_published(
+        Value lowestUnpublishedValue,
+        Value valueToCheck
+    )
+    {
+        return !m_heapBuilder.m_comparer(
+            lowestUnpublishedValue,
+            valueToCheck
+        );
+    }
 
     class awaiter
     {
@@ -69,7 +80,7 @@ template<
             typename Continuation
         > friend class basic_sequence_barrier;
 
-        value_type m_value;
+        value_type m_lowestUnpublishedValue;
 
         basic_sequence_barrier* m_sequenceBarrier;
         awaiter* m_siblingPointer;
@@ -79,25 +90,24 @@ template<
 
         awaiter(
             basic_sequence_barrier* sequenceBarrier,
-            value_type value
+            value_type lowestUnpublishedValue
         ) :
             m_sequenceBarrier{ sequenceBarrier },
-            m_value{ value }
+            m_lowestUnpublishedValue{ lowestUnpublishedValue }
         {}
 
     public:
         bool await_ready() noexcept
         {
-            auto publishedValue = m_sequenceBarrier->m_publishedValue.load(
+            auto lowestUnpublishedValue = m_sequenceBarrier->m_lowestUnpublishedValue.load(
                 std::memory_order_acquire
             );
 
-            if (!m_sequenceBarrier->m_heapBuilder.m_comparer(
-                publishedValue,
-                m_value
-            ))
+            if (m_sequenceBarrier->is_published(
+                lowestUnpublishedValue,
+                m_lowestUnpublishedValue))
             {
-                m_value = publishedValue;
+                m_lowestUnpublishedValue = lowestUnpublishedValue;
                 return true;
             }
 
@@ -126,15 +136,15 @@ template<
             ));
 
             // Double check to see if the value has been published.
-            auto publishedValue = m_sequenceBarrier->basic_sequence_barrier::m_publishedValue.load(
+            auto lowestUnpublishedValue = m_sequenceBarrier->basic_sequence_barrier::m_lowestUnpublishedValue.load(
                 std::memory_order_acquire
             );
 
-            if (!m_sequenceBarrier->basic_sequence_barrier::m_heapBuilder.m_comparer(
-                publishedValue,
-                m_value))
+            if (m_sequenceBarrier->is_published(
+                lowestUnpublishedValue,
+                m_lowestUnpublishedValue))
             {
-                m_value = publishedValue;
+                m_lowestUnpublishedValue = lowestUnpublishedValue;
 
                 // Try to resume awaiters,
                 // and if we in particular desire to resume this object,
@@ -142,7 +152,7 @@ template<
                 bool resumeThisAwaiter = false;
 
                 m_sequenceBarrier->basic_sequence_barrier::resume_awaiters(
-                    m_value,
+                    lowestUnpublishedValue,
                     this,
                     resumeThisAwaiter
                 );
@@ -155,7 +165,7 @@ template<
 
         value_type await_resume() noexcept
         {
-            return m_value;
+            return m_lowestUnpublishedValue - 1;
         }
     };
 
@@ -171,8 +181,8 @@ template<
         )
         {
             return m_comparer(
-                left->m_value,
-                right->m_value);
+                left->m_lowestUnpublishedValue,
+                right->m_lowestUnpublishedValue);
         }
 
         static bool is_empty(
@@ -207,7 +217,7 @@ template<
 
     void resume_awaiters(
         this auto& self,
-        value_type& publishedValue,
+        value_type& lowestUnpublishedValue,
         awaiter* specialAwaiter,
         bool& resumeSpecialAwaiter
     )
@@ -225,7 +235,7 @@ template<
 
         while (true)
         {
-            auto previousPublishedValue = publishedValue;
+            auto previousLowestUnpublishedValue = lowestUnpublishedValue;
 
             // Take ownership of the awaiters heap
             auto oldAwaitersHeap = self.basic_sequence_barrier::m_awaitersHeap.exchange(
@@ -237,9 +247,9 @@ template<
                 &awaitersToResume,
                 [&](awaiter* heap)
                 {
-                    return !self.basic_sequence_barrier::m_heapBuilder.m_comparer(
-                        heap->m_value,
-                        publishedValue
+                    return self.basic_sequence_barrier::is_published(
+                        lowestUnpublishedValue,
+                        heap->m_lowestUnpublishedValue
                     );
                 });
 
@@ -277,7 +287,7 @@ template<
             // We do the load now so that we don't stay in the loop
             // in case we have waiters to resume and that resumption
             // causes this thread to wait a long time.
-            publishedValue = self.basic_sequence_barrier::m_publishedValue.load(
+            lowestUnpublishedValue = self.basic_sequence_barrier::m_lowestUnpublishedValue.load(
                 std::memory_order_acquire
             );
 
@@ -303,7 +313,7 @@ template<
             // Now check to see whether any of the awaiters we might have
             // put back are possibly resumable.  If they are, then
             // try the loop again.
-            if (publishedValue == previousPublishedValue)
+            if (lowestUnpublishedValue == previousLowestUnpublishedValue)
             {
                 break;
             }
@@ -313,10 +323,10 @@ template<
 
 public:
     explicit basic_sequence_barrier(
-        value_type initialPublishedValue = 0,
+        value_type initialPublishedValue = -1,
         Comparer comparer = {}
     ) noexcept :
-        m_publishedValue { initialPublishedValue },
+        m_lowestUnpublishedValue{ initialPublishedValue + 1 },
         m_heapBuilder
         {
             .m_comparer = { std::move(comparer) },
@@ -328,15 +338,16 @@ public:
         value_type value
     ) noexcept
     {
-        self.basic_sequence_barrier::m_publishedValue.store(
-            value,
+        auto lowestUnpublishedValue = value + 1;
+        
+        self.basic_sequence_barrier::m_lowestUnpublishedValue.store(
+            lowestUnpublishedValue,
             std::memory_order_release
         );
 
         bool resumeSpecialAwaiter;
-
         self.basic_sequence_barrier::resume_awaiters(
-            value,
+            lowestUnpublishedValue,
             nullptr,
             resumeSpecialAwaiter
         );
@@ -347,13 +358,14 @@ public:
         value_type value
     ) noexcept
     {
-        return awaiter{ &self, value };
+        return awaiter{ &self, value + 1 };
     }
 
     auto last_published() const noexcept
     {
-        return m_publishedValue.load(
-            std::memory_order_acquire);
+        return m_lowestUnpublishedValue.load(
+            std::memory_order_acquire
+        ) - 1;
     }
 };
 }
