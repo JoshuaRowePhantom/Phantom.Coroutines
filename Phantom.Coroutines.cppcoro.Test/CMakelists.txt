@@ -15,7 +15,7 @@ add_executable(
     "cppcoro_sequence_barrier_test.cpp" 
     "cppcoro_static_thread_pool_test.cpp" 
     "cppcoro_cancellation_source_test.cpp"
-    "cppcoro_single_consumer_event_test.cpp")
+    "cppcoro_single_consumer_event_test.cpp" "cppcoro_async_latch_test.cpp")
 
 target_link_libraries(
     Phantom.Coroutines.cppcoro.Test
