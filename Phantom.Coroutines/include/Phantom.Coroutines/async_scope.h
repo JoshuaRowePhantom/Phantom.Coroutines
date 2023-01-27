@@ -64,14 +64,14 @@ class basic_async_scope
 
         join_awaiter(
             basic_async_scope& asyncScope
-        ) : 
-            m_asyncScope { asyncScope }
+        ) :
+            m_asyncScope{ asyncScope }
         {}
 
     public:
-        bool await_ready() const noexcept 
-        { 
-            return false; 
+        bool await_ready() const noexcept
+        {
+            return false;
         }
 
         bool await_suspend(
@@ -86,7 +86,7 @@ class basic_async_scope
             return true;
         }
 
-        void await_resume() 
+        void await_resume()
         {
             if (m_asyncScope.m_coroutineToDestroy)
             {
@@ -136,7 +136,7 @@ class basic_async_scope
         {
             std::terminate();
         }
-    
+
         suspend_never final_suspend() noexcept
         {
             return suspend_never{};
@@ -161,17 +161,19 @@ class basic_async_scope
             return m_asyncScope.m_continuation;
         }
 
-        void await_resume() const noexcept 
+        void await_resume() const noexcept
         {
         }
     };
 
     future await_impl(
-        std::invocable<> auto function
+        std::invocable<> auto&& function
     )
     {
-        co_await std::invoke(function);
-        if (m_outstandingTasks.fetch_sub(1) == 1)
+        std::remove_reference_t<decltype(function)> movedFunction = std::forward<decltype(function)>(function);
+
+        co_await std::invoke(movedFunction);
+        if (m_outstandingTasks.fetch_sub(1, std::memory_order_acq_rel) == 1)
         {
             co_await join_resumer{ *this };
         }
@@ -180,13 +182,19 @@ class basic_async_scope
 public:
     void spawn(
         is_awaitable auto&& awaiter
-        )
+    )
     {
-        return spawn(
-            [&awaiter]() -> decltype(auto)
+        return spawn([&]() -> decltype(auto)
+        {
+            if constexpr (std::is_lvalue_reference_v<decltype(awaiter)>)
             {
-                return std::forward<decltype(awaiter)>(awaiter);
-            });
+                return (awaiter);
+            }
+            else
+            {
+                return remove_rvalue_reference_t<decltype(awaiter)>(std::move(awaiter));
+            }
+        });
     }
 
     void spawn(

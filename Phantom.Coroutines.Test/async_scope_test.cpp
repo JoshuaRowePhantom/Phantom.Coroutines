@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
+#include "async_test.h"
 #include "Phantom.Coroutines/async_scope.h"
+#include "Phantom.Coroutines/sequence_barrier.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#include "Phantom.Coroutines/reusable_task.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 
@@ -71,7 +74,7 @@ TEST(async_scope_test, Joining_completes_immediately_if_all_tasks_already_comple
     future.get();
 }
 
-TEST(async_scope_test, Can_await_immovable_task)
+TEST(async_scope_test, Can_await_non_copyable_task_by_lambda)
 {
     async_scope<> scope;
     bool completeTask1 = false;
@@ -82,7 +85,7 @@ TEST(async_scope_test, Can_await_immovable_task)
         { 
             co_await event1; 
             completeTask1 = true;
-        }()
+        }
     );
 
     auto future = as_future([&]() -> task<>
@@ -97,4 +100,30 @@ TEST(async_scope_test, Can_await_immovable_task)
     ASSERT_EQ(true, completeTask1);
     ASSERT_EQ(true, complete);
     future.get();
+}
+
+ASYNC_TEST(async_scope_test, Can_await_non_copyable_task_by_value)
+{
+    async_scope<> scope;
+    bool completeTask1 = false;
+    bool completeTask2 = false;
+    sequence_barrier<size_t> barrier;
+
+    auto lambda = [&]() -> reusable_task<>
+    {
+        co_await barrier.wait_until_published(1);
+        completeTask1 = true;
+        co_await barrier.wait_until_published(2);
+        completeTask2 = true;
+    };
+
+    scope.spawn(lambda());
+
+    EXPECT_EQ(false, completeTask1);
+    barrier.publish(1);
+    EXPECT_EQ(true, completeTask1);
+    EXPECT_EQ(false, completeTask2);
+    barrier.publish(2);
+    EXPECT_EQ(true, completeTask2);
+    co_await scope.join();
 }
