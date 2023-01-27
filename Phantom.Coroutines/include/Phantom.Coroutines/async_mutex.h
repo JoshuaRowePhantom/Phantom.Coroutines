@@ -140,7 +140,7 @@ private:
             basic_async_mutex& mutex
         ) :
             m_mutex{mutex},
-            m_lockOperation{mutex}
+            m_lockOperation{&mutex}
         {}
 
     public:
@@ -207,7 +207,7 @@ public:
 
     async_mutex_scoped_lock_operation scoped_lock_async() noexcept
     {
-        return async_mutex_scoped_lock_operation{ this };
+        return async_mutex_scoped_lock_operation{ *this };
     }
 
     void unlock() noexcept

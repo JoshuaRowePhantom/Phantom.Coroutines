@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_mutex.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "async_test.h"
@@ -88,6 +89,35 @@ TEST(async_mutex_test, double_release_scoped_lock_does_not_unlock)
     ASSERT_FALSE(result3);
 }
 
+ASYNC_TEST(async_mutex_test, scoped_lock_releases_on_destruction)
+{
+    async_mutex<> mutex;
+    async_auto_reset_event<> event;
+
+    bool complete1 = false;
+    bool complete2 = false;
+
+    auto lambda = [&](
+        bool& complete
+        ) -> task<>
+    {
+        auto lock = co_await mutex.scoped_lock_async();
+        complete = true;
+        co_await event;
+    };
+
+    async_scope<> scope;
+    scope.spawn(lambda(complete1));
+    scope.spawn(lambda(complete2));
+
+    EXPECT_TRUE(complete1);
+    EXPECT_FALSE(complete2);
+    event.set();
+    EXPECT_TRUE(complete2);
+    event.set();
+
+    co_await scope.join();
+}
 task<> foo()
 {
     async_mutex<> mutex;
