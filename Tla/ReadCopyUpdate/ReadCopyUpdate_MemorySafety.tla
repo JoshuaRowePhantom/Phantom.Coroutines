@@ -80,6 +80,13 @@ ThreadOperationIdsForCurrentSoftReference(threadId) ==
             /\  Operations[operationId].Reference.SoftReference = Threads[threadId].Reference.SoftReference 
     }
 
+ThreadIdsUsingSectionSoftReference(sectionId) ==
+    {
+        threadId \in ThreadId :
+            /\  Sections[sectionId].Reference.SoftReference # EmptyValue
+            /\  Threads[threadId].Reference.SoftReference = Sections[sectionId].Reference.SoftReference
+    }
+
 CanRead(value) ==
     \/  /\  value = EmptyValue
     \/  /\  value \in ValueType
@@ -137,6 +144,14 @@ SectionDestructor:
 
     Sections[self].Complete := TRUE;
 
+SectionRemoveThreadReferences:
+    while {} # ThreadIdsUsingSectionSoftReference(self) do
+        with threadId \in ThreadIdsUsingSectionSoftReference(self) do
+            Threads[threadId].Reference := EmptyReference;
+        end with;
+    end while;
+    Sections[self].Reference := EmptyReference;
+    
 SectionEnd:
     assert Cardinality(SectionHardReferences(self)) = 0;
 end process;
@@ -227,7 +242,7 @@ ThreadEnd:
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "8f8cb6a5" /\ chksum(tla) = "f4e05365")
+\* BEGIN TRANSLATION (chksum(pcal) = "b96a82a1" /\ chksum(tla) = "ae3f1f07")
 VARIABLES Sections, Operations, Threads, pc, ThreadOperationId
 
 vars == << Sections, Operations, Threads, pc, ThreadOperationId >>
@@ -255,18 +270,32 @@ SectionDestructor(self) == /\ pc[self] = "SectionDestructor"
                            /\   \A operationId \in OperationId :
                               \/  Operations[operationId].Section # self
                            /\ Sections' = [Sections EXCEPT ![self].Complete = TRUE]
-                           /\ pc' = [pc EXCEPT ![self] = "SectionEnd"]
+                           /\ pc' = [pc EXCEPT ![self] = "SectionRemoveThreadReferences"]
                            /\ UNCHANGED << Operations, Threads, 
                                            ThreadOperationId >>
 
+SectionRemoveThreadReferences(self) == /\ pc[self] = "SectionRemoveThreadReferences"
+                                       /\ IF {} # ThreadIdsUsingSectionSoftReference(self)
+                                             THEN /\ \E threadId \in ThreadIdsUsingSectionSoftReference(self):
+                                                       Threads' = [Threads EXCEPT ![threadId].Reference = EmptyReference]
+                                                  /\ pc' = [pc EXCEPT ![self] = "SectionRemoveThreadReferences"]
+                                                  /\ UNCHANGED Sections
+                                             ELSE /\ Sections' = [Sections EXCEPT ![self].Reference = EmptyReference]
+                                                  /\ pc' = [pc EXCEPT ![self] = "SectionEnd"]
+                                                  /\ UNCHANGED Threads
+                                       /\ UNCHANGED << Operations, 
+                                                       ThreadOperationId >>
+
 SectionEnd(self) == /\ pc[self] = "SectionEnd"
                     /\ Assert(Cardinality(SectionHardReferences(self)) = 0, 
-                              "Failure of assertion at line 141, column 5.")
+                              "Failure of assertion at line 156, column 5.")
                     /\ pc' = [pc EXCEPT ![self] = "Done"]
                     /\ UNCHANGED << Sections, Operations, Threads, 
                                     ThreadOperationId >>
 
-section(self) == SectionDestructor(self) \/ SectionEnd(self)
+section(self) == SectionDestructor(self)
+                    \/ SectionRemoveThreadReferences(self)
+                    \/ SectionEnd(self)
 
 ThreadLoop(self) == /\ pc[self] = "ThreadLoop"
                     /\ \/ /\ \E operationId \in OperationId:
@@ -289,7 +318,7 @@ ThreadLoop(self) == /\ pc[self] = "ThreadLoop"
                                      /\ pc' = [pc EXCEPT ![self] = "ThreadWriteOperation"]
                                      /\ UNCHANGED Operations
                                   \/ /\ Assert(CanRead(Operations[operationId].Reference.SoftReference), 
-                                               "Failure of assertion at line 168, column 17.")
+                                               "Failure of assertion at line 183, column 17.")
                                      /\ pc' = [pc EXCEPT ![self] = "ThreadLoop"]
                                      /\ UNCHANGED <<Operations, ThreadOperationId>>
                                   \/ /\ Operations' = [Operations EXCEPT ![operationId] = EmptyOperation]
