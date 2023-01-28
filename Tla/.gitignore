@@ -4,3 +4,4 @@ states/
 *.toolbox/_Snapshot_*
 *.toolbox/_Snapshot_*/
 *.out
+*.old
