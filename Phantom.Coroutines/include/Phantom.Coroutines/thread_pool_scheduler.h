@@ -455,7 +455,7 @@ class basic_thread_pool_scheduler
             {
                 auto remoteItem = try_steal(
                     *threadState.second,
-                    steal_mode::Approximate
+                    steal_mode::Precise
                 );
                 if (remoteItem)
                 {
