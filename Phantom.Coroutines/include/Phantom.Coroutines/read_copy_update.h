@@ -167,11 +167,17 @@ private immovable_object
         }
     };
 
-    // The mutex is global, because it controls access to all thread data
-    static inline std::mutex m_mutex;
+    // We use shared_ptr and copy it to the individual threads.
+    struct global_state
+    {
+        // The mutex is global, because it controls access to all thread data
+        std::mutex m_mutex;
+        // The set of all existing thread hard references.
+        std::unordered_set<reference*> m_threadReferences;
+    };
 
-    // The set of all existing thread hard references.
-    static inline std::unordered_set<reference*> m_threadReferences;
+    static inline std::shared_ptr<global_state> m_globalState = std::make_shared<global_state>();
+    static inline thread_local std::shared_ptr<global_state> m_threadLocalGlobalState = m_globalState;
 
     reference m_currentValue;
 
@@ -186,8 +192,8 @@ private immovable_object
         {
             thread_hard_reference_tracker()
             {
-                std::unique_lock lock { m_mutex };
-                m_threadReferences.insert(&m_threadLocalReference);
+                std::unique_lock lock { m_threadLocalGlobalState->m_mutex };
+                m_threadLocalGlobalState->m_threadReferences.insert(&m_threadLocalReference);
             }
 
             void assertTracked()
@@ -195,8 +201,8 @@ private immovable_object
 
             ~thread_hard_reference_tracker()
             {
-                std::unique_lock lock { m_mutex };
-                m_threadReferences.erase(&m_threadLocalReference);
+                std::unique_lock lock { m_threadLocalGlobalState->m_mutex };
+                m_threadLocalGlobalState->m_threadReferences.erase(&m_threadLocalReference);
             }
         };
 
@@ -343,7 +349,7 @@ private immovable_object
             // valueToRelease is destroyed after the lock is unlocked.
             // That way value destruction happens outside of locks.
             reference valueToRelease;
-            std::unique_lock lock{ m_mutex, std::defer_lock };
+            std::unique_lock lock{ m_threadLocalGlobalState->m_mutex , std::defer_lock };
             return refresh(lock, valueToRelease);
         }
     };
@@ -446,7 +452,7 @@ public:
         void exchange()
         {
             exchange(
-                std::unique_lock { this->m_section.m_mutex });
+                std::unique_lock { m_threadLocalGlobalState->m_mutex });
         }
 
         // Conditionally perform the exchange.
@@ -464,7 +470,7 @@ public:
             // Declare in this order so that valueToRelease
             // is released outside the lock.
             reference valueToRelease;
-            std::unique_lock lock{ this->m_section.m_mutex };
+            std::unique_lock lock{ m_threadLocalGlobalState->m_mutex };
 
             if (this->refresh(
                 lock,
@@ -541,8 +547,8 @@ public:
 
     ~read_copy_update_section()
     {
-        std::unique_lock lock { m_mutex };
-        for (auto threadHardReferencePointer : m_threadReferences)
+        std::unique_lock lock { m_threadLocalGlobalState->m_mutex };
+        for (auto threadHardReferencePointer : m_threadLocalGlobalState->m_threadReferences)
         {
             if (threadHardReferencePointer->is_hard_reference_for(this))
             {
