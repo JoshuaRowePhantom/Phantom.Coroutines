@@ -20,25 +20,25 @@
         <DisplayString>Lock waiter {m_continuation}</DisplayString>
     </Type>-->
 
-    <Type Name="Phantom::Coroutines::detail::async_mutex">
-        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::async_mutex::UnlockedState&gt;::g_objectWithUniqueAddressValue">Unlocked</DisplayString>
-        <DisplayString>Locked</DisplayString>
+    <Type Name="Phantom::Coroutines::detail::basic_async_mutex&lt;*,*,*,*&gt;">
+        <!--<DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == nullptr">Unlocked</DisplayString>
+        <DisplayString>Locked</DisplayString>-->
 
         <Expand>
-            <Item Name="Waiters">m_waiters</Item>
+            <Item Name="Waiters">m_awaiters</Item>
             
             <LinkedListItems>
-                <HeadPointer>m_waiters</HeadPointer>
-                <NextPointer>m_nextAwaiter</NextPointer>
+                <HeadPointer>m_awaiters</HeadPointer>
+                <NextPointer>m_next</NextPointer>
                 <ValueNode>this</ValueNode>
             </LinkedListItems>
 
             <Item Name="Reverse Waiters">m_state</Item>
             
             <LinkedListItems>
-                <HeadPointer>static_cast&lt;Phantom::Coroutines::detail::async_mutex::async_mutex_lock_operation*&gt;(m_state.m_atomicRepresentation._Storage._Value)</HeadPointer>
-                <NextPointer>m_nextAwaiter</NextPointer>
-                <ValueNode>this</ValueNode>
+                <HeadPointer>static_cast&lt;lock_operation*&gt;(m_state.m_atomicRepresentation._Storage._Value)</HeadPointer>
+                <NextPointer>m_next</NextPointer>
+                <ValueNode>this->m_continuation</ValueNode>
             </LinkedListItems>
         </Expand>
     </Type>
