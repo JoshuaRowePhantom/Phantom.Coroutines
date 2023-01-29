@@ -106,7 +106,7 @@ TEST(read_copy_update_test, object_released_after_replace_and_reread)
     lifetime_statistics statistics2;
     section.write().emplace(statistics2.tracker());
 
-    ASSERT_EQ(1, statistics1.instance_count);
+    ASSERT_EQ(0, statistics1.instance_count);
     ASSERT_EQ(1, statistics2.instance_count);
 
     std::ignore = section.operator->();
@@ -154,12 +154,28 @@ TEST(read_copy_update_test, object_released_after_replace_and_last_reader_releas
 
     readOperation1.reset();
 
-    ASSERT_EQ(1, statistics1.instance_count);
+    ASSERT_EQ(0, statistics1.instance_count);
     ASSERT_EQ(1, statistics2.instance_count);
 
     std::ignore = section.operator->();
     ASSERT_EQ(0, statistics1.instance_count);
     ASSERT_EQ(1, statistics2.instance_count);
+}
+
+TEST(read_copy_update_test, object_released_after_section_destruction)
+{
+    lifetime_statistics statistics1;
+    {
+        read_copy_update_section<lifetime_tracker> section{ statistics1.tracker() };
+
+        ASSERT_EQ(1, statistics1.instance_count);
+
+        ASSERT_EQ(1, statistics1.instance_count);
+
+        std::ignore = section.operator->();
+    }
+
+    ASSERT_EQ(0, statistics1.instance_count);
 }
 
 typedef read_copy_update_section<std::string> rcu_string;
