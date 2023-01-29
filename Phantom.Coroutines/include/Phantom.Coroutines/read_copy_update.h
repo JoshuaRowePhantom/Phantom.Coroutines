@@ -15,14 +15,12 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
-class ReadCopyUpdate_CleanupOnWrite
-{};
-
-class ReadCopyUpdate_CleanupOnReadOrWrite
-{};
-
 template<
-    typename Value
+    // The type of value to store.
+    typename Value,
+    // A distinguishing label to separate out the thread-local
+    // variables from other instances of read_copy_update_section.
+    typename Label = void
 >
 class read_copy_update_section
     :
