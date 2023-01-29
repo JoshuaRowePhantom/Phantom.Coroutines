@@ -94,9 +94,10 @@ ASYNC_TEST(async_generator_test, Returns_reference_to_original_for_byval_iterato
 {
     std::string original;
 
-    auto myGenerator = [&]()->async_generator<std::string>
+    auto myGenerator = [&]() -> async_generator<std::string>
     {
         co_yield std::move(original);
+        co_return;
     }();
 
     auto iterator = co_await myGenerator.begin();
@@ -110,6 +111,7 @@ ASYNC_TEST(async_generator_test, Returns_reference_to_original_for_byref_iterato
     auto myGenerator = [&]()->async_generator<std::string&>
     {
         co_yield original;
+        co_return;
     }();
 
     auto iterator = co_await myGenerator.begin();
@@ -123,6 +125,7 @@ ASYNC_TEST(async_generator_test, Returns_reference_to_original_for_byref_iterato
     auto myGenerator = [&]()->async_generator<std::string&>
     {
         co_yield std::move(original);
+        co_return;
     }();
 
     auto iterator = co_await myGenerator.begin();
