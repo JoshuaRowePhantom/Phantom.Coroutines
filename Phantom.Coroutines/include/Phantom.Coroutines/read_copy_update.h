@@ -5,7 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
-#include <unordered_map>
+#include <unordered_set>
 #include "detail/assert_same_thread.h"
 #include "detail/scope_guard.h"
 #include "detail/immovable_object.h"
@@ -15,14 +15,12 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
-class ReadCopyUpdate_CleanupOnWrite
-{};
-
-class ReadCopyUpdate_CleanupOnReadOrWrite
-{};
-
 template<
-    typename Value
+    // The type of value to store.
+    typename Value,
+    // A distinguishing label to separate out the thread-local
+    // variables from other instances of read_copy_update_section.
+    typename Label = void
 >
 class read_copy_update_section
     :
@@ -35,11 +33,15 @@ private immovable_object
 
     struct value_holder
     {
+        read_copy_update_section* const m_section;
         mutable_value_type m_value;
 
         value_holder(
+            read_copy_update_section* section,
             auto&&... args
-        ) : m_value { std::forward<decltype(args)>(args)... }
+        ) : 
+            m_section { section },
+            m_value { std::forward<decltype(args)>(args)... }
         {}
     };
 
@@ -47,17 +49,158 @@ private immovable_object
     typedef std::shared_ptr<value_holder> hard_reference_type;
     typedef std::atomic<soft_reference_type> atomic_soft_reference_type;
 
-    std::mutex m_mutex;
-    hard_reference_type m_valueHolderHardReference;
-    atomic_soft_reference_type m_valueHolderSoftReference;
+    struct reference
+    {
+        hard_reference_type m_hardReference;
+        atomic_soft_reference_type m_softReference = nullptr;
+
+        reference(
+            hard_reference_type hardReference
+            )
+            :
+            m_hardReference(std::move(hardReference))
+        {
+            m_softReference.store(m_hardReference.get(), std::memory_order_release);
+        }
+
+        reference(
+            soft_reference_type softReference = nullptr)
+        {
+            m_softReference.store(softReference, std::memory_order_release);
+        }
+
+        // Prevent moving and copying.
+        auto operator=(reference&&) = delete;
+
+        void swap(
+            reference& other
+        )
+        {
+            std::swap(m_hardReference, other.m_hardReference);
+            
+            auto temp = other.m_softReference.load(std::memory_order_acquire);
+            
+            other.m_softReference.store(
+                m_softReference.load(std::memory_order_acquire),
+                std::memory_order_release);
+            
+            m_softReference.store(
+                temp,
+                std::memory_order_release);
+        }
+
+        void clear()
+        {
+            m_hardReference = nullptr;
+            m_softReference.store(nullptr, std::memory_order_release);
+        }
+
+        void make_hard_reference_to(
+            const reference& other
+        )
+        {
+            make_hard_reference_to(other.m_hardReference);
+        }
+
+        void make_hard_reference_to(
+            hard_reference_type other
+        )
+        {
+            m_hardReference = std::move(other);
+            m_softReference.store(
+                m_hardReference.get(),
+                std::memory_order_release
+            );
+        }
+
+        void make_soft_reference_to(
+            const reference& other
+        )
+        {
+            m_hardReference = nullptr;
+            m_softReference.store(
+                other.m_softReference.load(std::memory_order_acquire),
+                std::memory_order_release
+            );
+        }
+
+        bool is_hard_reference_for(
+            const read_copy_update_section* section
+        ) const
+        {
+            return m_hardReference
+                && m_hardReference->m_section == section;
+        }
+
+        auto operator==(
+            soft_reference_type softReference
+            ) const
+        {
+            return m_softReference.load(std::memory_order_acquire) == softReference;
+        }
+
+        auto operator==(
+            const reference& other
+            ) const
+        {
+            return m_softReference.load(std::memory_order_acquire) == other.m_softReference.load(std::memory_order_acquire);
+        }
+
+        auto convert_to_hard_reference(
+            const reference& source
+        )
+        {
+            assert(source.m_softReference == m_softReference);
+            assert(source.m_hardReference.get() == m_softReference);
+            m_hardReference = source.m_hardReference;
+        }
+
+        auto operator->() const
+        {
+            // The -> operator is only used on the local thread.
+            return m_softReference.load(std::memory_order_relaxed);
+        }
+
+        auto get() const
+        {
+            return m_softReference.load(std::memory_order_acquire);
+        }
+    };
+
+    // The mutex is global, because it controls access to all thread data
+    static inline std::mutex m_mutex;
+
+    // The set of all existing thread hard references.
+    static inline std::unordered_set<reference*> m_threadReferences;
+
+    reference m_currentValue;
 
     class operation
         :
         protected assert_same_thread,
         private immovable_object
     {
-        static inline thread_local hard_reference_type m_threadLocalHardReference;
         static inline thread_local operation* m_operationsHead;
+
+        struct thread_hard_reference_tracker
+        {
+            thread_hard_reference_tracker()
+            {
+                std::unique_lock lock { m_mutex };
+                m_threadReferences.insert(&m_threadLocalReference);
+            }
+
+            void assertTracked()
+            {}
+
+            ~thread_hard_reference_tracker()
+            {
+                std::unique_lock lock { m_mutex };
+                m_threadReferences.erase(&m_threadLocalReference);
+            }
+        };
+
+        static inline thread_local thread_hard_reference_tracker m_threadReferenceTracker;
 
         operation* m_nextOperation = nullptr;
         operation* m_previousOperation = nullptr;
@@ -83,6 +226,7 @@ private immovable_object
             {
                 m_nextOperation->m_previousOperation = m_previousOperation;
             }
+
             if (m_previousOperation)
             {
                 m_previousOperation->m_nextOperation = m_nextOperation;
@@ -91,8 +235,8 @@ private immovable_object
 
     protected:
         read_copy_update_section& m_section;
-        soft_reference_type m_valueHolderSoftReference = nullptr;
-        hard_reference_type m_valueHolderHardReference;
+        reference m_reference;
+        static inline thread_local reference m_threadLocalReference;
 
         operation(
             read_copy_update_section& section
@@ -100,9 +244,9 @@ private immovable_object
             :
             m_section{ section }
         {
+            m_threadReferenceTracker.assertTracked();
             link();
-            force_refresh(
-                get_section_soft_reference());
+            refresh();
         }
 
         ~operation()
@@ -110,57 +254,71 @@ private immovable_object
             unlink();
         }
 
-        void refresh_thread_local_hard_reference_and_update_soft_reference(
-            soft_reference_type threadLocalSoftReference
-        )
+        bool refresh_thread_local_reference(
+            std::unique_lock<std::mutex>& lock,
+            reference& valueToRelease)
         {
+            if (m_section.m_currentValue == m_threadLocalReference)
+            { 
+                return false;
+            }
+
             // We're going to replace the thread-local hard reference,
             // so make sure all other operations on the current thread
             // pointing at the same value holder get a hard reference.
             for (auto updatedOperation = m_operationsHead; updatedOperation; updatedOperation = updatedOperation->m_nextOperation)
             {
-                if (updatedOperation->m_valueHolderSoftReference == threadLocalSoftReference)
+                if (updatedOperation->m_reference == m_threadLocalReference)
                 {
-                    updatedOperation->m_valueHolderHardReference = m_threadLocalHardReference;
+                    updatedOperation->m_reference.convert_to_hard_reference(
+                        m_threadLocalReference);
                 }
             }
 
+            if (!lock)
             {
-                std::scoped_lock lock{ m_section.m_mutex };
-                m_threadLocalHardReference = m_section.m_valueHolderHardReference;
+                lock.lock();
             }
 
-            m_valueHolderSoftReference = m_threadLocalHardReference.get();
+            valueToRelease.swap(
+                m_threadLocalReference);
+
+            m_threadLocalReference.make_hard_reference_to(
+                m_section.m_currentValue);
+
+            return true;
         }
 
-        auto get_section_soft_reference()
-        {
-            return m_section.m_valueHolderSoftReference.load(std::memory_order_acquire);
-        } 
-
         // Refresh the value to the latest stored in the section.
-        void force_refresh(
-            soft_reference_type    sectionSoftReference)
+        // Returns true if the value changed.
+        bool refresh(
+            std::unique_lock<std::mutex>& lock,
+            reference& valueToRelease)
         {
-            m_valueHolderHardReference = nullptr;
-            m_valueHolderSoftReference = nullptr;
+            refresh_thread_local_reference(
+                lock,
+                valueToRelease);
 
-            soft_reference_type threadLocalSoftReference = m_threadLocalHardReference.get();
-            if (threadLocalSoftReference == sectionSoftReference)
+            // We can do this outside a lock because
+            // we know that this thread's section is not being destroyed by contract,
+            // and that the thread local reference won't be destroyed because this thread
+            // is not destroying it, and the section won't be destroying it because the
+            // section itself is not being destroyed.
+            if (m_reference != m_threadLocalReference)
             {
-                m_valueHolderSoftReference = threadLocalSoftReference;
-                return;
+                m_reference.make_soft_reference_to(
+                    m_threadLocalReference);
+                return true;
             }
 
-            refresh_thread_local_hard_reference_and_update_soft_reference(
-                threadLocalSoftReference);
+            return false;
         }
 
     public:
         Value& value()
         {
             check_thread();
-            return m_valueHolderSoftReference->m_value;
+            return m_reference->m_value;
         }
 
         // Read the value of the read_copy_update_section as
@@ -178,16 +336,15 @@ private immovable_object
         }
 
         // Refresh the value to the latest stored in the section.
-        void refresh()
+        // Returns true if the value changed.
+        bool refresh()
         {
-            auto sectionSoftReference = m_section.m_valueHolderSoftReference.load(std::memory_order_acquire);
-            if (m_valueHolderSoftReference == sectionSoftReference)
-            {
-                return;
-            }
-
-            force_refresh(
-                sectionSoftReference);
+            // Declare in this order so that
+            // valueToRelease is destroyed after the lock is unlocked.
+            // That way value destruction happens outside of locks.
+            reference valueToRelease;
+            std::unique_lock lock{ m_mutex, std::defer_lock };
+            return refresh(lock, valueToRelease);
         }
     };
 
@@ -210,27 +367,45 @@ public:
         :
         public read_operation
     {
-        hard_reference_type    m_replacementValueHolder = nullptr;
+        reference m_replacement;
 
         void exchange(
             std::unique_lock<std::mutex> lock
         )
         {
-            this->m_valueHolderSoftReference = m_replacementValueHolder.get();
+            assert(lock.owns_lock());
 
-            std::swap(
-                this->m_section.m_valueHolderHardReference,
-                m_replacementValueHolder);
+            reference oldValue;
+            oldValue.swap(this->m_reference);
+            reference oldThreadValue;
 
-            this->m_section.m_valueHolderSoftReference.store(
-                this->m_section.m_valueHolderHardReference.get(),
-                std::memory_order_relaxed);
+            this->m_section.m_currentValue.swap(
+                m_replacement
+            );
 
+            // This updates all the other operations that may have
+            // been using the thread-local reference to instead use a hard reference.
+            this->refresh_thread_local_reference(
+                lock,
+                oldThreadValue
+            );
+
+            // Reset the old references outside the lock.
             lock.unlock();
 
-            // Reset the old hard references outside the lock.
-            this->m_valueHolderHardReference.reset();
-            m_replacementValueHolder.reset();
+            // This can be done outside the lock because the
+            // section cannot be destroyed while there is an operation outstanding,
+            // therefore nothing will try to destroy the thread local reference.
+            this->m_reference.make_soft_reference_to(
+                this->m_threadLocalReference
+            );
+
+            // This removes the reference to the old value that -was- in the section
+            this->m_replacement.clear();
+
+            // oldValue and oldThreadValue will be destroyed here,
+            // removing the references that this instance and thread used
+            // to have.
         }
 
     public:
@@ -255,9 +430,10 @@ public:
             auto&&... args
         )
         {
-            m_replacementValueHolder = std::make_shared<value_holder>(
+            m_replacement.make_hard_reference_to(std::make_shared<value_holder>(
+                &this->m_section,
                 std::forward<decltype(args)>(args)...
-                );
+                ));
 
             return (replacement());
         }
@@ -270,8 +446,7 @@ public:
         void exchange()
         {
             exchange(
-                std::unique_lock{ this->m_section.m_mutex }
-            );
+                std::unique_lock { this->m_section.m_mutex });
         }
 
         // Conditionally perform the exchange.
@@ -286,17 +461,15 @@ public:
         {
             operation::check_thread();
 
-            if (this->m_section.m_valueHolderSoftReference.load(std::memory_order_acquire) != this->m_valueHolderSoftReference)
-            {
-                this->refresh();
-                return false;
-            }
-
+            // Declare in this order so that valueToRelease
+            // is released outside the lock.
+            reference valueToRelease;
             std::unique_lock lock{ this->m_section.m_mutex };
-            if (this->m_section.m_valueHolderHardReference.get() != this->m_valueHolderSoftReference)
+
+            if (this->refresh(
+                lock,
+                valueToRelease))
             {
-                lock.unlock();
-                this->refresh();
                 return false;
             }
 
@@ -314,7 +487,7 @@ public:
         std::remove_const_t<Value>& replacement()
         {
             operation::check_thread();
-            return m_replacementValueHolder->m_value;
+            return m_replacement.m_hardReference->m_value;
         }
     };
 
@@ -357,11 +530,31 @@ public:
     read_copy_update_section(
         auto&&... args
     ) :
-        m_valueHolderHardReference{ std::make_shared<value_holder>(
-            std::forward<decltype(args)>(args)...)
-    },
-        m_valueHolderSoftReference{ m_valueHolderHardReference.get() }
+        m_currentValue
     {
+        std::make_shared<value_holder>(
+            this,
+            std::forward<decltype(args)>(args)...)
+    }
+    {
+    }
+
+    ~read_copy_update_section()
+    {
+        std::unique_lock lock { m_mutex };
+        for (auto threadHardReferencePointer : m_threadReferences)
+        {
+            if (threadHardReferencePointer->is_hard_reference_for(this))
+            {
+                // We -know- that there are no operations for this section,
+                // because the contract for users is that they must not
+                // destroy a read_copy_update_section until all the
+                // operations are complete.
+                // Therefore, clearing the thread's hard reference
+                // is legal.
+                threadHardReferencePointer->clear();
+            }
+        }
     }
 
     // Read the current value stored in the section.
