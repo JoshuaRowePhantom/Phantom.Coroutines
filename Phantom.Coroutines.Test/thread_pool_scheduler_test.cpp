@@ -4,6 +4,7 @@
 #include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/thread_pool_scheduler.h"
+#include <barrier>
 #include <thread>
 
 using namespace Phantom::Coroutines;
@@ -61,15 +62,24 @@ void thread_pool_scheduler_test_do_many_work_items_test(
         numberOfThreads
     );
     async_scope<> scope;
+    std::barrier barrier(numberOfThreads);
 
     for (size_t counter = 0; counter < numberOfItems; counter++)
     {
         scope.spawn([&](size_t counter)->task<>
+        {
+            co_await scheduler.schedule();
+
+            // The first numberOfThreads threads will wait in a blocking
+            // call to ensure that all threads get used.
+            if (counter < numberOfThreads)
             {
-                co_await scheduler.schedule();
-                EXPECT_EQ(completedItems[counter], std::thread::id{});
-                completedItems[counter] = std::this_thread::get_id();
-            }(counter));
+                barrier.arrive_and_wait();
+            }
+
+            EXPECT_EQ(completedItems[counter], std::thread::id{});
+            completedItems[counter] = std::this_thread::get_id();
+        }(counter));
     }
 
     sync_wait(scope.join());
