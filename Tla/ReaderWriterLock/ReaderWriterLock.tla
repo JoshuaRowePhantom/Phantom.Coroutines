@@ -1,464 +1,377 @@
 ---- MODULE ReaderWriterLock ----
-EXTENDS Integers, TLC, Sequences
+EXTENDS Integers, TLC, Sequences, FiniteSets
 
-CONSTANT ThreadCount, PreferWriters
-
-ASSUME PreferWriters \in BOOLEAN
-Threads == 1..ThreadCount
+CONSTANT Threads
 
 VARIABLE
-    WaitingReaders,
-    WaitingWriters,
     ReaderCount,
+    ReaderCountWaiters,
+    ReaderCountOwner,
+    ResourceWaiters,
+    ResourceOwner,
+    ServiceQueue,
+    ServiceQueueOwner,
     AcquiredLocks
 
-AwaiterListType == SUBSET Threads
+AwaiterListType == Seq(Threads)
 
 TypeOk ==
-    /\  ReaderCount \in Int
-    /\  WaitingReaders \in AwaiterListType
-    /\  WaitingWriters \in AwaiterListType
-    /\  AcquiredLocks \in [ Threads -> { "Blocked", "Read", "Write", "Unlocked" }]
+    /\  ReaderCount \in 0..Cardinality(Threads)
+    /\  ReaderCountWaiters \in AwaiterListType
+    /\  ReaderCountOwner \in AwaiterListType
+    /\  ResourceWaiters \in AwaiterListType
+    /\  ServiceQueue \in AwaiterListType
+    /\  ResourceOwner \in AwaiterListType
+    /\  ServiceQueueOwner \in AwaiterListType
+    /\  AcquiredLocks \in [ Threads -> { "Unlocked", "Pending", "Read", "Write", "Released" }]
 
 (* --algorithm ReaderWriterLock
 
 variables
-    WaitingReaders = { },
-    WaitingWriters = { },
     ReaderCount = 0,
+    ReaderCountWaiters = << >>,
+    ReaderCountOwner = << >>,
+    ResourceWaiters = << >>,
+    ResourceOwner = << >>,
+    ServiceQueue = << >>,
+    ServiceQueueOwner = << >>,
     AcquiredLocks = [ thread \in Threads |-> "Unlocked" ];
 
-procedure SignalWaiters()
-variables
-    HaveWaitingWriters = WaitingWriters # { }
+macro EnqueueForOwnership(queue, queueOwner)
 begin
-SignalWaiters_Loop:
-    while TRUE do
-        
-        HaveWaitingWriters := WaitingWriters # { };
-
-SignalWaiters_CheckForWriters:
-        if ReaderCount = -1 then
-            \* The lock is locked by a writer
-            return;
-
-        elsif ReaderCount > 0 /\ HaveWaitingWriters /\ PreferWriters then
-            \* The lock is locked by readers,
-            \* but we prefer writers acquire first
-            return;
-        elsif ReaderCount = 0 /\ HaveWaitingWriters then
-            \* Provisionally acquire the lock for write.
-            ReaderCount := -1;
-SignalWaiters_CheckAvailableWriter:
-            if WaitingWriters # { } then
-                with writer \in WaitingWriters do
-                    AcquiredLocks[writer] := "Write";
-                    WaitingWriters := WaitingWriters \ { writer };
-                    return;
-                end with;
-            end if;
-SignalWaiters_NoAvailableWriter:
-            ReaderCount := 0;
-            goto SignalWaiters_Loop;
-        end if;
-
-SignalWaiters_CheckWaitingReaders:
-        if WaitingReaders = { } then
-            return;
-        end if;
-
-SignalWaiters_IncrementReaderCount:
-        if ReaderCount < 0 then
-            return;
-        else
-            ReaderCount := ReaderCount + 1;
-        end if;
-
-SignalWaiters_SignalReader:
-        if WaitingReaders # { } then
-            with reader \in WaitingReaders do
-                AcquiredLocks[reader] := "Read";
-                WaitingReaders := WaitingReaders \ { reader };
-                \* The result of the compare-exchange on WaitingReaders
-                \* is known here, so we can return right away.
-                if WaitingReaders = {} then
-                    return;
-                end if;
-            end with;
-        else
-            ReaderCount := ReaderCount - 1;
-        end if;
-    end while;
-
-end procedure;
-
-procedure LockReader()
-begin
-LockReader_Start:
-    if ReaderCount >= 0 then
-        ReaderCount := ReaderCount + 1;
-        AcquiredLocks[self] := "Read";
-        return;
+    if queueOwner = << >> then
+        queueOwner := << self >>;
+    else
+        queue := queue \o << self >>;
     end if;
+end macro;
 
-LockReader_Append:
-    WaitingReaders := { self } \union WaitingReaders;
-    call SignalWaiters();
-
-LockReader_Wait:
-    await AcquiredLocks[self] = "Read";
-    return;
-end procedure;
-
-procedure UnlockReader()
+macro ReleaseOwnership(queue, queueOwner)
 begin
-UnlockReader_Start:
-    ReaderCount := ReaderCount - 1;
-    AcquiredLocks[self] := "Unlocked";
-    call SignalWaiters();
-    return;
-end procedure;
-
-procedure LockWriter()
-begin
-LockWriter_Start:
-    if ReaderCount = 0 then
-        ReaderCount := -1;
-        AcquiredLocks[self] := "Write";
-        return;
+    if queue = << >> then
+        queueOwner := << >>;
+    else
+        queueOwner := << Head(queue) >>;
+        queue := Tail(queue);
     end if;
-
-LockWriter_Append:
-    WaitingWriters := { self } \union WaitingWriters;
-    call SignalWaiters();
-    
-LockWriter_Wait:
-    await AcquiredLocks[self] = "Write";
-    return;
-
-end procedure;
-
-procedure UnlockWriter()
-begin
-UnlockWriter_Start:
-    ReaderCount := 0;
-    AcquiredLocks[self] := "Unlocked";
-    call SignalWaiters();
-    return;
-end procedure;
+end macro;
 
 fair process Worker \in Threads
 begin
 Start:
+    AcquiredLocks[self] := "Pending";
+    \* All requests start by entering the service queue.
+    EnqueueForOwnership(ServiceQueue, ServiceQueueOwner);
+
+WaitForServiceQueueOwnership:
+    await ServiceQueueOwner = << self >>;
+
+    \* Now we decide to either be a reader or a writer
     either
-        call LockReader();
-UnlockReader:
-        call UnlockReader();
+        \* Let's be a reader!
+        EnqueueForOwnership(ReaderCountWaiters, ReaderCountOwner);
+AcquireRead_WaitForReaderCountOwnership:
+        await ReaderCountOwner = << self >>;
+
+        ReaderCount := ReaderCount + 1;
+        if ReaderCount = 1 then
+            EnqueueForOwnership(ResourceWaiters, ResourceOwner);
+AcquireRead_WaitForResourceOwnership:
+            await ResourceOwner = << self >>;
+            ReleaseOwnership(ServiceQueue, ServiceQueueOwner);
+        else
+            ReleaseOwnership(ServiceQueue, ServiceQueueOwner);
+        end if;
+
+AcquireRead_ReleaseReaderCountOwnership:
+        ReleaseOwnership(ReaderCountWaiters, ReaderCountOwner);
+        AcquiredLocks[self] := "Read";
+
+ReleaseRead_AcquireReaderCountOwnership:
+        AcquiredLocks[self] := "Released";
+        EnqueueForOwnership(ReaderCountWaiters, ReaderCountOwner);
+
+ReleaseRead_WaitForReaderCountOwnership:
+        await ReaderCountOwner = << self >>;
+
+        ReaderCount := ReaderCount - 1;
+        if ReaderCount = 0 then
+            ReleaseOwnership(ResourceWaiters, ResourceOwner);
+        end if;
+ReleaseRead_ReleaseReaderCountOwnership:
+        ReleaseOwnership(ReaderCountWaiters, ReaderCountOwner);
+        
+        \* All done with the read path!
     or
-        call LockWriter();
-UnlockWriter:
-        call UnlockWriter();
+        \* Let's be a writer!
+AcquireWrite_AddToResourceQueue:
+        EnqueueForOwnership(ResourceWaiters, ResourceOwner);
+AcquireWrite_WaitForResourceOwnership:
+        await ResourceOwner = << self >>;
+
+AcquireWrite_ReleaseServiceQueue:
+        ReleaseOwnership(ServiceQueue, ServiceQueueOwner);
+        AcquiredLocks[self] := "Write";
+   
+AcquireWrite_ReleaseResourceOwnership:
+        ReleaseOwnership(ResourceWaiters, ResourceOwner);
+        AcquiredLocks[self] := "Released";
+        \* All done with the write path!
     end either;
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "227168be" /\ chksum(tla) = "cdc732a7")
-\* Label UnlockReader of process Worker at line 154 col 9 changed to UnlockReader_
-\* Label UnlockWriter of process Worker at line 158 col 9 changed to UnlockWriter_
-VARIABLES WaitingReaders, WaitingWriters, ReaderCount, AcquiredLocks, pc, 
-          stack, HaveWaitingWriters
+\* BEGIN TRANSLATION (chksum(pcal) = "7bf39b9f" /\ chksum(tla) = "6c1bce44")
+VARIABLES ReaderCount, ReaderCountWaiters, ReaderCountOwner, ResourceWaiters, 
+          ResourceOwner, ServiceQueue, ServiceQueueOwner, AcquiredLocks, pc
 
-vars == << WaitingReaders, WaitingWriters, ReaderCount, AcquiredLocks, pc, 
-           stack, HaveWaitingWriters >>
+vars == << ReaderCount, ReaderCountWaiters, ReaderCountOwner, ResourceWaiters, 
+           ResourceOwner, ServiceQueue, ServiceQueueOwner, AcquiredLocks, pc
+        >>
 
 ProcSet == (Threads)
 
 Init == (* Global variables *)
-        /\ WaitingReaders = { }
-        /\ WaitingWriters = { }
         /\ ReaderCount = 0
+        /\ ReaderCountWaiters = << >>
+        /\ ReaderCountOwner = << >>
+        /\ ResourceWaiters = << >>
+        /\ ResourceOwner = << >>
+        /\ ServiceQueue = << >>
+        /\ ServiceQueueOwner = << >>
         /\ AcquiredLocks = [ thread \in Threads |-> "Unlocked" ]
-        (* Procedure SignalWaiters *)
-        /\ HaveWaitingWriters = [ self \in ProcSet |-> WaitingWriters # { }]
-        /\ stack = [self \in ProcSet |-> << >>]
         /\ pc = [self \in ProcSet |-> "Start"]
 
-SignalWaiters_Loop(self) == /\ pc[self] = "SignalWaiters_Loop"
-                            /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = WaitingWriters # { }]
-                            /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_CheckForWriters"]
-                            /\ UNCHANGED << WaitingReaders, WaitingWriters, 
-                                            ReaderCount, AcquiredLocks, stack >>
-
-SignalWaiters_CheckForWriters(self) == /\ pc[self] = "SignalWaiters_CheckForWriters"
-                                       /\ IF ReaderCount = -1
-                                             THEN /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                                                  /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = Head(stack[self]).HaveWaitingWriters]
-                                                  /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                                                  /\ UNCHANGED ReaderCount
-                                             ELSE /\ IF ReaderCount > 0 /\ HaveWaitingWriters[self] /\ PreferWriters
-                                                        THEN /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                                                             /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = Head(stack[self]).HaveWaitingWriters]
-                                                             /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                                                             /\ UNCHANGED ReaderCount
-                                                        ELSE /\ IF ReaderCount = 0 /\ HaveWaitingWriters[self]
-                                                                   THEN /\ ReaderCount' = -1
-                                                                        /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_CheckAvailableWriter"]
-                                                                   ELSE /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_CheckWaitingReaders"]
-                                                                        /\ UNCHANGED ReaderCount
-                                                             /\ UNCHANGED << stack, 
-                                                                             HaveWaitingWriters >>
-                                       /\ UNCHANGED << WaitingReaders, 
-                                                       WaitingWriters, 
-                                                       AcquiredLocks >>
-
-SignalWaiters_CheckAvailableWriter(self) == /\ pc[self] = "SignalWaiters_CheckAvailableWriter"
-                                            /\ IF WaitingWriters # { }
-                                                  THEN /\ \E writer \in WaitingWriters:
-                                                            /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![writer] = "Write"]
-                                                            /\ WaitingWriters' = WaitingWriters \ { writer }
-                                                            /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                                                            /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = Head(stack[self]).HaveWaitingWriters]
-                                                            /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                                                  ELSE /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_NoAvailableWriter"]
-                                                       /\ UNCHANGED << WaitingWriters, 
-                                                                       AcquiredLocks, 
-                                                                       stack, 
-                                                                       HaveWaitingWriters >>
-                                            /\ UNCHANGED << WaitingReaders, 
-                                                            ReaderCount >>
-
-SignalWaiters_NoAvailableWriter(self) == /\ pc[self] = "SignalWaiters_NoAvailableWriter"
-                                         /\ ReaderCount' = 0
-                                         /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
-                                         /\ UNCHANGED << WaitingReaders, 
-                                                         WaitingWriters, 
-                                                         AcquiredLocks, stack, 
-                                                         HaveWaitingWriters >>
-
-SignalWaiters_CheckWaitingReaders(self) == /\ pc[self] = "SignalWaiters_CheckWaitingReaders"
-                                           /\ IF WaitingReaders = { }
-                                                 THEN /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                                                      /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = Head(stack[self]).HaveWaitingWriters]
-                                                      /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                                                 ELSE /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_IncrementReaderCount"]
-                                                      /\ UNCHANGED << stack, 
-                                                                      HaveWaitingWriters >>
-                                           /\ UNCHANGED << WaitingReaders, 
-                                                           WaitingWriters, 
-                                                           ReaderCount, 
-                                                           AcquiredLocks >>
-
-SignalWaiters_IncrementReaderCount(self) == /\ pc[self] = "SignalWaiters_IncrementReaderCount"
-                                            /\ IF ReaderCount < 0
-                                                  THEN /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                                                       /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = Head(stack[self]).HaveWaitingWriters]
-                                                       /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                                                       /\ UNCHANGED ReaderCount
-                                                  ELSE /\ ReaderCount' = ReaderCount + 1
-                                                       /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_SignalReader"]
-                                                       /\ UNCHANGED << stack, 
-                                                                       HaveWaitingWriters >>
-                                            /\ UNCHANGED << WaitingReaders, 
-                                                            WaitingWriters, 
-                                                            AcquiredLocks >>
-
-SignalWaiters_SignalReader(self) == /\ pc[self] = "SignalWaiters_SignalReader"
-                                    /\ IF WaitingReaders # { }
-                                          THEN /\ \E reader \in WaitingReaders:
-                                                    /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![reader] = "Read"]
-                                                    /\ WaitingReaders' = WaitingReaders \ { reader }
-                                                    /\ IF WaitingReaders' = {}
-                                                          THEN /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                                                               /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = Head(stack[self]).HaveWaitingWriters]
-                                                               /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                                                          ELSE /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
-                                                               /\ UNCHANGED << stack, 
-                                                                               HaveWaitingWriters >>
-                                               /\ UNCHANGED ReaderCount
-                                          ELSE /\ ReaderCount' = ReaderCount - 1
-                                               /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
-                                               /\ UNCHANGED << WaitingReaders, 
-                                                               AcquiredLocks, 
-                                                               stack, 
-                                                               HaveWaitingWriters >>
-                                    /\ UNCHANGED WaitingWriters
-
-SignalWaiters(self) == SignalWaiters_Loop(self)
-                          \/ SignalWaiters_CheckForWriters(self)
-                          \/ SignalWaiters_CheckAvailableWriter(self)
-                          \/ SignalWaiters_NoAvailableWriter(self)
-                          \/ SignalWaiters_CheckWaitingReaders(self)
-                          \/ SignalWaiters_IncrementReaderCount(self)
-                          \/ SignalWaiters_SignalReader(self)
-
-LockReader_Start(self) == /\ pc[self] = "LockReader_Start"
-                          /\ IF ReaderCount >= 0
-                                THEN /\ ReaderCount' = ReaderCount + 1
-                                     /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Read"]
-                                     /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                                     /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                                ELSE /\ pc' = [pc EXCEPT ![self] = "LockReader_Append"]
-                                     /\ UNCHANGED << ReaderCount, 
-                                                     AcquiredLocks, stack >>
-                          /\ UNCHANGED << WaitingReaders, WaitingWriters, 
-                                          HaveWaitingWriters >>
-
-LockReader_Append(self) == /\ pc[self] = "LockReader_Append"
-                           /\ WaitingReaders' = ({ self } \union WaitingReaders)
-                           /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "SignalWaiters",
-                                                                    pc        |->  "LockReader_Wait",
-                                                                    HaveWaitingWriters |->  HaveWaitingWriters[self] ] >>
-                                                                \o stack[self]]
-                           /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = WaitingWriters # { }]
-                           /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
-                           /\ UNCHANGED << WaitingWriters, ReaderCount, 
-                                           AcquiredLocks >>
-
-LockReader_Wait(self) == /\ pc[self] = "LockReader_Wait"
-                         /\ AcquiredLocks[self] = "Read"
-                         /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                         /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                         /\ UNCHANGED << WaitingReaders, WaitingWriters, 
-                                         ReaderCount, AcquiredLocks, 
-                                         HaveWaitingWriters >>
-
-LockReader(self) == LockReader_Start(self) \/ LockReader_Append(self)
-                       \/ LockReader_Wait(self)
-
-UnlockReader_Start(self) == /\ pc[self] = "UnlockReader_Start"
-                            /\ ReaderCount' = ReaderCount - 1
-                            /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Unlocked"]
-                            /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "SignalWaiters",
-                                                                     pc        |->  Head(stack[self]).pc,
-                                                                     HaveWaitingWriters |->  HaveWaitingWriters[self] ] >>
-                                                                 \o Tail(stack[self])]
-                            /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = WaitingWriters # { }]
-                            /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
-                            /\ UNCHANGED << WaitingReaders, WaitingWriters >>
-
-UnlockReader(self) == UnlockReader_Start(self)
-
-LockWriter_Start(self) == /\ pc[self] = "LockWriter_Start"
-                          /\ IF ReaderCount = 0
-                                THEN /\ ReaderCount' = -1
-                                     /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Write"]
-                                     /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                                     /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                                ELSE /\ pc' = [pc EXCEPT ![self] = "LockWriter_Append"]
-                                     /\ UNCHANGED << ReaderCount, 
-                                                     AcquiredLocks, stack >>
-                          /\ UNCHANGED << WaitingReaders, WaitingWriters, 
-                                          HaveWaitingWriters >>
-
-LockWriter_Append(self) == /\ pc[self] = "LockWriter_Append"
-                           /\ WaitingWriters' = ({ self } \union WaitingWriters)
-                           /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "SignalWaiters",
-                                                                    pc        |->  "LockWriter_Wait",
-                                                                    HaveWaitingWriters |->  HaveWaitingWriters[self] ] >>
-                                                                \o stack[self]]
-                           /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = WaitingWriters' # { }]
-                           /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
-                           /\ UNCHANGED << WaitingReaders, ReaderCount, 
-                                           AcquiredLocks >>
-
-LockWriter_Wait(self) == /\ pc[self] = "LockWriter_Wait"
-                         /\ AcquiredLocks[self] = "Write"
-                         /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                         /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                         /\ UNCHANGED << WaitingReaders, WaitingWriters, 
-                                         ReaderCount, AcquiredLocks, 
-                                         HaveWaitingWriters >>
-
-LockWriter(self) == LockWriter_Start(self) \/ LockWriter_Append(self)
-                       \/ LockWriter_Wait(self)
-
-UnlockWriter_Start(self) == /\ pc[self] = "UnlockWriter_Start"
-                            /\ ReaderCount' = 0
-                            /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Unlocked"]
-                            /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "SignalWaiters",
-                                                                     pc        |->  Head(stack[self]).pc,
-                                                                     HaveWaitingWriters |->  HaveWaitingWriters[self] ] >>
-                                                                 \o Tail(stack[self])]
-                            /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = WaitingWriters # { }]
-                            /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
-                            /\ UNCHANGED << WaitingReaders, WaitingWriters >>
-
-UnlockWriter(self) == UnlockWriter_Start(self)
-
 Start(self) == /\ pc[self] = "Start"
-               /\ \/ /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "LockReader",
-                                                              pc        |->  "UnlockReader_" ] >>
-                                                          \o stack[self]]
-                     /\ pc' = [pc EXCEPT ![self] = "LockReader_Start"]
-                  \/ /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "LockWriter",
-                                                              pc        |->  "UnlockWriter_" ] >>
-                                                          \o stack[self]]
-                     /\ pc' = [pc EXCEPT ![self] = "LockWriter_Start"]
-               /\ UNCHANGED << WaitingReaders, WaitingWriters, ReaderCount, 
-                               AcquiredLocks, HaveWaitingWriters >>
+               /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Pending"]
+               /\ IF ServiceQueueOwner = << >>
+                     THEN /\ ServiceQueueOwner' = << self >>
+                          /\ UNCHANGED ServiceQueue
+                     ELSE /\ ServiceQueue' = ServiceQueue \o << self >>
+                          /\ UNCHANGED ServiceQueueOwner
+               /\ pc' = [pc EXCEPT ![self] = "WaitForServiceQueueOwnership"]
+               /\ UNCHANGED << ReaderCount, ReaderCountWaiters, 
+                               ReaderCountOwner, ResourceWaiters, 
+                               ResourceOwner >>
 
-UnlockReader_(self) == /\ pc[self] = "UnlockReader_"
-                       /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "UnlockReader",
-                                                                pc        |->  "Done" ] >>
-                                                            \o stack[self]]
-                       /\ pc' = [pc EXCEPT ![self] = "UnlockReader_Start"]
-                       /\ UNCHANGED << WaitingReaders, WaitingWriters, 
-                                       ReaderCount, AcquiredLocks, 
-                                       HaveWaitingWriters >>
+WaitForServiceQueueOwnership(self) == /\ pc[self] = "WaitForServiceQueueOwnership"
+                                      /\ ServiceQueueOwner = << self >>
+                                      /\ \/ /\ IF ReaderCountOwner = << >>
+                                                  THEN /\ ReaderCountOwner' = << self >>
+                                                       /\ UNCHANGED ReaderCountWaiters
+                                                  ELSE /\ ReaderCountWaiters' = ReaderCountWaiters \o << self >>
+                                                       /\ UNCHANGED ReaderCountOwner
+                                            /\ pc' = [pc EXCEPT ![self] = "AcquireRead_WaitForReaderCountOwnership"]
+                                         \/ /\ pc' = [pc EXCEPT ![self] = "AcquireWrite_AddToResourceQueue"]
+                                            /\ UNCHANGED <<ReaderCountWaiters, ReaderCountOwner>>
+                                      /\ UNCHANGED << ReaderCount, 
+                                                      ResourceWaiters, 
+                                                      ResourceOwner, 
+                                                      ServiceQueue, 
+                                                      ServiceQueueOwner, 
+                                                      AcquiredLocks >>
 
-UnlockWriter_(self) == /\ pc[self] = "UnlockWriter_"
-                       /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "UnlockWriter",
-                                                                pc        |->  "Done" ] >>
-                                                            \o stack[self]]
-                       /\ pc' = [pc EXCEPT ![self] = "UnlockWriter_Start"]
-                       /\ UNCHANGED << WaitingReaders, WaitingWriters, 
-                                       ReaderCount, AcquiredLocks, 
-                                       HaveWaitingWriters >>
+AcquireRead_WaitForReaderCountOwnership(self) == /\ pc[self] = "AcquireRead_WaitForReaderCountOwnership"
+                                                 /\ ReaderCountOwner = << self >>
+                                                 /\ ReaderCount' = ReaderCount + 1
+                                                 /\ IF ReaderCount' = 1
+                                                       THEN /\ IF ResourceOwner = << >>
+                                                                  THEN /\ ResourceOwner' = << self >>
+                                                                       /\ UNCHANGED ResourceWaiters
+                                                                  ELSE /\ ResourceWaiters' = ResourceWaiters \o << self >>
+                                                                       /\ UNCHANGED ResourceOwner
+                                                            /\ pc' = [pc EXCEPT ![self] = "AcquireRead_WaitForResourceOwnership"]
+                                                            /\ UNCHANGED << ServiceQueue, 
+                                                                            ServiceQueueOwner >>
+                                                       ELSE /\ IF ServiceQueue = << >>
+                                                                  THEN /\ ServiceQueueOwner' = << >>
+                                                                       /\ UNCHANGED ServiceQueue
+                                                                  ELSE /\ ServiceQueueOwner' = << Head(ServiceQueue) >>
+                                                                       /\ ServiceQueue' = Tail(ServiceQueue)
+                                                            /\ pc' = [pc EXCEPT ![self] = "AcquireRead_ReleaseReaderCountOwnership"]
+                                                            /\ UNCHANGED << ResourceWaiters, 
+                                                                            ResourceOwner >>
+                                                 /\ UNCHANGED << ReaderCountWaiters, 
+                                                                 ReaderCountOwner, 
+                                                                 AcquiredLocks >>
 
-Worker(self) == Start(self) \/ UnlockReader_(self) \/ UnlockWriter_(self)
+AcquireRead_WaitForResourceOwnership(self) == /\ pc[self] = "AcquireRead_WaitForResourceOwnership"
+                                              /\ ResourceOwner = << self >>
+                                              /\ IF ServiceQueue = << >>
+                                                    THEN /\ ServiceQueueOwner' = << >>
+                                                         /\ UNCHANGED ServiceQueue
+                                                    ELSE /\ ServiceQueueOwner' = << Head(ServiceQueue) >>
+                                                         /\ ServiceQueue' = Tail(ServiceQueue)
+                                              /\ pc' = [pc EXCEPT ![self] = "AcquireRead_ReleaseReaderCountOwnership"]
+                                              /\ UNCHANGED << ReaderCount, 
+                                                              ReaderCountWaiters, 
+                                                              ReaderCountOwner, 
+                                                              ResourceWaiters, 
+                                                              ResourceOwner, 
+                                                              AcquiredLocks >>
+
+AcquireRead_ReleaseReaderCountOwnership(self) == /\ pc[self] = "AcquireRead_ReleaseReaderCountOwnership"
+                                                 /\ IF ReaderCountWaiters = << >>
+                                                       THEN /\ ReaderCountOwner' = << >>
+                                                            /\ UNCHANGED ReaderCountWaiters
+                                                       ELSE /\ ReaderCountOwner' = << Head(ReaderCountWaiters) >>
+                                                            /\ ReaderCountWaiters' = Tail(ReaderCountWaiters)
+                                                 /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Read"]
+                                                 /\ pc' = [pc EXCEPT ![self] = "ReleaseRead_AcquireReaderCountOwnership"]
+                                                 /\ UNCHANGED << ReaderCount, 
+                                                                 ResourceWaiters, 
+                                                                 ResourceOwner, 
+                                                                 ServiceQueue, 
+                                                                 ServiceQueueOwner >>
+
+ReleaseRead_AcquireReaderCountOwnership(self) == /\ pc[self] = "ReleaseRead_AcquireReaderCountOwnership"
+                                                 /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Released"]
+                                                 /\ IF ReaderCountOwner = << >>
+                                                       THEN /\ ReaderCountOwner' = << self >>
+                                                            /\ UNCHANGED ReaderCountWaiters
+                                                       ELSE /\ ReaderCountWaiters' = ReaderCountWaiters \o << self >>
+                                                            /\ UNCHANGED ReaderCountOwner
+                                                 /\ pc' = [pc EXCEPT ![self] = "ReleaseRead_WaitForReaderCountOwnership"]
+                                                 /\ UNCHANGED << ReaderCount, 
+                                                                 ResourceWaiters, 
+                                                                 ResourceOwner, 
+                                                                 ServiceQueue, 
+                                                                 ServiceQueueOwner >>
+
+ReleaseRead_WaitForReaderCountOwnership(self) == /\ pc[self] = "ReleaseRead_WaitForReaderCountOwnership"
+                                                 /\ ReaderCountOwner = << self >>
+                                                 /\ ReaderCount' = ReaderCount - 1
+                                                 /\ IF ReaderCount' = 0
+                                                       THEN /\ IF ResourceWaiters = << >>
+                                                                  THEN /\ ResourceOwner' = << >>
+                                                                       /\ UNCHANGED ResourceWaiters
+                                                                  ELSE /\ ResourceOwner' = << Head(ResourceWaiters) >>
+                                                                       /\ ResourceWaiters' = Tail(ResourceWaiters)
+                                                       ELSE /\ TRUE
+                                                            /\ UNCHANGED << ResourceWaiters, 
+                                                                            ResourceOwner >>
+                                                 /\ pc' = [pc EXCEPT ![self] = "ReleaseRead_ReleaseReaderCountOwnership"]
+                                                 /\ UNCHANGED << ReaderCountWaiters, 
+                                                                 ReaderCountOwner, 
+                                                                 ServiceQueue, 
+                                                                 ServiceQueueOwner, 
+                                                                 AcquiredLocks >>
+
+ReleaseRead_ReleaseReaderCountOwnership(self) == /\ pc[self] = "ReleaseRead_ReleaseReaderCountOwnership"
+                                                 /\ IF ReaderCountWaiters = << >>
+                                                       THEN /\ ReaderCountOwner' = << >>
+                                                            /\ UNCHANGED ReaderCountWaiters
+                                                       ELSE /\ ReaderCountOwner' = << Head(ReaderCountWaiters) >>
+                                                            /\ ReaderCountWaiters' = Tail(ReaderCountWaiters)
+                                                 /\ pc' = [pc EXCEPT ![self] = "Done"]
+                                                 /\ UNCHANGED << ReaderCount, 
+                                                                 ResourceWaiters, 
+                                                                 ResourceOwner, 
+                                                                 ServiceQueue, 
+                                                                 ServiceQueueOwner, 
+                                                                 AcquiredLocks >>
+
+AcquireWrite_AddToResourceQueue(self) == /\ pc[self] = "AcquireWrite_AddToResourceQueue"
+                                         /\ IF ResourceOwner = << >>
+                                               THEN /\ ResourceOwner' = << self >>
+                                                    /\ UNCHANGED ResourceWaiters
+                                               ELSE /\ ResourceWaiters' = ResourceWaiters \o << self >>
+                                                    /\ UNCHANGED ResourceOwner
+                                         /\ pc' = [pc EXCEPT ![self] = "AcquireWrite_WaitForResourceOwnership"]
+                                         /\ UNCHANGED << ReaderCount, 
+                                                         ReaderCountWaiters, 
+                                                         ReaderCountOwner, 
+                                                         ServiceQueue, 
+                                                         ServiceQueueOwner, 
+                                                         AcquiredLocks >>
+
+AcquireWrite_WaitForResourceOwnership(self) == /\ pc[self] = "AcquireWrite_WaitForResourceOwnership"
+                                               /\ ResourceOwner = << self >>
+                                               /\ pc' = [pc EXCEPT ![self] = "AcquireWrite_ReleaseServiceQueue"]
+                                               /\ UNCHANGED << ReaderCount, 
+                                                               ReaderCountWaiters, 
+                                                               ReaderCountOwner, 
+                                                               ResourceWaiters, 
+                                                               ResourceOwner, 
+                                                               ServiceQueue, 
+                                                               ServiceQueueOwner, 
+                                                               AcquiredLocks >>
+
+AcquireWrite_ReleaseServiceQueue(self) == /\ pc[self] = "AcquireWrite_ReleaseServiceQueue"
+                                          /\ IF ServiceQueue = << >>
+                                                THEN /\ ServiceQueueOwner' = << >>
+                                                     /\ UNCHANGED ServiceQueue
+                                                ELSE /\ ServiceQueueOwner' = << Head(ServiceQueue) >>
+                                                     /\ ServiceQueue' = Tail(ServiceQueue)
+                                          /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Write"]
+                                          /\ pc' = [pc EXCEPT ![self] = "AcquireWrite_ReleaseResourceOwnership"]
+                                          /\ UNCHANGED << ReaderCount, 
+                                                          ReaderCountWaiters, 
+                                                          ReaderCountOwner, 
+                                                          ResourceWaiters, 
+                                                          ResourceOwner >>
+
+AcquireWrite_ReleaseResourceOwnership(self) == /\ pc[self] = "AcquireWrite_ReleaseResourceOwnership"
+                                               /\ IF ResourceWaiters = << >>
+                                                     THEN /\ ResourceOwner' = << >>
+                                                          /\ UNCHANGED ResourceWaiters
+                                                     ELSE /\ ResourceOwner' = << Head(ResourceWaiters) >>
+                                                          /\ ResourceWaiters' = Tail(ResourceWaiters)
+                                               /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Released"]
+                                               /\ pc' = [pc EXCEPT ![self] = "Done"]
+                                               /\ UNCHANGED << ReaderCount, 
+                                                               ReaderCountWaiters, 
+                                                               ReaderCountOwner, 
+                                                               ServiceQueue, 
+                                                               ServiceQueueOwner >>
+
+Worker(self) == Start(self) \/ WaitForServiceQueueOwnership(self)
+                   \/ AcquireRead_WaitForReaderCountOwnership(self)
+                   \/ AcquireRead_WaitForResourceOwnership(self)
+                   \/ AcquireRead_ReleaseReaderCountOwnership(self)
+                   \/ ReleaseRead_AcquireReaderCountOwnership(self)
+                   \/ ReleaseRead_WaitForReaderCountOwnership(self)
+                   \/ ReleaseRead_ReleaseReaderCountOwnership(self)
+                   \/ AcquireWrite_AddToResourceQueue(self)
+                   \/ AcquireWrite_WaitForResourceOwnership(self)
+                   \/ AcquireWrite_ReleaseServiceQueue(self)
+                   \/ AcquireWrite_ReleaseResourceOwnership(self)
 
 (* Allow infinite stuttering to prevent deadlock on termination. *)
 Terminating == /\ \A self \in ProcSet: pc[self] = "Done"
                /\ UNCHANGED vars
 
-Next == (\E self \in ProcSet:  \/ SignalWaiters(self) \/ LockReader(self)
-                               \/ UnlockReader(self) \/ LockWriter(self)
-                               \/ UnlockWriter(self))
-           \/ (\E self \in Threads: Worker(self))
+Next == (\E self \in Threads: Worker(self))
            \/ Terminating
 
 Spec == /\ Init /\ [][Next]_vars
-        /\ \A self \in Threads : /\ WF_vars(Worker(self))
-                                 /\ WF_vars(LockReader(self))
-                                 /\ WF_vars(UnlockReader(self))
-                                 /\ WF_vars(LockWriter(self))
-                                 /\ WF_vars(UnlockWriter(self))
-                                 /\ WF_vars(SignalWaiters(self))
+        /\ \A self \in Threads : WF_vars(Worker(self))
 
 Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 
 \* END TRANSLATION 
 
+Symmetry == Permutations(Threads)
+
 AllLocksAreCompatible ==
-    \/  /\  \A thread \in Threads : AcquiredLocks[thread] \in { "Read", "Unlocked" }
+    \/  /\  \A thread \in Threads : AcquiredLocks[thread] # "Write"
     \/  /\  \A thread1, thread2 \in Threads : 
-            /\  AcquiredLocks[thread1] \in { "Write", "Unlocked" }
+            /\  AcquiredLocks[thread1] # "Read"
             /\  (
                     /\  AcquiredLocks[thread1] = "Write"
                     /\  AcquiredLocks[thread2] = "Write"
                 ) => (thread1 = thread2)
 
-WriteWaitersArePreferredOverReadWaiters ==
+LocksServicedInOrder ==
     [](
-        \A writer, reader \in Threads :
+        \A thread1, thread2 \in Threads :
             (
-                /\  writer # reader
-                /\  writer \in WaitingWriters
-                /\  reader \notin WaitingReaders
-                /\  AcquiredLocks[reader] = "Unlocked"
+                /\  thread1 # thread2
+                /\  AcquiredLocks[thread1] = "Unlocked"
+                /\  AcquiredLocks[thread2] = "Pending"
             ) ~> (
-                /\  AcquiredLocks[reader] = "Unlocked"
-                /\  AcquiredLocks[writer] = "Write"
+                /\  AcquiredLocks[thread1] # "Released"
+                /\  AcquiredLocks[thread2] \in { "Read", "Write" }
             )
     )
 
