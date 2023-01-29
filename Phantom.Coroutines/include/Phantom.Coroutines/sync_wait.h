@@ -1,6 +1,7 @@
 #pragma once
 
 #include "detail/coroutine.h"
+#include "detail/config.h"
 #include "Phantom.Coroutines/type_traits.h"
 #include <exception>
 #include <future>
@@ -157,7 +158,7 @@ template<
             std::forward<TAwaitable>(awaitable)
         ).get()) result_type;
 
-#ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
+#if PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
 
     // Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
 
