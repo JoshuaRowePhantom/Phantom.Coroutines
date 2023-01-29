@@ -202,4 +202,22 @@ template<
     typename ... Policies
 > using select_base_promise_type = typename select_base_promise_type_policy<Policies...>::type;
 
+
+struct ordering_policy {};
+struct no_ordering_preference : public ordering_policy, concrete_policy {};
+struct first_available_ordering : public ordering_policy, concrete_policy {};
+struct fifo_ordering : public ordering_policy, concrete_policy {};
+
+template<
+    typename T
+> concept is_ordering_policy =
+is_concrete_policy<T, ordering_policy>;
+
+template<
+    typename ... Policies
+> using select_ordering_policy = select_policy<
+    policy_selector<ordering_policy>,
+    Policies...
+>;
+
 }
