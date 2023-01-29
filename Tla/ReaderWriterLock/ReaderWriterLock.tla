@@ -79,6 +79,11 @@ SignalWaiters_SignalReader:
             with reader \in WaitingReaders do
                 AcquiredLocks[reader] := "Read";
                 WaitingReaders := WaitingReaders \ { reader };
+                \* The result of the compare-exchange on WaitingReaders
+                \* is known here, so we can return right away.
+                if WaitingReaders = {} then
+                    return;
+                end if;
             end with;
         else
             ReaderCount := ReaderCount - 1;
@@ -157,9 +162,9 @@ UnlockWriter:
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "62c5aef" /\ chksum(tla) = "bab1d2d5")
-\* Label UnlockReader of process Worker at line 151 col 9 changed to UnlockReader_
-\* Label UnlockWriter of process Worker at line 155 col 9 changed to UnlockWriter_
+\* BEGIN TRANSLATION (chksum(pcal) = "227168be" /\ chksum(tla) = "cdc732a7")
+\* Label UnlockReader of process Worker at line 154 col 9 changed to UnlockReader_
+\* Label UnlockWriter of process Worker at line 158 col 9 changed to UnlockWriter_
 VARIABLES WaitingReaders, WaitingWriters, ReaderCount, AcquiredLocks, pc, 
           stack, HaveWaitingWriters
 
@@ -262,13 +267,21 @@ SignalWaiters_SignalReader(self) == /\ pc[self] = "SignalWaiters_SignalReader"
                                           THEN /\ \E reader \in WaitingReaders:
                                                     /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![reader] = "Read"]
                                                     /\ WaitingReaders' = WaitingReaders \ { reader }
+                                                    /\ IF WaitingReaders' = {}
+                                                          THEN /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
+                                                               /\ HaveWaitingWriters' = [HaveWaitingWriters EXCEPT ![self] = Head(stack[self]).HaveWaitingWriters]
+                                                               /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
+                                                          ELSE /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
+                                                               /\ UNCHANGED << stack, 
+                                                                               HaveWaitingWriters >>
                                                /\ UNCHANGED ReaderCount
                                           ELSE /\ ReaderCount' = ReaderCount - 1
+                                               /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
                                                /\ UNCHANGED << WaitingReaders, 
-                                                               AcquiredLocks >>
-                                    /\ pc' = [pc EXCEPT ![self] = "SignalWaiters_Loop"]
-                                    /\ UNCHANGED << WaitingWriters, stack, 
-                                                    HaveWaitingWriters >>
+                                                               AcquiredLocks, 
+                                                               stack, 
+                                                               HaveWaitingWriters >>
+                                    /\ UNCHANGED WaitingWriters
 
 SignalWaiters(self) == SignalWaiters_Loop(self)
                           \/ SignalWaiters_CheckForWriters(self)
