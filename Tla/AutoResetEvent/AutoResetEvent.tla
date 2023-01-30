@@ -1,6 +1,6 @@
 --------------------------- MODULE AutoResetEvent ---------------------------
 
-EXTENDS Integers, Sequences, FiniteSets
+EXTENDS Integers, Sequences, FiniteSets, TLC
 
 CONSTANT SignallingThreads, ListeningThreads
 
@@ -61,6 +61,11 @@ PendingSignalCountType == Nat
 PendingSignalsToHandleCountType == Nat
 PendingAwaitersType == ListeningThreadList
 
+ReadNextAwaiter(thread) ==
+    IF Assert(ListeningThreadPCs[thread] \in { "Idle", "Pending" }, "Can't read already-signalled awaiter")
+    THEN NextAwaiters[thread]
+    ELSE NextAwaiters[thread]
+    
 TypeOk ==
     /\  SignallingThreadPCs \in SignallingThreadPCsType 
     /\  ListeningThreadPCs \in ListeningThreadPCsType 
@@ -113,7 +118,7 @@ Signal_Start(thread) ==
 
 Signal_ResumeFirst(thread) ==
         /\  SignallingThreadPCs[thread] = "ResumeFirst"
-        /\  PendingAwaiters' = NextAwaiters[PendingAwaiters[1]]
+        /\  PendingAwaiters' = ReadNextAwaiter(PendingAwaiters[1])
         /\  ListeningThreadPCs' = [ListeningThreadPCs EXCEPT ![PendingAwaiters[1]] = "Resume"]
         /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ReadPendingSignals"]
         /\  UNCHANGED << State, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount >>
@@ -142,7 +147,7 @@ Signal_ResumeNext_Signal(thread) ==
                 /\  UNCHANGED << ListeningThreadPCs, PendingAwaiters >>
             \/  /\  PendingAwaiters # << >>
                 /\  ListeningThreadPCs' = [ListeningThreadPCs EXCEPT ![PendingAwaiters[1]] = "Resume"]
-                /\  PendingAwaiters' = NextAwaiters[PendingAwaiters[1]]
+                /\  PendingAwaiters' = ReadNextAwaiter(PendingAwaiters[1])
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ResumeNext"]
         /\  UNCHANGED << State, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount >>
 
