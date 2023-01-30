@@ -98,4 +98,13 @@ ASYNC_TEST(async_reader_writer_lock_test, has_correct_reader_writer_sequencing)
     co_await scope.join();
 }
 
+ASYNC_TEST(async_reader_writer_lock_test, can_loop_without_stack_overflow)
+{
+    async_reader_writer_lock<> readerWriterLock;
+
+    for (int counter = 0; counter < 100000; ++counter)
+    {
+        auto lock = co_await readerWriterLock.reader().scoped_lock_async();
+    }
+}
 }

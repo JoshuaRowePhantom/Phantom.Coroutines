@@ -350,7 +350,7 @@ Signal_ReadPendingSignals(thread) ==
             */
             pendingSignalsToHandleCount = m_pendingSets.exchange(
                 0,
-                std::memory_order_release
+                std::memory_order_acq_rel
             );
         }
     resume_next:
@@ -393,9 +393,9 @@ Signal_ResumeNext_Signal(thread) ==
                 goto release_signalling_state;
             }
 
-            auto nextAwaiter = m_pendingAwaiters->m_nextAwaiter;
-            m_pendingAwaiters->m_continuation.resume();
-            m_pendingAwaiters = nextAwaiter;
+            auto awaiterToResume = m_pendingAwaiters;
+            m_pendingAwaiters = m_pendingAwaiters->m_nextAwaiter;
+            awaiterToResume->m_continuation.resume();
             goto resume_next;
         }
 

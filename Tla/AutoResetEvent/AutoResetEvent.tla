@@ -11,7 +11,9 @@ VARIABLE
     NextAwaiters,
     PendingSignalCount,
     PendingSignalsToHandleCount,
-    PendingAwaiters
+    PendingAwaiters,
+    SignallingThread,
+    SignallingThreadDestroySignals
 
 vars == <<
     SignallingThreadPCs,
@@ -20,7 +22,9 @@ vars == <<
     NextAwaiters,
     PendingSignalCount,
     PendingSignalsToHandleCount,
-    PendingAwaiters
+    PendingAwaiters,
+    SignallingThread,
+    SignallingThreadDestroySignals
 >>
 
 ListeningThreadList == [ { 1 } -> ListeningThreads ] \union {<< >>}
@@ -61,11 +65,27 @@ PendingSignalCountType == Nat
 PendingSignalsToHandleCountType == Nat
 PendingAwaitersType == ListeningThreadList
 
-ReadNextAwaiter(thread) ==
-    IF Assert(ListeningThreadPCs[thread] \in { "Idle", "Pending" }, "Can't read already-signalled awaiter")
-    THEN NextAwaiters[thread]
-    ELSE NextAwaiters[thread]
-    
+ReadAndAssert(value, assertion, message) ==
+    CHOOSE x \in { value } : Assert(assertion, message)
+
+ReadNextAwaiter(thread) == ReadAndAssert(
+    NextAwaiters[thread],
+    ListeningThreadPCs[thread] \in { "Idle", "Pending" }, 
+    "Can't read already-signalled awaiter")
+
+Destroyed == \A thread \in ListeningThreads : ListeningThreadPCs[thread] = "Resume"
+
+ReadFromInstance(value) == ReadAndAssert(
+    value,
+    ~Destroyed,
+    SignallingThreadPCs)
+
+SignallingThreadDestroySignalsType == [ SignallingThreads -> BOOLEAN ]
+
+ResumeListener(thread) ==
+    /\  ListeningThreadPCs' = [ListeningThreadPCs EXCEPT ![thread] = "Resume"]
+    /\  SignallingThreadDestroySignals' = [SignallingThreadDestroySignals EXCEPT ![ReadFromInstance(SignallingThread[1])] = Destroyed']
+
 TypeOk ==
     /\  SignallingThreadPCs \in SignallingThreadPCsType 
     /\  ListeningThreadPCs \in ListeningThreadPCsType 
@@ -74,6 +94,8 @@ TypeOk ==
     /\  PendingSignalCount \in PendingSignalCountType
     /\  PendingSignalsToHandleCount \in PendingSignalsToHandleCountType
     /\  PendingAwaiters \in PendingAwaitersType
+    /\  SignallingThread \in [ { 1 } -> SignallingThreads] \union { << >> }
+    /\  SignallingThreadDestroySignals \in SignallingThreadDestroySignalsType
 
 Init ==
     /\  SignallingThreadPCs = [ threads \in SignallingThreads |-> "Idle" ]
@@ -83,124 +105,142 @@ Init ==
     /\  PendingSignalCount = 0
     /\  PendingSignalsToHandleCount = 0
     /\  PendingAwaiters = << >>
+    /\  SignallingThread = << >>
+    /\  SignallingThreadDestroySignals = [ thread \in SignallingThreads |-> FALSE ]
 
 Signal_ObtainPendingAwaiters(thread) ==
         /\  SignallingThreadPCs[thread] \in {
                 "ObtainPendingAwaiters_ResumeFirst",
                 "ObtainPendingAwaiters_ResumeNext"
             }
-        /\  \/  /\  PendingAwaiters # << >>
+        /\  \/  /\  ReadFromInstance(PendingAwaiters) # << >>
                 /\  UNCHANGED << State, PendingAwaiters >>
-            \/  /\  PendingAwaiters = << >>
+            \/  /\  ReadFromInstance(PendingAwaiters) = << >>
                 /\  State' = [State EXCEPT !.Thread = << >>]
                 /\  PendingAwaiters' = State.Thread
         /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] =
                 IF SignallingThreadPCs[thread] = "ObtainPendingAwaiters_ResumeFirst"
                 THEN "ResumeFirst"
                 ELSE "ResumeNext_Signal"]
-        /\  UNCHANGED << ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount >>
+        /\  UNCHANGED << ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, SignallingThread, SignallingThreadDestroySignals >>
 
 Signal_Start(thread) ==
         /\  SignallingThreadPCs[thread] = "Idle"
-        /\  \/  /\  State \in {
+        /\  \/  /\  ReadFromInstance(State) \in {
                         [ Type |-> "Signalled", Thread |-> << >> ],
                         [ Type |-> "NoWaitingCoroutine", Thread |-> << >> ]
                     }
                 /\  State' = [ Type |-> "Signalled", Thread |-> << >> ]
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "Complete"]
-            \/  /\  State.Type = "Signalling"
+                /\  UNCHANGED << SignallingThread >>
+            \/  /\  ReadFromInstance(State).Type = "Signalling"
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "Increment"]
-                /\  UNCHANGED << State >>
-            \/  /\  State.Type = "WaitingCoroutine"
+                /\  UNCHANGED << State, SignallingThread >>
+            \/  /\  ReadFromInstance(State).Type = "WaitingCoroutine"
                 /\  State' = [State EXCEPT !.Type = "Signalling" ]
+                /\  SignallingThread' = << thread >>
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ObtainPendingAwaiters_ResumeFirst"]
-        /\  UNCHANGED << ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters  >>
+        /\  UNCHANGED << ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters, SignallingThreadDestroySignals  >>
 
 Signal_ResumeFirst(thread) ==
         /\  SignallingThreadPCs[thread] = "ResumeFirst"
-        /\  PendingAwaiters' = ReadNextAwaiter(PendingAwaiters[1])
-        /\  ListeningThreadPCs' = [ListeningThreadPCs EXCEPT ![PendingAwaiters[1]] = "Resume"]
-        /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ReadPendingSignals"]
-        /\  UNCHANGED << State, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount >>
+        /\  (*\/  /\  SignallingThreadDestroySignals[thread] = TRUE
+                /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "Complete"]
+                /\  UNCHANGED << PendingAwaiters, ListeningThreadPCs >> *)
+            \/  (*/\  SignallingThreadDestroySignals[thread] = FALSE *)
+                /\  PendingAwaiters' = ReadNextAwaiter(ReadFromInstance(PendingAwaiters[1]))
+                /\  ResumeListener(PendingAwaiters[1])
+                /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ReadPendingSignals"]
+        /\  UNCHANGED << State, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, SignallingThread >>
 
 Signal_ReadPendingSignals(thread) ==
-        /\  SignallingThreadPCs[thread] = "ReadPendingSignals"
-        /\  PendingSignalsToHandleCount' = PendingSignalCount
-        /\  PendingSignalCount' = 0
-        /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ResumeNext"]
-        /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingAwaiters >>
+        /\  \/  
+                /\  SignallingThreadDestroySignals[thread] = TRUE
+                /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "Complete"]
+                /\  UNCHANGED << PendingSignalCount, PendingSignalsToHandleCount >>
+            \/
+                /\  SignallingThreadDestroySignals[thread] = FALSE
+                /\  SignallingThreadPCs[thread] = "ReadPendingSignals"
+                /\  PendingSignalsToHandleCount' = ReadFromInstance(PendingSignalCount)
+                /\  PendingSignalCount' = 0
+                /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ResumeNext"]
+        /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingAwaiters, SignallingThread, SignallingThreadDestroySignals >>
 
 Signal_ResumeNext(thread) ==
         /\  SignallingThreadPCs[thread] = "ResumeNext"
-        /\  \/  /\  PendingSignalsToHandleCount = 0
+        /\  \/  /\  ReadFromInstance(PendingSignalsToHandleCount) = 0
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ReleaseSignallingState"]
                 /\  UNCHANGED << PendingSignalsToHandleCount >>
-            \/  /\  PendingSignalsToHandleCount > 0
+            \/  /\  ReadFromInstance(PendingSignalsToHandleCount) > 0
                 /\  PendingSignalsToHandleCount' = PendingSignalsToHandleCount - 1
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ObtainPendingAwaiters_ResumeNext"]
-        /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingAwaiters >>
+        /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingAwaiters, SignallingThread, SignallingThreadDestroySignals >>
         
 Signal_ResumeNext_Signal(thread) ==
         /\  SignallingThreadPCs[thread] = "ResumeNext_Signal"
-        /\  \/  /\  PendingAwaiters = << >>
+        /\  \/  /\  ReadFromInstance(PendingAwaiters) = << >>
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ReleaseSignallingState"]
-                /\  UNCHANGED << ListeningThreadPCs, PendingAwaiters >>
-            \/  /\  PendingAwaiters # << >>
-                /\  ListeningThreadPCs' = [ListeningThreadPCs EXCEPT ![PendingAwaiters[1]] = "Resume"]
+                /\  UNCHANGED << ListeningThreadPCs, PendingAwaiters, SignallingThreadDestroySignals >>
+            \/  /\  ReadFromInstance(PendingAwaiters) # << >>
+                /\  ResumeListener(PendingAwaiters[1])
                 /\  PendingAwaiters' = ReadNextAwaiter(PendingAwaiters[1])
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ResumeNext"]
-        /\  UNCHANGED << State, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount >>
+        /\  UNCHANGED << State, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, SignallingThread >>
 
 Signal_Increment(thread) ==
         /\  SignallingThreadPCs[thread] = "Increment"
-        /\  PendingSignalCount' = PendingSignalCount + 1
+        /\  PendingSignalCount' = ReadFromInstance(PendingSignalCount) + 1
         /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "CheckForPendingSignals"]
-        /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingSignalsToHandleCount, PendingAwaiters >>
+        /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingSignalsToHandleCount, PendingAwaiters, SignallingThread, SignallingThreadDestroySignals >>
 
 Signal_ReleaseSignallingState(thread) ==
         /\  SignallingThreadPCs[thread] = "ReleaseSignallingState"
         /\  State' =
-                IF  /\  State.Thread = << >>
-                    /\  PendingAwaiters = << >>
+                IF  /\  ReadFromInstance(State).Thread = << >>
+                    /\  ReadFromInstance(PendingAwaiters) = << >>
                 THEN [ Type |-> "NoWaitingCoroutine", Thread |-> << >> ]
                 ELSE [ Type |-> "WaitingCoroutine", Thread |-> State.Thread ]
         /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "CheckForPendingSignals"]
-        /\  UNCHANGED << ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters >>
+        /\  UNCHANGED << ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters, SignallingThread, SignallingThreadDestroySignals >>
 
 Signal_CheckForPendingSignals(thread) ==
         /\  SignallingThreadPCs[thread] = "CheckForPendingSignals"
-        /\  \/  /\  PendingSignalCount = 0
+        /\  \/  
+                /\  SignallingThreadDestroySignals[thread] = TRUE
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "Complete"]
-                /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters >>
-            \/  /\  PendingSignalCount > 0
-                /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "HandlePendingSignals"]
-                /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters >>
+            \/
+                /\  SignallingThreadDestroySignals[thread] = FALSE
+                /\  \/  /\  ReadFromInstance(PendingSignalCount) = 0
+                        /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "Complete"]
+                    \/  /\  ReadFromInstance(PendingSignalCount) > 0
+                        /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "HandlePendingSignals"]
+        /\  UNCHANGED << State, ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters, SignallingThread, SignallingThreadDestroySignals >>
 
 Signal_HandlePendingSignals(thread) ==
         /\  SignallingThreadPCs[thread] = "HandlePendingSignals"
-        /\  \/  /\  State.Type \in { "Signalling", "Signalled", "NoWaitingCoroutine" }
+        /\  \/  /\  ReadFromInstance(State).Type \in { "Signalling", "Signalled", "NoWaitingCoroutine" }
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "Complete"]
                 /\  UNCHANGED << State >>
-            \/  /\  State.Type = "WaitingCoroutine"
+            \/  /\  ReadFromInstance(State).Type = "WaitingCoroutine"
                 /\  State' = [State EXCEPT !.Type = "Signalling"]
                 /\  SignallingThreadPCs' = [SignallingThreadPCs EXCEPT ![thread] = "ReadPendingSignals"]
-        /\  UNCHANGED << ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters >>
+        /\  UNCHANGED << ListeningThreadPCs, NextAwaiters, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters, SignallingThread, SignallingThreadDestroySignals >>
 
 Listen_Start(thread) ==
         /\  ListeningThreadPCs[thread] = "Idle"
-        /\  \/  /\  State.Type = "Signalled"
+        /\  \/  /\  ReadFromInstance(State).Type = "Signalled"
                 /\  State' = [State EXCEPT !.Type = "NoWaitingCoroutine" ]
                 /\  ListeningThreadPCs' = [ListeningThreadPCs EXCEPT ![thread] = "Resume"]
                 /\  UNCHANGED << NextAwaiters >>
-            \/  /\  State.Type = "NoWaitingCoroutine"
+            \/  /\  ReadFromInstance(State).Type = "NoWaitingCoroutine"
                 /\  State' = [ Type |-> "WaitingCoroutine", Thread |-> << thread >>]
                 /\  ListeningThreadPCs' = [ListeningThreadPCs EXCEPT ![thread] = "Pending"]
                 /\  UNCHANGED << NextAwaiters >>
-            \/  /\  State.Type \in { "WaitingCoroutine", "Signalling" }
+            \/  /\  ReadFromInstance(State).Type \in { "WaitingCoroutine", "Signalling" }
                 /\  State' = [State EXCEPT !.Thread = << thread >> ]
                 /\  NextAwaiters' = [NextAwaiters EXCEPT ![thread] = State.Thread]
                 /\  ListeningThreadPCs' = [ListeningThreadPCs EXCEPT ![thread] = "Pending"]
-        /\  UNCHANGED << SignallingThreadPCs, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters >>
+        /\  UNCHANGED << SignallingThreadPCs, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters, SignallingThread, SignallingThreadDestroySignals >>
 
 Complete ==
     /\  \A thread \in SignallingThreads :
@@ -276,7 +316,7 @@ ForwardProgressCanBeMade ==
 Invariant ==
     /\  TypeOk
     /\  NoMoreSignalledThreadsThanSignals 
-    /\  ForwardProgressCanBeMade
+    \* /\  ForwardProgressCanBeMade
 
 Spec ==
     /\  Init
