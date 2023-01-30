@@ -73,21 +73,20 @@
         </Expand>
     </Type>
 
-    <Type Name="Phantom::Coroutines::detail::auto_reset_event::awaiter">
+    <Type Name="Phantom::Coroutines::detail::basic_async_auto_reset_event&lt;*,*,*,*&gt;::awaiter">
         <DisplayString>{m_continuation}</DisplayString>
     </Type>
     
     <Type Name="Phantom::Coroutines::detail::basic_async_auto_reset_event&lt;*,*,*,*&gt;">
-        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled, No Waiters</DisplayString>
-        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue">Not Signalled, No Waiters</DisplayString>
+        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::basic_async_auto_reset_event&lt;$T1,$T2,$T3,$T4&gt;::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled, No Waiters</DisplayString>
+        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::basic_async_auto_reset_event&lt;$T1,$T2,$T3,$T4&gt;::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue">Not Signalled, No Waiters</DisplayString>
         <DisplayString Condition="(reinterpret_cast&lt;uintptr_t&gt;(m_state.m_atomicRepresentation._Storage._Value) &amp; 0x1) == 0">Not Signalled, Has Waiters</DisplayString>
         <DisplayString Condition="(reinterpret_cast&lt;uintptr_t&gt;(m_state.m_atomicRepresentation._Storage._Value) &amp; 0x1) == 1">Signalling, Has Waiters</DisplayString>
         <DisplayString>Unknown state</DisplayString>
         
         <Expand>
             
-            <Item Name="Waiters To Signal Next"
-                  Condition="m_pendingAwaiters">m_pendingAwaiters</Item>
+            <Item Name="Waiters To Signal Next">m_pendingAwaiters</Item>
 
             <LinkedListItems>
                 <HeadPointer>m_pendingAwaiters</HeadPointer>
@@ -95,23 +94,18 @@
                 <ValueNode>this</ValueNode>
             </LinkedListItems>
 
-            <Item Name="Enqueued Waiters"
-                  Condition="
-                  m_state.m_atomicRepresentation._Storage._Value != &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue
-                  &amp;&amp;
-                  m_state.m_atomicRepresentation._Storage._Value != &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue
-                  ">
+            <Item Name="Enqueued Waiters">
                 <![CDATA[
-                reinterpret_cast<Phantom::Coroutines::detail::auto_reset_event::awaiter*>(
-                    reinterpret_cast<uintptr_t>(m_state.m_atomicRepresentation._Storage._Value) & ~0x1ULL
-                )
-                ]]>
+                    reinterpret_cast<Phantom::Coroutines::detail::basic_async_auto_reset_event<$T1,$T2,$T3,$T4>::awaiter*>
+                        (
+                        reinterpret_cast<uintptr_t>(m_state.m_atomicRepresentation._Storage._Value) & ~0x1ULL
+                    )]]>
             </Item>
-
+            
             <LinkedListItems>
                 <HeadPointer>
                     <![CDATA[
-                    reinterpret_cast<Phantom::Coroutines::detail::auto_reset_event::awaiter*>
+                    reinterpret_cast<Phantom::Coroutines::detail::basic_async_auto_reset_event<$T1,$T2,$T3,$T4>::awaiter*>
                         (
                         reinterpret_cast<uintptr_t>(m_state.m_atomicRepresentation._Storage._Value) & ~0x1ULL
                     )]]>
