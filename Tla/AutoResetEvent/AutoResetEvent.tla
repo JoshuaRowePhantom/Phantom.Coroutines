@@ -197,6 +197,11 @@ Listen_Start(thread) ==
                 /\  ListeningThreadPCs' = [ListeningThreadPCs EXCEPT ![thread] = "Pending"]
         /\  UNCHANGED << SignallingThreadPCs, PendingSignalCount, PendingSignalsToHandleCount, PendingAwaiters >>
 
+Complete ==
+    /\  \A thread \in SignallingThreads :
+        /\  SignallingThreadPCs[thread] = "Complete"
+    /\  UNCHANGED << vars >>
+
 Next ==
     \/  \E thread \in SignallingThreads :
         \/  Signal_Start(thread)
@@ -211,6 +216,7 @@ Next ==
         \/  Signal_ObtainPendingAwaiters(thread)
     \/  \E  thread \in ListeningThreads :
         \/  Listen_Start(thread)
+    \/  Complete
 
 CardinalityOfSignallingThreads(state) == Cardinality({ thread \in SignallingThreads : SignallingThreadPCs[thread] = state })
 CardinalityOfListeningThreads(state) == Cardinality({ thread \in ListeningThreads : ListeningThreadPCs[thread] = state })
