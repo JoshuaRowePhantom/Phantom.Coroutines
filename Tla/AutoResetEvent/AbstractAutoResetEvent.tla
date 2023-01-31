@@ -1,5 +1,16 @@
 ---- MODULE AbstractAutoResetEvent ----
+(*
 
+An auto reset event that supports multiple awaiters.
+Awaiters must be woken approximately in order that they
+are enqueued. The approximation is that:
+
+Any series of _n_ Listen operations that occur
+without any intervening Set operations must ensure
+that all such listeners are woken by _n_ Set operations
+before any later Listen operations are woken.
+
+ *)
 EXTENDS Sequences, Naturals, TLC
 
 CONSTANT 
