@@ -18,10 +18,12 @@ vars == <<
 
 LOCAL AbstractListener(L) == INSTANCE AbstractEventListener WITH State <- ListenerStates[L]
 
+ListenerStatesType == [ ListeningThreads -> { "Idle", "Waiting", "Complete" }]
+
 TypeOk ==
     /\  SetCount \in Nat
     /\  Listeners \in Seq(ListeningThreads)
-    /\  ListenerStates \in [ ListeningThreads -> { "Idle", "Waiting", "Complete" }]
+    /\  ListenerStates \in ListenerStatesType
 
 Init == 
     /\  SetCount = 0
@@ -82,7 +84,7 @@ Next ==
     \/  Listen(thread)
     \/  Set
     \/  Wake
-    
+
 Spec ==
     /\  Init
     /\  [][Next]_vars
