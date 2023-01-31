@@ -35,7 +35,8 @@ add_executable(
     "make_Task_test.cpp" 
     "manual_scheduler.h"
     "async_latch_test.cpp" 
-    "async_reader_writer_lock_test.cpp")
+    "async_reader_writer_lock_test.cpp" 
+    "sequence_lock_test.cpp")
 
 target_link_libraries(
     Phantom.Coroutines.Test
