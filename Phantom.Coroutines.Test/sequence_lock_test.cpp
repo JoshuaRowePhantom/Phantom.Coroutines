@@ -69,4 +69,43 @@ TEST(sequence_lock_test, reads_and_writes_are_consistent)
         co_await scope.join();
     }());
 }
+
+TEST(sequence_lock_test, read_compare_exchange_uses_sequence_number)
+{
+    sequence_lock<int> sequenceLock(10);
+    sequence_lock<int>::sequence_number sequenceNumber;
+
+    auto actualValue = sequenceLock.read(sequenceNumber);
+    ASSERT_EQ(10, actualValue);
+    ASSERT_EQ(0, sequenceNumber);
+
+    ASSERT_TRUE(sequenceLock.compare_exchange_weak(25, sequenceNumber));
+    ASSERT_EQ(4, sequenceNumber);
+    actualValue = sequenceLock.read(sequenceNumber);
+    ASSERT_EQ(25, actualValue);
+    ASSERT_EQ(4, sequenceNumber);
+}
+
+TEST(sequence_lock_test, compare_exchange_ignores_changed_sequence_number)
+{
+    sequence_lock<int> sequenceLock(10);
+    sequence_lock<int>::sequence_number sequenceNumber;
+
+    auto actualValue = sequenceLock.read(sequenceNumber);
+    ASSERT_EQ(10, actualValue);
+    ASSERT_EQ(0, sequenceNumber);
+
+    ASSERT_TRUE(sequenceLock.compare_exchange_weak(25, sequenceNumber));
+    ASSERT_EQ(4, sequenceNumber);
+    actualValue = sequenceLock.read(sequenceNumber);
+    ASSERT_EQ(25, actualValue);
+    ASSERT_EQ(4, sequenceNumber);
+
+    sequenceNumber = 0;
+    ASSERT_FALSE(sequenceLock.compare_exchange_weak(35, sequenceNumber));
+    ASSERT_EQ(4, sequenceNumber);
+    actualValue = sequenceLock.read(sequenceNumber);
+    ASSERT_EQ(25, actualValue);
+    ASSERT_EQ(4, sequenceNumber);
+}
 }

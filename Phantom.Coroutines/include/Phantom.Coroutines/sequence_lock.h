@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <atomic>
 #include <type_traits>
 
@@ -9,12 +10,16 @@ template<
 requires std::is_trivially_copyable_v<Value>
 class sequence_lock
 {
+public:
+    using sequence_number = size_t;
+
+private:
     // m_sequenceNumber & 0x1 implies the value is in the process of being updated
     // m_sequenceNumber & 0x2 implies there was some waiter looking for m_sequenceNumber to be updated
-    std::atomic<size_t> m_sequenceNumber;
+    mutable std::atomic<sequence_number> m_sequenceNumber;
     Value m_value;
 
-    void wait(size_t& expectedSequenceNumber)
+    void wait(sequence_number& expectedSequenceNumber) const noexcept
     {
         auto desiredSequenceNumber = expectedSequenceNumber | 0x2;
 
@@ -27,10 +32,18 @@ class sequence_lock
     }
 
 public:
-    Value read()
+    sequence_lock(
+        const Value& value = {}
+    ) : m_value { value }
+    {}
+
+    // Read the underlying value consistently,
+    // and return the sequence number to use for compare_exchange_weak.
+    Value read(
+        sequence_number& expectedSequenceNumber
+    ) const noexcept
     {
         Value result;
-        size_t expectedSequenceNumber;
         do
         {
             while ((expectedSequenceNumber = m_sequenceNumber.load(std::memory_order_acquire)) & 0x3)
@@ -43,26 +56,30 @@ public:
         return result;
     }
 
-    void write(Value value)
+    // Read the underlying value consistently.
+    Value read() const noexcept
     {
-        size_t expectedSequenceNumber, nextSequenceNumber;
+        size_t expectedSequenceNumber;
+        return read(expectedSequenceNumber);
+    }
 
-        expectedSequenceNumber = m_sequenceNumber.load(std::memory_order_relaxed);
-        
-        while (expectedSequenceNumber & 0x3
-            || !m_sequenceNumber.compare_exchange_weak(
-                expectedSequenceNumber,
-                expectedSequenceNumber + 1,
-                std::memory_order_acquire))
+    // Update the value if it has not already been updated by another thread.
+    bool compare_exchange_weak(
+        const Value& value,
+        sequence_number& expectedSequenceNumber
+    ) noexcept
+    {
+        assert(expectedSequenceNumber & 0x3 == 0);
+        if (!m_sequenceNumber.compare_exchange_weak(
+            expectedSequenceNumber,
+            expectedSequenceNumber + 1,
+            std::memory_order_acquire
+        ))
         {
-            if (expectedSequenceNumber & 0x3)
-            {
-                wait(expectedSequenceNumber);
-                expectedSequenceNumber = m_sequenceNumber.load(std::memory_order_relaxed);
-            }
+            return false;
         }
-        
-        nextSequenceNumber = expectedSequenceNumber + 4;
+
+        sequence_number nextSequenceNumber = expectedSequenceNumber + 4;
         expectedSequenceNumber += 1;
         m_value = value;
 
@@ -76,6 +93,28 @@ public:
             // Wake all other threads up after storing.
             m_sequenceNumber.store(nextSequenceNumber, std::memory_order_release);
             m_sequenceNumber.notify_all();
+        }
+
+        expectedSequenceNumber = nextSequenceNumber;
+
+        return true;
+    }
+
+    void write(
+        const Value& value
+    ) noexcept
+    {
+        size_t expectedSequenceNumber, nextSequenceNumber;
+
+        expectedSequenceNumber = m_sequenceNumber.load(std::memory_order_relaxed);
+        while (expectedSequenceNumber & 0x3
+            || !compare_exchange_weak(value, expectedSequenceNumber))
+        {
+            if (expectedSequenceNumber & 0x3)
+            {
+                wait(expectedSequenceNumber);
+                expectedSequenceNumber = m_sequenceNumber.load(std::memory_order_relaxed);
+            }
         }
     }
 };
