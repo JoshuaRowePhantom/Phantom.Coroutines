@@ -31,7 +31,6 @@ Accumulate(F(_, _), I, D) ==
 Add(a,b) == a + b
 Sum(F) == Accumulate(Add, 0, F)
 AppendSeq(a, b) == a \o b
-Concatenate(F) == Accumulate(AppendSeq, << >>, F)
 
 RECURSIVE ThreadIsIn(_, _)
 ThreadIsIn(thread, sequence) ==
@@ -209,7 +208,7 @@ Set:-
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "2a5865a9" /\ chksum(tla) = "ad1c8f03")
+\* BEGIN TRANSLATION (chksum(pcal) = "2a5865a9" /\ chksum(tla) = "78205c21")
 VARIABLES SetCount, WaiterCount, EnqueuedListeners, UnservicedListeners, 
           ListenerStates, pc, stack, FetchingCount, ListenersToService, 
           FetchedListeners
@@ -239,7 +238,7 @@ Init == (* Global variables *)
 Resume_FetchListenersToService(self) == /\ pc[self] = "Resume_FetchListenersToService"
                                         /\ IF FetchingCount[self] # 0
                                               THEN /\ Assert(~Destroyed, 
-                                                             "Failure of assertion at line 120, column 9.")
+                                                             "Failure of assertion at line 119, column 9.")
                                                    /\ FetchedListeners' = [FetchedListeners EXCEPT ![self] = EnqueuedListeners]
                                                    /\ EnqueuedListeners' = << >>
                                                    /\ pc' = [pc EXCEPT ![self] = "Resume_DecrementCounts_and_AdjustLists"]
@@ -254,7 +253,7 @@ Resume_FetchListenersToService(self) == /\ pc[self] = "Resume_FetchListenersToSe
 
 Resume_DecrementCounts_and_AdjustLists(self) == /\ pc[self] = "Resume_DecrementCounts_and_AdjustLists"
                                                 /\ Assert(~Destroyed, 
-                                                          "Failure of assertion at line 127, column 9.")
+                                                          "Failure of assertion at line 126, column 9.")
                                                 /\ /\ ListenersToService' = [ListenersToService EXCEPT ![self] =                   ListenersToService[self] \o
                                                                                                                  SubSeq(
                                                                                                                      UnservicedListeners \o FetchedListeners[self],
