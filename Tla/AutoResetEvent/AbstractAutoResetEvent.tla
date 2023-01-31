@@ -16,14 +16,12 @@ vars == <<
     ListenerStates
 >>
 
+LOCAL AbstractListener(L) == INSTANCE AbstractEventListener WITH State <- ListenerStates[L]
+
 TypeOk ==
     /\  SetCount \in Nat
     /\  Listeners \in Seq(ListeningThreads)
     /\  ListenerStates \in [ ListeningThreads -> { "Idle", "Waiting", "Complete" }]
-
-\* When the last listener has resumed, we infer that
-\* the program terminates and destroys the AutoResetEvent.
-Destroyed == \A listener \in ListeningThreads : ListenerStates[listener] = "Complete"
 
 Init == 
     /\  SetCount = 0
@@ -32,31 +30,30 @@ Init ==
 
 Listen(thread) ==
     /\  ListenerStates[thread] = "Idle"
-    /\  Assert(~Destroyed, "Shouldn't be destroyed if listening!")
     /\  
         \* A listening thread can add itself to the list of pending awaiters
         \/  
             /\  Listeners' = Listeners \o << thread >>
             /\  ListenerStates' = [ListenerStates EXCEPT ![thread] = "Waiting"]
             /\  UNCHANGED << SetCount >>
-        \* If there are no pending awaiters, and the event is set,
-        \* then the listener can be immediately released.
+        \* If there are more setcounts than there are awaiters,
+        \* the listener can be immediately released.
         \/  
-            /\  SetCount > 1
-            /\  Listeners = << >>
-            /\  SetCount = 0
-            /\  ListenerStates' = [ListenerStates EXCEPT ![thread] = "Completed"]
+            /\  SetCount > Len(Listeners)
+            /\  SetCount' = SetCount - 1
+            /\  ListenerStates' = [ListenerStates EXCEPT ![thread] = "Complete"]
+            /\  UNCHANGED << Listeners >>
 
 Set ==
-    /\  ~Destroyed
     \* A set operation on an already-set event with no listeners is allowed
     /\  \/  /\  SetCount = 1
             /\  SetCount' = 1
-            /\  ListeningThreads = << >>
+            /\  Listeners = << >>
+            /\  UNCHANGED << Listeners, ListenerStates >>
     \* A Set operation can either increment the SetCount
     \* without releasing a listener,
         \/  /\  SetCount' = SetCount + 1
-            /\  SetCount' < Len(Listeners) + 1
+            /\  SetCount' <= Len(Listeners) + 1
             /\  UNCHANGED << Listeners, ListenerStates >>
     \* Or the set operation can release the first listener, as though
     \* the listener has gone through Wake.
@@ -66,45 +63,67 @@ Set ==
             /\  ListenerStates' = [ListenerStates EXCEPT ![Head(Listeners)] = "Complete"]
             /\  UNCHANGED << SetCount >>
 
-Wake(thread) ==
-    /\  Listeners # << >>
-    /\  Assert(~Destroyed, "Shouldn't be destroyed if waking threads!")
-    /\  Head(Listeners) = thread
-    /\  SetCount > 0
-    /\  SetCount' = SetCount - 1
-    /\  Listeners' = Tail(Listeners)
-    /\  ListenerStates' = [ListenerStates EXCEPT ![Head(Listeners)] = "Complete"]
-
-Complete ==
-    /\  Destroyed
-    /\  UNCHANGED vars
+\* Any number of threads can wake simultaneously,
+\* up to the SetCount.
+Wake ==
+    \E count \in 1..Len(Listeners) :
+    /\  SetCount >= count
+    /\  SetCount' = SetCount - count
+    /\  Listeners' = SubSeq(Listeners, count + 1, Len(Listeners))
+    /\  ListenerStates' = [
+            listener \in ListeningThreads |->
+                IF \E item \in 1..count : Listeners[item] = listener
+                THEN "Complete"
+                ELSE ListenerStates[listener]
+        ]
 
 Next ==
     \E thread \in ListeningThreads :
     \/  Listen(thread)
     \/  Set
-    \/  Wake(thread)
-    \/  Complete
+    \/  Wake
     
 Spec ==
     /\  Init
     /\  [][Next]_vars
+    /\  \A thread \in ListeningThreads :
+        WF_vars(Wake)
 
 Alias == [
     SetCount |-> SetCount,
     Listeners |-> Listeners,
     ListenerStates |-> ListenerStates,
     TypeOk |-> TypeOk,
-    Destroyed |-> Destroyed,
-    Set |-> Set
+    Set |-> Set,
+    Listen |-> [ thread \in ListeningThreads |-> Listen(thread) ],
+    Wake |-> Wake,
+    Check |->  SetCount > Len(Listeners)
+    (*
+            \E thread \in ListeningThreads :
+            /\  SetCount > Len(Listeners)
+            /\  SetCount' = SetCount - 1
+            /\  ListenerStates' = [ListenerStates EXCEPT ![thread] = "Complete"] *)
+
 ]
 
-CanMakeProgress == []<>(Destroyed \/ ENABLED(Set))
+CanMakeProgress == []<>(ENABLED(Set))
 SetCountIsAlwaysValid == SetCount <= Len(Listeners) + 1
 
 Property ==
     /\  Spec
     /\  [](SetCountIsAlwaysValid)
     /\  CanMakeProgress
+    /\  TypeOk
+    \* Have to comment this out until this is resolved:
+    \* https://github.com/tlaplus/tlaplus/issues/687
+    \*  /\  \A thread \in ListeningThreads :
+    \*    /\  AbstractListener(thread)!Property
+    /\  [][
+            \A thread \in ListeningThreads :
+                /\
+                    \/  AbstractListener(thread)!Next
+                    \/  UNCHANGED AbstractListener(thread)!vars
+                /\  AbstractListener(thread)!TypeOk
+        ]_vars
 
-==== 
+====
