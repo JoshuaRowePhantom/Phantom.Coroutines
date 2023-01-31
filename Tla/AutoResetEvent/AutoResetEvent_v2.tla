@@ -52,7 +52,7 @@ AbstractListeners ==
 AbstractListenerStates == [ 
     thread \in ListeningThreads |->
         IF  \/  ListenerStates[thread] = "Complete"
-            \/  ThreadIsIn(thread, Concatenate(ListenersToService))
+            \/  \E signaller \in AllThreads : ThreadIsIn(thread, ListenersToService[signaller])
         THEN "Complete"
         ELSE IF ThreadIsIn(thread, AbstractListeners)
         THEN "Waiting"
