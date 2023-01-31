@@ -18,11 +18,15 @@ VARIABLE
 
 RECURSIVE Sum(_)
 
-RECURSIVE Accumulate(_, _, _)
+RECURSIVE AccumulateImpl(_, _, _, _)
+
+AccumulateImpl(F(_, _), I, D, Domain) ==
+    IF Domain = {} THEN I ELSE 
+    LET x == CHOOSE y \in Domain : TRUE IN
+    F(D[x], AccumulateImpl(F, I, D, Domain \ { x }))
+
 Accumulate(F(_, _), I, D) ==
-    IF D = << >> THEN I ELSE
-    LET x == CHOOSE y \in DOMAIN D : TRUE IN
-    F(D[x], Accumulate(F, I, [ z \in { notX \in DOMAIN D : notX # x } |-> D[z] ]))
+    AccumulateImpl(F, I, D, DOMAIN D)
 
 Add(a,b) == a + b
 Sum(F) == Accumulate(Add, 0, F)
@@ -199,7 +203,7 @@ Set:-
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "2a5865a9" /\ chksum(tla) = "8032d2cc")
+\* BEGIN TRANSLATION (chksum(pcal) = "2a5865a9" /\ chksum(tla) = "dda1177d")
 VARIABLES SetCount, WaiterCount, EnqueuedListeners, UnservicedListeners, 
           ListenerStates, pc, stack, FetchingCount, ListenersToService, 
           FetchedListeners
@@ -229,7 +233,7 @@ Init == (* Global variables *)
 Resume_FetchListenersToService(self) == /\ pc[self] = "Resume_FetchListenersToService"
                                         /\ IF FetchingCount[self] # 0
                                               THEN /\ Assert(~Destroyed, 
-                                                             "Failure of assertion at line 110, column 9.")
+                                                             "Failure of assertion at line 114, column 9.")
                                                    /\ FetchedListeners' = [FetchedListeners EXCEPT ![self] = EnqueuedListeners]
                                                    /\ EnqueuedListeners' = << >>
                                                    /\ pc' = [pc EXCEPT ![self] = "Resume_DecrementCounts_and_AdjustLists"]
@@ -244,7 +248,7 @@ Resume_FetchListenersToService(self) == /\ pc[self] = "Resume_FetchListenersToSe
 
 Resume_DecrementCounts_and_AdjustLists(self) == /\ pc[self] = "Resume_DecrementCounts_and_AdjustLists"
                                                 /\ Assert(~Destroyed, 
-                                                          "Failure of assertion at line 117, column 9.")
+                                                          "Failure of assertion at line 121, column 9.")
                                                 /\ /\ ListenersToService' = [ListenersToService EXCEPT ![self] =                   ListenersToService[self] \o
                                                                                                                  SubSeq(
                                                                                                                      UnservicedListeners \o FetchedListeners[self],
