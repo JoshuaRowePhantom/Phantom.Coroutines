@@ -30,7 +30,6 @@ Accumulate(F(_, _), I, D) ==
 
 Add(a,b) == a + b
 Sum(F) == Accumulate(Add, 0, F)
-AppendSeq(a, b) == a \o b
 
 RECURSIVE ThreadIsIn(_, _)
 ThreadIsIn(thread, sequence) ==
