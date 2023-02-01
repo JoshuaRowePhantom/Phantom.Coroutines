@@ -108,14 +108,17 @@ Resume_DecrementCounts_and_AdjustLists:
 
             // fetchedWaiters is in reverse order of delivery,
             // so reverse it and append to m_unservicedAwaiters
+            awaiter* unservicedAwaiters = nullptr;
+            auto newTail = &fetchedWaiters->m_nextAwaiter;
             while (fetchedWaiters)
             {
                 auto next = fetchedWaiters->m_nextAwaiter;
+                fetchedWaiters->m_nextAwaiter = unservicedAwaiters;
+                unservicedAwaiters = fetchedWaiters;
                 *m_unservicedAwaitersTail = fetchedWaiters;
-                m_unservicedAwaitersTail = &fetchedWaiters->m_nextAwaiter;
-                fetchedWaiters->m_nextAwaiter = nullptr;
                 fetchedWaiters = next;
             }
+            m_unservicedAwaitersTail = newTail;
 
             // Now iterate forward through m_unservicedAwaiters
             // to move fetchCount items to our local set to service.
