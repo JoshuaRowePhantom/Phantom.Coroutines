@@ -1,4 +1,4 @@
----- MODULE ReaderWriterLock ----
+---- MODULE FairReaderWriterLock_LockBased ----
 EXTENDS Integers, TLC, Sequences, FiniteSets
 
 CONSTANT Threads
@@ -49,7 +49,7 @@ CanDestroy ==
     /\  AbstractLocks = { }
     /\  Queue = << >>
 
-(* --algorithm ReaderWriterLock
+(* --algorithm FairReaderWriterLock_LockBased
 
 variables
     \* -1 = locked for write
@@ -186,7 +186,7 @@ DestroyIfIdle:
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "656e1765" /\ chksum(tla) = "2b2452b8")
+\* BEGIN TRANSLATION (chksum(pcal) = "c066e8a6" /\ chksum(tla) = "2b2452b8")
 VARIABLES ReaderLockCount, Queue, Locks, Destroyed, pc, stack, lockToUnlock, 
           locksToResume
 
