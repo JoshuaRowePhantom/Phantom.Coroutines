@@ -4,37 +4,40 @@ EXTENDS FiniteSets, Integers
 CONSTANT Threads
 
 VARIABLE 
-    Readers,
-    Writers
+    Locks
 
 vars == <<
-    Readers,
-    Writers
+    Locks
 >>
 
+LockType == [
+    Type : { "Read", "Write" },
+    Thread : Threads
+]
+
 TypeOk ==
-    /\  Readers \in SUBSET Threads
-    /\  Writers \in SUBSET Threads
+    /\  Locks \in SUBSET LockType
+
+LocksAreCompatible == 
+    \/  Cardinality(Locks) <= 1
+    \/  \A lock \in Locks :
+        lock.Type = "Read"
+
+Invariant ==
+    /\  TypeOk
+    /\  LocksAreCompatible
 
 Init ==
-    /\  Readers = {}
-    /\  Writers = {}
+    /\  Locks \in SUBSET LockType
+    /\  Invariant
 
 Next ==
-    \/  /\  Readers' \in SUBSET Threads
-        /\  Writers' = {}
-    \/  /\  Readers' = {}
-        /\  \E writer \in Threads :
-            Writers' = { writer }
+    /\  Locks' \in SUBSET LockType
+    /\  Invariant'
 
 Spec ==
     /\  Init
     /\  [][Next]_vars
-
-Invariant ==
-    /\  Readers # {} => Writers = {}
-    /\  Writers # {} => Readers = {}
-    /\  Cardinality(Writers) <= 1
 
 Property ==
     /\  Spec
