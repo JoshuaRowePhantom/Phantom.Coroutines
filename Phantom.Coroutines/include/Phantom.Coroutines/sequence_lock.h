@@ -69,7 +69,7 @@ public:
         sequence_number& expectedSequenceNumber
     ) noexcept
     {
-        assert(expectedSequenceNumber & 0x3 == 0);
+        assert((expectedSequenceNumber & 0x3) == 0);
         if (!m_sequenceNumber.compare_exchange_weak(
             expectedSequenceNumber,
             expectedSequenceNumber + 1,
@@ -107,7 +107,7 @@ public:
         size_t expectedSequenceNumber, nextSequenceNumber;
 
         expectedSequenceNumber = m_sequenceNumber.load(std::memory_order_relaxed);
-        while (expectedSequenceNumber & 0x3
+        while ((expectedSequenceNumber & 0x3)
             || !compare_exchange_weak(value, expectedSequenceNumber))
         {
             if (expectedSequenceNumber & 0x3)
