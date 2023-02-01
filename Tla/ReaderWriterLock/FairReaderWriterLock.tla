@@ -101,6 +101,7 @@ LockWriteFast(thread) ==
 Unlock ==
     /\  ~Destroyed
     /\  Locks' \in SUBSET Locks
+    /\  Locks # Locks'
     /\  UNCHANGED Queue
     /\  UNCHANGED Destroyed
 
@@ -124,11 +125,11 @@ Fairness ==
     /\  WF_vars(ServiceQueue)
     /\  WF_vars(Destroy)
     /\  WF_vars(Unlock)
-    /\  \A thread \in Threads :
+    /\  \A thread \in Threads : 
         /\  WF_vars(QueueRead(thread))
-        /\  WF_vars(QueueWrite(thread))
-        /\  WF_vars(LockReadFast(thread))
-        /\  WF_vars(LockWriteFast(thread))
+        \* /\  WF_vars(QueueWrite(thread))
+        \* /\  WF_vars(LockReadFast(thread))
+        \* /\  WF_vars(LockWriteFast(thread))
 
 Spec ==
     /\  Init
