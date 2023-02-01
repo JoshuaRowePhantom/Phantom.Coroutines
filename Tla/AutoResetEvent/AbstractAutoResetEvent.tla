@@ -90,12 +90,18 @@ Wake ==
                 ELSE ListenerStates[listener]
         ]
 
+Reset ==
+    /\  SetCount > Len(Listeners)
+    /\  SetCount' = Len(Listeners)
+    /\  UNCHANGED << Listeners, ListenerStates >>
+
 Next ==
     \E thread \in ListeningThreads :
     \/  Listen(thread)
     \/  Set
     \/  Wake
-
+    \/  Reset
+    
 Spec ==
     /\  Init
     /\  [][Next]_vars

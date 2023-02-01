@@ -193,16 +193,21 @@ fair process SignallingThread \in SignallingThreads
 begin
 Set:-
     while ~Destroyed do
-        \* Set is a noop when SetCount >= WaiterCount + 1
-        \* This action requires an atomic read modify write of SetCount + WaiterCount
-        \* simultaneously.
-        await SetCount < WaiterCount + 1;
-        SetCount := Min({SetCount + 1, WaiterCount + 1});
-        if SetCount = 1 /\ WaiterCount > 0 then
-            call ResumeAwaiters(
-                Min({ SetCount, WaiterCount }));
+        either
+            \* Set is a noop when SetCount >= WaiterCount + 1
+            \* This action requires an atomic read modify write of SetCount + WaiterCount
+            \* simultaneously.
+            await SetCount < WaiterCount + 1;
+            SetCount := Min({SetCount + 1, WaiterCount + 1});
+            if SetCount = 1 /\ WaiterCount > 0 then
+                call ResumeAwaiters(
+                    Min({ SetCount, WaiterCount }));
+                goto Set;
+            end if;
+        or
+            await SetCount > WaiterCount;
+            SetCount := SetCount - 1;
             goto Set;
-        end if;
     end while;
 end process;
 
