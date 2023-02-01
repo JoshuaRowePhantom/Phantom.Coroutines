@@ -4,28 +4,73 @@ EXTENDS Integers, TLC, Sequences, FiniteSets
 CONSTANT Threads
 
 VARIABLE
-    ReaderCount,
+    State,
     Queue,
-    Locks
+    Locks,
+    Destroyed
 
 AwaiterListType == Seq(Threads)
 
 FairLock == INSTANCE FairReaderWriterLock
 
+LockType == FairLock!LockType
+
 TypeOk ==
-    /\  ReaderCount \in -2..Cardinality(Threads)
+    /\  State \in (-Cardinality(Threads) - 1)..(Cardinality(Threads) + 1)
     /\  Queue \in FairLock!QueueType
-    /\  Locks \in SUBSET FairLock!LockType
+    /\  Locks \in SUBSET LockType
+    /\  Destroyed \in BOOLEAN
 
 ReadLock(thread) == [ Type |-> "Read", Thread |-> thread ]
 WriteLock(thread) == [ Type |-> "Write", Thread |-> thread ]
 
+StateActionValue(oldState, unlock) ==
+    LET
+        isResumerLocked == oldState < 0
+        oldReaderCount == IF oldState >= 2 THEN oldState - 1 ELSE IF oldState <= -2 THEN (-oldState) - 1 ELSE 0
+        isWriteLocked == (oldState = 1)
+    IN
+        \* We were the writer, and we've become unlocked, so we should become the resumer.
+        IF isWriteLocked /\ unlock THEN -1 
+        \* The lock is write-locked and we're not the owner. There's nothing to resume.
+        ELSE IF isWriteLocked THEN 1
+        \* May go from reader count 1 to reader count 0 w/ resumer locked, old state = -2 new state = -1
+        ELSE IF isResumerLocked /\ unlock THEN oldState + 1 
+        \* We're not unlocked, and the resumer is locked. Let the existing resumer do its thing.
+        ELSE IF isResumerLocked THEN oldState
+        \* This was the last reader, and the resumer is not locked, so we should become the resumer.
+        ELSE IF oldReaderCount = 1 /\ unlock THEN -1
+        \* This was a reader, the resumer is not locked, but we're not unlocking the last reader,
+        \* so there's nothing to resume.
+        ELSE IF unlock THEN oldState - 1
+        \* The caller doesn't want to unlock anything,
+        \* but just wants to check if resuming is needed,
+        \* which is necessary if the resumer is not locked.
+        ELSE IF ~isResumerLocked /\ ~unlock /\ oldReaderCount = 0 THEN -1
+        \* The caller doesn't want to unlock anything
+        ELSE oldState
+        
+ResumeAction(oldState, newState) ==
+    oldState >= 0 /\ newState < 0
+
+StateAction(oldState, unlock) ==
+    [
+        NewState |-> StateActionValue(oldState, unlock),
+        Resume |-> ResumeAction(oldState, StateActionValue(oldState, unlock))
+    ]
 (* --algorithm ReaderWriterLock
 
 variables
-    ReaderCount = 0,
+    \* 0 = nothing is going on.
+    \* 1 = locked for write
+    \* >= 2 = locked for read
+    \* -1 = locked for resuming waiters
+    \* <= -2 = locked for resuming waiters while read lock held,
+    \*         revert state back to the negative when done
+    State = 0,
     Queue = << >>,
-    Locks = { };
+    Locks = { },
+    Destroyed = FALSE;
 
 macro AddLock(lock)
 begin
@@ -42,39 +87,75 @@ begin
     Queue :=  Queue \o << lock >>
 end macro;
 
-procedure ResumeWaiters(readerDelta = 0)
-variable 
-    ActualReaderCount = 0;
+procedure ResumeWaiters(
+    unlock = FALSE)
+variable
+    queueEntry = << >>
 begin
 Resume_Lock:
-    \* Acquire the lock on resuming waiters
-    ActualReaderCount := ReaderCount + readerDelta;
-    ReaderCount := -2;
-    readerDelta := 0;
-Resume:
-    either
-        await Queue = << >>;
-        ReaderCount := ActualReaderCount;
-        return;
-    or
-        await Queue # << >>;
-        if ActualReaderCount >= 0 /\ Head(Queue).Type = "Read" then
-            AddLock(Head(Queue));
-            ActualReaderCount := ActualReaderCount + 1;
-            goto Resume_Dequeue;
-        elsif ActualReaderCount = 0 /\ Head(Queue).Type = "Write" then
-            ActualReaderCount := -1;
-            AddLock(Head(Queue));
-            goto Resume_Dequeue;
+    while TRUE do
+        assert ~Destroyed;
+        if ~StateAction(State, unlock).Resume then
+            State := StateAction(State, unlock).NewState;
+            unlock := FALSE;
+            goto Resume_Return;
         else
-            goto Resume_Unlock;
+            State := StateAction(State, unlock).NewState;
+            unlock := FALSE;
         end if;
-Resume_Dequeue:
-        Queue := Tail(Queue);
-    end either;
+
+Resume:
+        assert ~Destroyed;
+        either
+            await Queue = << >>;
+            queueEntry := << >>;
+            goto Resume_Unlock;
+        or
+            await Queue # << >>;
+            queueEntry := Head(Queue);
+            if queueEntry.Type = "Read" then
+Resume_DequeueReader:
+                assert ~Destroyed;
+                \* Someone else may have added something to the queue
+                if Head(Queue) # queueEntry then
+                    queueEntry := << >>;
+                    goto Resume;
+                else
+                    AddLock(queueEntry);
+                    queueEntry := << >>;
+                    Queue := Tail(Queue);
+Resume_IncrementReaderCount:
+                    assert ~Destroyed;
+                    State := State - 1;
+                    goto Resume;
+                end if;
+            elsif State = -1 /\ queueEntry.Type = "Write" then
+                State := 1;
+Resume_DequeueWriter:
+                assert ~Destroyed;
+                AddLock(queueEntry);
+                queueEntry := << >>;
+                Queue := Tail(Queue);
+                goto Resume_Return;
+            end if;
+        end either;
 
 Resume_Unlock:
-    ReaderCount := ActualReaderCount;
+        assert ~Destroyed;
+        if State = -1 then
+            State := 0;
+        else
+            State := -State;
+        end if;
+
+Resume_DoubleCheck:
+        assert ~Destroyed;
+        if Queue = << >> then
+            return;
+        end if;
+    end while;
+
+Resume_Return:
     return;
 end procedure;
 
@@ -83,8 +164,9 @@ begin
 Lock:
     either
         \* Become a writer fast.
-        await ReaderCount = 0;
-        ReaderCount := -1;
+        await ~Destroyed;
+        await State = 0;
+        State := 1;
 Lock_FastWrite:
         either
             \* Fast writer succeeded.
@@ -95,28 +177,32 @@ Lock_FastWrite:
             \* Fast write failed due to other waiters.
             await Queue # << >>;
             AddWaiter(WriteLock(self));
-            call ResumeWaiters(1);
+            call ResumeWaiters(TRUE);
             goto Unlock_Write;
         end either;
     or
         \* Enqueue for writer slow.
-        await Queue # << >>;
+        await ~Destroyed;
+        await State # 0;
         AddWaiter(WriteLock(self));
-        goto Unlock_Write;
-
-Lock_Write_ResumeWaiters:
-        call ResumeWaiters(0);
+        call ResumeWaiters(FALSE);
 
 Unlock_Write:
         await WriteLock(self) \in Locks;
         Unlock(WriteLock(self));
-        call ResumeWaiters(1);
+        call ResumeWaiters(TRUE);
         goto Lock;       
     
     or
         \* Become a reader fast.
-        await ReaderCount >= 0;
-        ReaderCount := ReaderCount + 1;
+        await ~Destroyed;
+        await State >= 2 \/ State = 0;
+        if State = 0 then
+            State := 2;
+        else
+            State := State + 1;
+        end if;
+
 Lock_FastRead:
         either
             \* Fast reader succeeded.
@@ -127,208 +213,280 @@ Lock_FastRead:
             \* Fast reader failed due to other waiters.
             await Queue # << >>;
             AddWaiter(ReadLock(self));
-Lock_FastRead_ResumeWaiters:
-            call ResumeWaiters(-1);
+            call ResumeWaiters(TRUE);
             goto Unlock_Read;
         end either;
     or
         \* Enqueue for reader slow.
-        await Queue # << >>;
+        await ~Destroyed;
+        await State = 1 \/ State < 0;
         AddWaiter(ReadLock(self));
-
-Lock_Read_ResumeWaiters:
-        call ResumeWaiters(0);
+        call ResumeWaiters(FALSE);
 
 Unlock_Read:
         await ReadLock(self) \in Locks;
         Unlock(ReadLock(self));
-        call ResumeWaiters(-1);
+        call ResumeWaiters(TRUE);
         goto Lock;
 
+    or
+        await Destroyed;
+        skip;
     end either;
 
 end process;
 
+fair process Destroy \in { "Destroyer" }
+begin
+DestroyIfIdle:
+    await
+        \* Disable destruction for now.
+        /\  FALSE
+        /\  Queue = << >> 
+        /\  Locks = { }
+        /\  State <= 0;
+    Destroyed := TRUE;
+end process;
+
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "498b51da" /\ chksum(tla) = "6fa4bb24")
-VARIABLES ReaderCount, Queue, Locks, pc, stack, readerDelta, 
-          ActualReaderCount
+\* BEGIN TRANSLATION (chksum(pcal) = "755bf695" /\ chksum(tla) = "47ab3af0")
+VARIABLES State, Queue, Locks, Destroyed, pc, stack, unlock, queueEntry
 
-vars == << ReaderCount, Queue, Locks, pc, stack, readerDelta, 
-           ActualReaderCount >>
+vars == << State, Queue, Locks, Destroyed, pc, stack, unlock, queueEntry >>
 
-ProcSet == (Threads)
+ProcSet == (Threads) \cup ({ "Destroyer" })
 
 Init == (* Global variables *)
-        /\ ReaderCount = 0
+        /\ State = 0
         /\ Queue = << >>
         /\ Locks = { }
+        /\ Destroyed = FALSE
         (* Procedure ResumeWaiters *)
-        /\ readerDelta = [ self \in ProcSet |-> 0]
-        /\ ActualReaderCount = [ self \in ProcSet |-> 0]
+        /\ unlock = [ self \in ProcSet |-> FALSE]
+        /\ queueEntry = [ self \in ProcSet |-> << >>]
         /\ stack = [self \in ProcSet |-> << >>]
-        /\ pc = [self \in ProcSet |-> "Lock"]
+        /\ pc = [self \in ProcSet |-> CASE self \in Threads -> "Lock"
+                                        [] self \in { "Destroyer" } -> "DestroyIfIdle"]
 
 Resume_Lock(self) == /\ pc[self] = "Resume_Lock"
-                     /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = ReaderCount + readerDelta[self]]
-                     /\ ReaderCount' = -2
-                     /\ readerDelta' = [readerDelta EXCEPT ![self] = 0]
-                     /\ pc' = [pc EXCEPT ![self] = "Resume"]
-                     /\ UNCHANGED << Queue, Locks, stack >>
+                     /\ Assert(~Destroyed, 
+                               "Failure of assertion at line 97, column 9.")
+                     /\ IF ~StateAction(State, unlock[self]).Resume
+                           THEN /\ State' = StateAction(State, unlock[self]).NewState
+                                /\ unlock' = [unlock EXCEPT ![self] = FALSE]
+                                /\ pc' = [pc EXCEPT ![self] = "Resume_Return"]
+                           ELSE /\ State' = StateAction(State, unlock[self]).NewState
+                                /\ unlock' = [unlock EXCEPT ![self] = FALSE]
+                                /\ pc' = [pc EXCEPT ![self] = "Resume"]
+                     /\ UNCHANGED << Queue, Locks, Destroyed, stack, 
+                                     queueEntry >>
 
 Resume(self) == /\ pc[self] = "Resume"
+                /\ Assert(~Destroyed, 
+                          "Failure of assertion at line 108, column 9.")
                 /\ \/ /\ Queue = << >>
-                      /\ ReaderCount' = ActualReaderCount[self]
-                      /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                      /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = Head(stack[self]).ActualReaderCount]
-                      /\ readerDelta' = [readerDelta EXCEPT ![self] = Head(stack[self]).readerDelta]
-                      /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                      /\ Locks' = Locks
+                      /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
+                      /\ pc' = [pc EXCEPT ![self] = "Resume_Unlock"]
+                      /\ State' = State
                    \/ /\ Queue # << >>
-                      /\ IF ActualReaderCount[self] >= 0 /\ Head(Queue).Type = "Read"
-                            THEN /\ Locks' = (Locks \union { (Head(Queue)) })
-                                 /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = ActualReaderCount[self] + 1]
-                                 /\ pc' = [pc EXCEPT ![self] = "Resume_Dequeue"]
-                            ELSE /\ IF ActualReaderCount[self] = 0 /\ Head(Queue).Type = "Write"
-                                       THEN /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = -1]
-                                            /\ Locks' = (Locks \union { (Head(Queue)) })
-                                            /\ pc' = [pc EXCEPT ![self] = "Resume_Dequeue"]
+                      /\ queueEntry' = [queueEntry EXCEPT ![self] = Head(Queue)]
+                      /\ IF queueEntry'[self].Type = "Read"
+                            THEN /\ pc' = [pc EXCEPT ![self] = "Resume_DequeueReader"]
+                                 /\ State' = State
+                            ELSE /\ IF State = -1 /\ queueEntry'[self].Type = "Write"
+                                       THEN /\ State' = 1
+                                            /\ pc' = [pc EXCEPT ![self] = "Resume_DequeueWriter"]
                                        ELSE /\ pc' = [pc EXCEPT ![self] = "Resume_Unlock"]
-                                            /\ UNCHANGED << Locks, 
-                                                            ActualReaderCount >>
-                      /\ UNCHANGED <<ReaderCount, stack, readerDelta>>
-                /\ Queue' = Queue
+                                            /\ State' = State
+                /\ UNCHANGED << Queue, Locks, Destroyed, stack, unlock >>
 
-Resume_Dequeue(self) == /\ pc[self] = "Resume_Dequeue"
-                        /\ Queue' = Tail(Queue)
-                        /\ pc' = [pc EXCEPT ![self] = "Resume_Unlock"]
-                        /\ UNCHANGED << ReaderCount, Locks, stack, readerDelta, 
-                                        ActualReaderCount >>
+Resume_DequeueReader(self) == /\ pc[self] = "Resume_DequeueReader"
+                              /\ Assert(~Destroyed, 
+                                        "Failure of assertion at line 118, column 17.")
+                              /\ IF Head(Queue) # queueEntry[self]
+                                    THEN /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
+                                         /\ pc' = [pc EXCEPT ![self] = "Resume"]
+                                         /\ UNCHANGED << Queue, Locks >>
+                                    ELSE /\ Locks' = (Locks \union { queueEntry[self] })
+                                         /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
+                                         /\ Queue' = Tail(Queue)
+                                         /\ pc' = [pc EXCEPT ![self] = "Resume_IncrementReaderCount"]
+                              /\ UNCHANGED << State, Destroyed, stack, unlock >>
+
+Resume_IncrementReaderCount(self) == /\ pc[self] = "Resume_IncrementReaderCount"
+                                     /\ Assert(~Destroyed, 
+                                               "Failure of assertion at line 128, column 21.")
+                                     /\ State' = State - 1
+                                     /\ pc' = [pc EXCEPT ![self] = "Resume"]
+                                     /\ UNCHANGED << Queue, Locks, Destroyed, 
+                                                     stack, unlock, queueEntry >>
+
+Resume_DequeueWriter(self) == /\ pc[self] = "Resume_DequeueWriter"
+                              /\ Assert(~Destroyed, 
+                                        "Failure of assertion at line 135, column 17.")
+                              /\ Locks' = (Locks \union { queueEntry[self] })
+                              /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
+                              /\ Queue' = Tail(Queue)
+                              /\ pc' = [pc EXCEPT ![self] = "Resume_Return"]
+                              /\ UNCHANGED << State, Destroyed, stack, unlock >>
 
 Resume_Unlock(self) == /\ pc[self] = "Resume_Unlock"
-                       /\ ReaderCount' = ActualReaderCount[self]
+                       /\ Assert(~Destroyed, 
+                                 "Failure of assertion at line 144, column 9.")
+                       /\ IF State = -1
+                             THEN /\ State' = 0
+                             ELSE /\ State' = -State
+                       /\ pc' = [pc EXCEPT ![self] = "Resume_DoubleCheck"]
+                       /\ UNCHANGED << Queue, Locks, Destroyed, stack, unlock, 
+                                       queueEntry >>
+
+Resume_DoubleCheck(self) == /\ pc[self] = "Resume_DoubleCheck"
+                            /\ Assert(~Destroyed, 
+                                      "Failure of assertion at line 152, column 9.")
+                            /\ IF Queue = << >>
+                                  THEN /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
+                                       /\ queueEntry' = [queueEntry EXCEPT ![self] = Head(stack[self]).queueEntry]
+                                       /\ unlock' = [unlock EXCEPT ![self] = Head(stack[self]).unlock]
+                                       /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
+                                  ELSE /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
+                                       /\ UNCHANGED << stack, unlock, 
+                                                       queueEntry >>
+                            /\ UNCHANGED << State, Queue, Locks, Destroyed >>
+
+Resume_Return(self) == /\ pc[self] = "Resume_Return"
                        /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
-                       /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = Head(stack[self]).ActualReaderCount]
-                       /\ readerDelta' = [readerDelta EXCEPT ![self] = Head(stack[self]).readerDelta]
+                       /\ queueEntry' = [queueEntry EXCEPT ![self] = Head(stack[self]).queueEntry]
+                       /\ unlock' = [unlock EXCEPT ![self] = Head(stack[self]).unlock]
                        /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                       /\ UNCHANGED << Queue, Locks >>
+                       /\ UNCHANGED << State, Queue, Locks, Destroyed >>
 
 ResumeWaiters(self) == Resume_Lock(self) \/ Resume(self)
-                          \/ Resume_Dequeue(self) \/ Resume_Unlock(self)
+                          \/ Resume_DequeueReader(self)
+                          \/ Resume_IncrementReaderCount(self)
+                          \/ Resume_DequeueWriter(self)
+                          \/ Resume_Unlock(self)
+                          \/ Resume_DoubleCheck(self)
+                          \/ Resume_Return(self)
 
 Lock(self) == /\ pc[self] = "Lock"
-              /\ \/ /\ ReaderCount = 0
-                    /\ ReaderCount' = -1
+              /\ \/ /\ ~Destroyed
+                    /\ State = 0
+                    /\ State' = 1
                     /\ pc' = [pc EXCEPT ![self] = "Lock_FastWrite"]
-                    /\ Queue' = Queue
-                 \/ /\ Queue # << >>
+                    /\ UNCHANGED <<Queue, stack, unlock, queueEntry>>
+                 \/ /\ ~Destroyed
+                    /\ State # 0
                     /\ Queue' = Queue \o << (WriteLock(self)) >>
-                    /\ pc' = [pc EXCEPT ![self] = "Unlock_Write"]
-                    /\ UNCHANGED ReaderCount
-                 \/ /\ ReaderCount >= 0
-                    /\ ReaderCount' = ReaderCount + 1
+                    /\ /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                                                                pc        |->  "Unlock_Write",
+                                                                queueEntry |->  queueEntry[self],
+                                                                unlock    |->  unlock[self] ] >>
+                                                            \o stack[self]]
+                       /\ unlock' = [unlock EXCEPT ![self] = FALSE]
+                    /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
+                    /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
+                    /\ State' = State
+                 \/ /\ ~Destroyed
+                    /\ State >= 2 \/ State = 0
+                    /\ IF State = 0
+                          THEN /\ State' = 2
+                          ELSE /\ State' = State + 1
                     /\ pc' = [pc EXCEPT ![self] = "Lock_FastRead"]
-                    /\ Queue' = Queue
-                 \/ /\ Queue # << >>
+                    /\ UNCHANGED <<Queue, stack, unlock, queueEntry>>
+                 \/ /\ ~Destroyed
+                    /\ State = 1 \/ State < 0
                     /\ Queue' = Queue \o << (ReadLock(self)) >>
-                    /\ pc' = [pc EXCEPT ![self] = "Lock_Read_ResumeWaiters"]
-                    /\ UNCHANGED ReaderCount
-              /\ UNCHANGED << Locks, stack, readerDelta, ActualReaderCount >>
+                    /\ /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                                                                pc        |->  "Unlock_Read",
+                                                                queueEntry |->  queueEntry[self],
+                                                                unlock    |->  unlock[self] ] >>
+                                                            \o stack[self]]
+                       /\ unlock' = [unlock EXCEPT ![self] = FALSE]
+                    /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
+                    /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
+                    /\ State' = State
+                 \/ /\ Destroyed
+                    /\ TRUE
+                    /\ pc' = [pc EXCEPT ![self] = "Done"]
+                    /\ UNCHANGED <<State, Queue, stack, unlock, queueEntry>>
+              /\ UNCHANGED << Locks, Destroyed >>
 
 Lock_FastWrite(self) == /\ pc[self] = "Lock_FastWrite"
                         /\ \/ /\ Queue = << >>
                               /\ Locks' = (Locks \union { (WriteLock(self)) })
                               /\ pc' = [pc EXCEPT ![self] = "Unlock_Write"]
-                              /\ UNCHANGED <<Queue, stack, readerDelta, ActualReaderCount>>
+                              /\ UNCHANGED <<Queue, stack, unlock, queueEntry>>
                            \/ /\ Queue # << >>
                               /\ Queue' = Queue \o << (WriteLock(self)) >>
-                              /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = 1]
-                                 /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                              /\ /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
                                                                           pc        |->  "Unlock_Write",
-                                                                          ActualReaderCount |->  ActualReaderCount[self],
-                                                                          readerDelta |->  readerDelta[self] ] >>
+                                                                          queueEntry |->  queueEntry[self],
+                                                                          unlock    |->  unlock[self] ] >>
                                                                       \o stack[self]]
-                              /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
+                                 /\ unlock' = [unlock EXCEPT ![self] = TRUE]
+                              /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
                               /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
                               /\ Locks' = Locks
-                        /\ UNCHANGED ReaderCount
-
-Lock_Write_ResumeWaiters(self) == /\ pc[self] = "Lock_Write_ResumeWaiters"
-                                  /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = 0]
-                                     /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
-                                                                              pc        |->  "Unlock_Write",
-                                                                              ActualReaderCount |->  ActualReaderCount[self],
-                                                                              readerDelta |->  readerDelta[self] ] >>
-                                                                          \o stack[self]]
-                                  /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
-                                  /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
-                                  /\ UNCHANGED << ReaderCount, Queue, Locks >>
+                        /\ UNCHANGED << State, Destroyed >>
 
 Unlock_Write(self) == /\ pc[self] = "Unlock_Write"
                       /\ WriteLock(self) \in Locks
                       /\ Locks' = Locks \ { (WriteLock(self)) }
-                      /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = 1]
-                         /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                      /\ /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
                                                                   pc        |->  "Lock",
-                                                                  ActualReaderCount |->  ActualReaderCount[self],
-                                                                  readerDelta |->  readerDelta[self] ] >>
+                                                                  queueEntry |->  queueEntry[self],
+                                                                  unlock    |->  unlock[self] ] >>
                                                               \o stack[self]]
-                      /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
+                         /\ unlock' = [unlock EXCEPT ![self] = TRUE]
+                      /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
                       /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
-                      /\ UNCHANGED << ReaderCount, Queue >>
+                      /\ UNCHANGED << State, Queue, Destroyed >>
 
 Lock_FastRead(self) == /\ pc[self] = "Lock_FastRead"
                        /\ \/ /\ Queue = << >>
                              /\ Locks' = (Locks \union { (ReadLock(self)) })
                              /\ pc' = [pc EXCEPT ![self] = "Unlock_Read"]
-                             /\ Queue' = Queue
+                             /\ UNCHANGED <<Queue, stack, unlock, queueEntry>>
                           \/ /\ Queue # << >>
                              /\ Queue' = Queue \o << (ReadLock(self)) >>
-                             /\ pc' = [pc EXCEPT ![self] = "Lock_FastRead_ResumeWaiters"]
+                             /\ /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                                                                         pc        |->  "Unlock_Read",
+                                                                         queueEntry |->  queueEntry[self],
+                                                                         unlock    |->  unlock[self] ] >>
+                                                                     \o stack[self]]
+                                /\ unlock' = [unlock EXCEPT ![self] = TRUE]
+                             /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
+                             /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
                              /\ Locks' = Locks
-                       /\ UNCHANGED << ReaderCount, stack, readerDelta, 
-                                       ActualReaderCount >>
-
-Lock_FastRead_ResumeWaiters(self) == /\ pc[self] = "Lock_FastRead_ResumeWaiters"
-                                     /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = -1]
-                                        /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
-                                                                                 pc        |->  "Unlock_Read",
-                                                                                 ActualReaderCount |->  ActualReaderCount[self],
-                                                                                 readerDelta |->  readerDelta[self] ] >>
-                                                                             \o stack[self]]
-                                     /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
-                                     /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
-                                     /\ UNCHANGED << ReaderCount, Queue, Locks >>
-
-Lock_Read_ResumeWaiters(self) == /\ pc[self] = "Lock_Read_ResumeWaiters"
-                                 /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = 0]
-                                    /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
-                                                                             pc        |->  "Unlock_Read",
-                                                                             ActualReaderCount |->  ActualReaderCount[self],
-                                                                             readerDelta |->  readerDelta[self] ] >>
-                                                                         \o stack[self]]
-                                 /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
-                                 /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
-                                 /\ UNCHANGED << ReaderCount, Queue, Locks >>
+                       /\ UNCHANGED << State, Destroyed >>
 
 Unlock_Read(self) == /\ pc[self] = "Unlock_Read"
                      /\ ReadLock(self) \in Locks
                      /\ Locks' = Locks \ { (ReadLock(self)) }
-                     /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = -1]
-                        /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                     /\ /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
                                                                  pc        |->  "Lock",
-                                                                 ActualReaderCount |->  ActualReaderCount[self],
-                                                                 readerDelta |->  readerDelta[self] ] >>
+                                                                 queueEntry |->  queueEntry[self],
+                                                                 unlock    |->  unlock[self] ] >>
                                                              \o stack[self]]
-                     /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
+                        /\ unlock' = [unlock EXCEPT ![self] = TRUE]
+                     /\ queueEntry' = [queueEntry EXCEPT ![self] = << >>]
                      /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
-                     /\ UNCHANGED << ReaderCount, Queue >>
+                     /\ UNCHANGED << State, Queue, Destroyed >>
 
-Thread(self) == Lock(self) \/ Lock_FastWrite(self)
-                   \/ Lock_Write_ResumeWaiters(self) \/ Unlock_Write(self)
-                   \/ Lock_FastRead(self)
-                   \/ Lock_FastRead_ResumeWaiters(self)
-                   \/ Lock_Read_ResumeWaiters(self) \/ Unlock_Read(self)
+Thread(self) == Lock(self) \/ Lock_FastWrite(self) \/ Unlock_Write(self)
+                   \/ Lock_FastRead(self) \/ Unlock_Read(self)
+
+DestroyIfIdle(self) == /\ pc[self] = "DestroyIfIdle"
+                       /\ /\  FALSE
+                          /\  Queue = << >>
+                          /\  Locks = { }
+                          /\  State <= 0
+                       /\ Destroyed' = TRUE
+                       /\ pc' = [pc EXCEPT ![self] = "Done"]
+                       /\ UNCHANGED << State, Queue, Locks, stack, unlock, 
+                                       queueEntry >>
+
+Destroy(self) == DestroyIfIdle(self)
 
 (* Allow infinite stuttering to prevent deadlock on termination. *)
 Terminating == /\ \A self \in ProcSet: pc[self] = "Done"
@@ -336,10 +494,12 @@ Terminating == /\ \A self \in ProcSet: pc[self] = "Done"
 
 Next == (\E self \in ProcSet: ResumeWaiters(self))
            \/ (\E self \in Threads: Thread(self))
+           \/ (\E self \in { "Destroyer" }: Destroy(self))
            \/ Terminating
 
 Spec == /\ Init /\ [][Next]_vars
         /\ \A self \in Threads : WF_vars(Thread(self)) /\ WF_vars(ResumeWaiters(self))
+        /\ \A self \in { "Destroyer" } : WF_vars(Destroy(self))
 
 Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 
@@ -348,5 +508,26 @@ Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 Property ==
     /\  FairLock!Spec
     /\  []TypeOk
+    /\  FairLock!Property
+    /\  \A lock \in LockType :
+        []<>ENABLED(Queue' = Queue \o << lock >>)
 
+Alias ==
+    [
+        State |-> State,
+        Queue |-> Queue,
+        Locks |-> Locks,
+        pc |-> pc,
+        stack |-> stack,
+        unlock |-> unlock,
+        queueEntry |-> queueEntry,
+        Threads |-> [
+            thread \in Threads |-> [
+                Lock |-> ENABLED(Lock(thread)),
+                Lock_FastRead |-> ENABLED(Lock_FastRead(thread)),
+                WriteLockAcquired |-> WriteLock(thread) \in Locks,
+                ReadLockAcquired |-> ReadLock(thread) \in Locks
+            ]
+        ]
+    ]
 ==== 
