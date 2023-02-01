@@ -64,22 +64,20 @@ QueueWrite(thread) ==
     /\  UNCHANGED Locks
     /\  UNCHANGED Destroyed
 
-LockRead(thread) ==
+ServiceQueue ==
     /\  ~Destroyed
-    /\  Queue # << >>
-    /\  Head(Queue) = ReadLock(thread)
-    /\  Queue' = Tail(Queue)
-    /\  \A lock \in Locks : lock.Type = "Read"
-    /\  Locks' = Locks \union { ReadLock(thread) }
-    /\  UNCHANGED Destroyed
-
-LockWrite(thread) ==
-    /\  ~Destroyed
-    /\  Queue # << >>
-    /\  Head(Queue) = WriteLock(thread)
-    /\  Queue' = Tail(Queue)
-    /\  Locks = { }
-    /\  Locks' = Locks \union { WriteLock(thread) }
+    /\  Locks' \in SUBSET LockType
+    /\  \E index \in 1..Len(Queue) :
+        /\  \A lowerIndex \in 1..index :
+            /\  Queue[lowerIndex] \in Locks'
+            /\  \/  Queue[lowerIndex].Type = "Read"
+                \/  index = 1
+        /\  Queue' = SubSeq(Queue, index + 1, Len(Queue))
+        /\  \A lock \in Locks' :
+            /\  \/  lock.Type = "Read"
+                \/  Cardinality(Locks') <= 1
+            /\  \/  lock \in Locks
+                \/  \E queueIndex \in 1..index : Queue[queueIndex] = lock
     /\  UNCHANGED Destroyed
 
 LockReadFast(thread) ==
@@ -100,11 +98,9 @@ LockWriteFast(thread) ==
     /\  Locks' = Locks \union { WriteLock(thread) }
     /\  UNCHANGED Destroyed
 
-Unlock(thread) ==
+Unlock ==
     /\  ~Destroyed
-    /\  \E lock \in Locks :
-        /\  lock.Thread = thread
-        /\  Locks' = Locks \ { lock }
+    /\  Locks' \in SUBSET Locks
     /\  UNCHANGED Queue
     /\  UNCHANGED Destroyed
 
@@ -120,21 +116,19 @@ Next ==
     \/  LockWriteFast(thread)
     \/  QueueRead(thread)
     \/  QueueWrite(thread)
-    \/  LockRead(thread)
-    \/  LockWrite(thread)
-    \/  Unlock(thread)
+    \/  ServiceQueue
+    \/  Unlock
     \/  Destroy
 
 Fairness ==
+    /\  WF_vars(ServiceQueue)
+    /\  WF_vars(Destroy)
+    /\  WF_vars(Unlock)
     /\  \A thread \in Threads :
         /\  WF_vars(QueueRead(thread))
         /\  WF_vars(QueueWrite(thread))
         /\  WF_vars(LockReadFast(thread))
         /\  WF_vars(LockWriteFast(thread))
-        /\  WF_vars(LockRead(thread))
-        /\  WF_vars(LockWrite(thread))
-        /\  WF_vars(Unlock(thread))
-        /\  WF_vars(Destroy)
 
 Spec ==
     /\  Init
@@ -145,6 +139,8 @@ Property ==
     /\  Spec
     /\  []AbstractLock!TypeOk
     /\  []TypeOk
+    /\  \A lock \in LockType :
+        []((\E index \in DOMAIN Queue : Queue[index] = lock) ~> lock \in Locks)
 
 Alias == [
     Locks |-> Locks,
@@ -156,9 +152,8 @@ Alias == [
             LockWriteFastEnabled |-> ENABLED(LockWriteFast(thread)),
             QueueReadEnabled |-> ENABLED(QueueRead(thread)),
             QueueWriteEnabled |-> ENABLED(QueueWrite(thread)),
-            LockReadEnabled |-> ENABLED(LockRead(thread)),
-            LockWriteEnabled |-> ENABLED(LockWrite(thread)),
-            UnlockEnabled |-> ENABLED(Unlock(thread)),
+            ServiceQueueEnabled |-> ENABLED(ServiceQueue),
+            UnlockEnabled |-> ENABLED(Unlock),
             IsNotLocked |-> IsNotLocked(thread),
             IsNotQueued |-> IsNotQueued(thread)
         ]
