@@ -107,4 +107,11 @@ ASYNC_TEST(async_reader_writer_lock_test, can_loop_without_stack_overflow)
         auto lock = co_await readerWriterLock.reader().scoped_lock_async();
     }
 }
+
+ASYNC_TEST(async_reader_writer_lock_test, can_destroy_after_awaiting)
+{
+    async_reader_writer_lock<> readerWriterLock;
+    auto lock = co_await readerWriterLock.reader().scoped_lock_async();
+}
+
 }
