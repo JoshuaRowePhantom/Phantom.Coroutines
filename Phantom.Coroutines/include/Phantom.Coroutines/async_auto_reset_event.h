@@ -187,7 +187,10 @@ end procedure;
         while (waitersToService)
         {
             auto next = waitersToService->m_nextAwaiter;
-            waitersToService->m_continuation.resume();
+            if (waitersToService->m_referenceCount.fetch_sub(1, std::memory_order_acquire) == 1)
+            {
+                waitersToService->m_continuation.resume();
+            }
             waitersToService = next;
         }
     }
@@ -204,6 +207,7 @@ end procedure;
         };
 
         Continuation m_continuation;
+        std::atomic<char> m_referenceCount = 2;
 
         awaiter(
             basic_async_auto_reset_event* event
@@ -217,7 +221,7 @@ end procedure;
             return false;
         }
 
-        bool await_suspend(
+        coroutine_handle<> await_suspend(
             Continuation continuation
         ) noexcept
         {
@@ -241,7 +245,7 @@ end procedure;
                     state,
                     sequenceNumber))
                 {
-                    return false;
+                    return continuation;
                 }
             }
 
@@ -288,7 +292,12 @@ Listen_IncrementWaiterCount:
                     sequenceNumber);
             }
 
-            return true;
+            if (m_referenceCount.fetch_sub(1, std::memory_order_acquire) == 1)
+            {
+                return continuation;
+            }
+
+            return noop_coroutine();
         }
 
         void await_resume(
