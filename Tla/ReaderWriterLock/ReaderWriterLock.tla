@@ -5,374 +5,348 @@ CONSTANT Threads
 
 VARIABLE
     ReaderCount,
-    ReaderCountWaiters,
-    ReaderCountOwner,
-    ResourceWaiters,
-    ResourceOwner,
-    ServiceQueue,
-    ServiceQueueOwner,
-    AcquiredLocks
+    Queue,
+    Locks
 
 AwaiterListType == Seq(Threads)
 
+FairLock == INSTANCE FairReaderWriterLock
+
 TypeOk ==
-    /\  ReaderCount \in 0..Cardinality(Threads)
-    /\  ReaderCountWaiters \in AwaiterListType
-    /\  ReaderCountOwner \in AwaiterListType
-    /\  ResourceWaiters \in AwaiterListType
-    /\  ServiceQueue \in AwaiterListType
-    /\  ResourceOwner \in AwaiterListType
-    /\  ServiceQueueOwner \in AwaiterListType
-    /\  AcquiredLocks \in [ Threads -> { "Unlocked", "Pending", "Read", "Write", "Released" }]
+    /\  ReaderCount \in -2..Cardinality(Threads)
+    /\  Queue \in FairLock!QueueType
+    /\  Locks \in SUBSET FairLock!LockType
+
+ReadLock(thread) == [ Type |-> "Read", Thread |-> thread ]
+WriteLock(thread) == [ Type |-> "Write", Thread |-> thread ]
 
 (* --algorithm ReaderWriterLock
 
 variables
     ReaderCount = 0,
-    ReaderCountWaiters = << >>,
-    ReaderCountOwner = << >>,
-    ResourceWaiters = << >>,
-    ResourceOwner = << >>,
-    ServiceQueue = << >>,
-    ServiceQueueOwner = << >>,
-    AcquiredLocks = [ thread \in Threads |-> "Unlocked" ];
+    Queue = << >>,
+    Locks = { };
 
-macro EnqueueForOwnership(queue, queueOwner)
+macro AddLock(lock)
 begin
-    if queueOwner = << >> then
-        queueOwner := << self >>;
-    else
-        queue := queue \o << self >>;
-    end if;
+    Locks := Locks \union { lock }
 end macro;
 
-macro ReleaseOwnership(queue, queueOwner)
+macro Unlock(lock)
 begin
-    if queue = << >> then
-        queueOwner := << >>;
-    else
-        queueOwner := << Head(queue) >>;
-        queue := Tail(queue);
-    end if;
+    Locks := Locks \ { lock }
 end macro;
 
-fair process Worker \in Threads
+macro AddWaiter(lock)
 begin
-Start:
-    AcquiredLocks[self] := "Pending";
-    \* All requests start by entering the service queue.
-    EnqueueForOwnership(ServiceQueue, ServiceQueueOwner);
+    Queue :=  Queue \o << lock >>
+end macro;
 
-WaitForServiceQueueOwnership:
-    await ServiceQueueOwner = << self >>;
-
-    \* Now we decide to either be a reader or a writer
+procedure ResumeWaiters(readerDelta = 0)
+variable 
+    ActualReaderCount = 0;
+begin
+Resume_Lock:
+    \* Acquire the lock on resuming waiters
+    ActualReaderCount := ReaderCount + readerDelta;
+    ReaderCount := -2;
+    readerDelta := 0;
+Resume:
     either
-        \* Let's be a reader!
-        EnqueueForOwnership(ReaderCountWaiters, ReaderCountOwner);
-AcquireRead_WaitForReaderCountOwnership:
-        await ReaderCountOwner = << self >>;
-
-        ReaderCount := ReaderCount + 1;
-        if ReaderCount = 1 then
-            EnqueueForOwnership(ResourceWaiters, ResourceOwner);
-AcquireRead_WaitForResourceOwnership:
-            await ResourceOwner = << self >>;
-            ReleaseOwnership(ServiceQueue, ServiceQueueOwner);
-        else
-            ReleaseOwnership(ServiceQueue, ServiceQueueOwner);
-        end if;
-
-AcquireRead_ReleaseReaderCountOwnership:
-        ReleaseOwnership(ReaderCountWaiters, ReaderCountOwner);
-        AcquiredLocks[self] := "Read";
-
-ReleaseRead_AcquireReaderCountOwnership:
-        AcquiredLocks[self] := "Released";
-        EnqueueForOwnership(ReaderCountWaiters, ReaderCountOwner);
-
-ReleaseRead_WaitForReaderCountOwnership:
-        await ReaderCountOwner = << self >>;
-
-        ReaderCount := ReaderCount - 1;
-        if ReaderCount = 0 then
-            ReleaseOwnership(ResourceWaiters, ResourceOwner);
-        end if;
-ReleaseRead_ReleaseReaderCountOwnership:
-        ReleaseOwnership(ReaderCountWaiters, ReaderCountOwner);
-        
-        \* All done with the read path!
+        await Queue = << >>;
+        ReaderCount := ActualReaderCount;
+        return;
     or
-        \* Let's be a writer!
-AcquireWrite_AddToResourceQueue:
-        EnqueueForOwnership(ResourceWaiters, ResourceOwner);
-AcquireWrite_WaitForResourceOwnership:
-        await ResourceOwner = << self >>;
-
-AcquireWrite_ReleaseServiceQueue:
-        ReleaseOwnership(ServiceQueue, ServiceQueueOwner);
-        AcquiredLocks[self] := "Write";
-   
-AcquireWrite_ReleaseResourceOwnership:
-        ReleaseOwnership(ResourceWaiters, ResourceOwner);
-        AcquiredLocks[self] := "Released";
-        \* All done with the write path!
+        await Queue # << >>;
+        if ActualReaderCount >= 0 /\ Head(Queue).Type = "Read" then
+            AddLock(Head(Queue));
+            ActualReaderCount := ActualReaderCount + 1;
+            goto Resume_Dequeue;
+        elsif ActualReaderCount = 0 /\ Head(Queue).Type = "Write" then
+            ActualReaderCount := -1;
+            AddLock(Head(Queue));
+            goto Resume_Dequeue;
+        else
+            goto Resume_Unlock;
+        end if;
+Resume_Dequeue:
+        Queue := Tail(Queue);
     end either;
+
+Resume_Unlock:
+    ReaderCount := ActualReaderCount;
+    return;
+end procedure;
+
+fair process Thread \in Threads
+begin
+Lock:
+    either
+        \* Become a writer fast.
+        await ReaderCount = 0;
+        ReaderCount := -1;
+Lock_FastWrite:
+        either
+            \* Fast writer succeeded.
+            await Queue = << >>;
+            AddLock(WriteLock(self));
+            goto Unlock_Write;
+        or
+            \* Fast write failed due to other waiters.
+            await Queue # << >>;
+            AddWaiter(WriteLock(self));
+            call ResumeWaiters(1);
+            goto Unlock_Write;
+        end either;
+    or
+        \* Enqueue for writer slow.
+        await Queue # << >>;
+        AddWaiter(WriteLock(self));
+        goto Unlock_Write;
+
+Lock_Write_ResumeWaiters:
+        call ResumeWaiters(0);
+
+Unlock_Write:
+        await WriteLock(self) \in Locks;
+        Unlock(WriteLock(self));
+        call ResumeWaiters(1);
+        goto Lock;       
+    
+    or
+        \* Become a reader fast.
+        await ReaderCount >= 0;
+        ReaderCount := ReaderCount + 1;
+Lock_FastRead:
+        either
+            \* Fast reader succeeded.
+            await Queue = << >>;
+            AddLock(ReadLock(self));
+            goto Unlock_Read;
+        or
+            \* Fast reader failed due to other waiters.
+            await Queue # << >>;
+            AddWaiter(ReadLock(self));
+Lock_FastRead_ResumeWaiters:
+            call ResumeWaiters(-1);
+            goto Unlock_Read;
+        end either;
+    or
+        \* Enqueue for reader slow.
+        await Queue # << >>;
+        AddWaiter(ReadLock(self));
+
+Lock_Read_ResumeWaiters:
+        call ResumeWaiters(0);
+
+Unlock_Read:
+        await ReadLock(self) \in Locks;
+        Unlock(ReadLock(self));
+        call ResumeWaiters(-1);
+        goto Lock;
+
+    end either;
+
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "7bf39b9f" /\ chksum(tla) = "6c1bce44")
-VARIABLES ReaderCount, ReaderCountWaiters, ReaderCountOwner, ResourceWaiters, 
-          ResourceOwner, ServiceQueue, ServiceQueueOwner, AcquiredLocks, pc
+\* BEGIN TRANSLATION (chksum(pcal) = "498b51da" /\ chksum(tla) = "6fa4bb24")
+VARIABLES ReaderCount, Queue, Locks, pc, stack, readerDelta, 
+          ActualReaderCount
 
-vars == << ReaderCount, ReaderCountWaiters, ReaderCountOwner, ResourceWaiters, 
-           ResourceOwner, ServiceQueue, ServiceQueueOwner, AcquiredLocks, pc
-        >>
+vars == << ReaderCount, Queue, Locks, pc, stack, readerDelta, 
+           ActualReaderCount >>
 
 ProcSet == (Threads)
 
 Init == (* Global variables *)
         /\ ReaderCount = 0
-        /\ ReaderCountWaiters = << >>
-        /\ ReaderCountOwner = << >>
-        /\ ResourceWaiters = << >>
-        /\ ResourceOwner = << >>
-        /\ ServiceQueue = << >>
-        /\ ServiceQueueOwner = << >>
-        /\ AcquiredLocks = [ thread \in Threads |-> "Unlocked" ]
-        /\ pc = [self \in ProcSet |-> "Start"]
+        /\ Queue = << >>
+        /\ Locks = { }
+        (* Procedure ResumeWaiters *)
+        /\ readerDelta = [ self \in ProcSet |-> 0]
+        /\ ActualReaderCount = [ self \in ProcSet |-> 0]
+        /\ stack = [self \in ProcSet |-> << >>]
+        /\ pc = [self \in ProcSet |-> "Lock"]
 
-Start(self) == /\ pc[self] = "Start"
-               /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Pending"]
-               /\ IF ServiceQueueOwner = << >>
-                     THEN /\ ServiceQueueOwner' = << self >>
-                          /\ UNCHANGED ServiceQueue
-                     ELSE /\ ServiceQueue' = ServiceQueue \o << self >>
-                          /\ UNCHANGED ServiceQueueOwner
-               /\ pc' = [pc EXCEPT ![self] = "WaitForServiceQueueOwnership"]
-               /\ UNCHANGED << ReaderCount, ReaderCountWaiters, 
-                               ReaderCountOwner, ResourceWaiters, 
-                               ResourceOwner >>
+Resume_Lock(self) == /\ pc[self] = "Resume_Lock"
+                     /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = ReaderCount + readerDelta[self]]
+                     /\ ReaderCount' = -2
+                     /\ readerDelta' = [readerDelta EXCEPT ![self] = 0]
+                     /\ pc' = [pc EXCEPT ![self] = "Resume"]
+                     /\ UNCHANGED << Queue, Locks, stack >>
 
-WaitForServiceQueueOwnership(self) == /\ pc[self] = "WaitForServiceQueueOwnership"
-                                      /\ ServiceQueueOwner = << self >>
-                                      /\ \/ /\ IF ReaderCountOwner = << >>
-                                                  THEN /\ ReaderCountOwner' = << self >>
-                                                       /\ UNCHANGED ReaderCountWaiters
-                                                  ELSE /\ ReaderCountWaiters' = ReaderCountWaiters \o << self >>
-                                                       /\ UNCHANGED ReaderCountOwner
-                                            /\ pc' = [pc EXCEPT ![self] = "AcquireRead_WaitForReaderCountOwnership"]
-                                         \/ /\ pc' = [pc EXCEPT ![self] = "AcquireWrite_AddToResourceQueue"]
-                                            /\ UNCHANGED <<ReaderCountWaiters, ReaderCountOwner>>
-                                      /\ UNCHANGED << ReaderCount, 
-                                                      ResourceWaiters, 
-                                                      ResourceOwner, 
-                                                      ServiceQueue, 
-                                                      ServiceQueueOwner, 
-                                                      AcquiredLocks >>
+Resume(self) == /\ pc[self] = "Resume"
+                /\ \/ /\ Queue = << >>
+                      /\ ReaderCount' = ActualReaderCount[self]
+                      /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
+                      /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = Head(stack[self]).ActualReaderCount]
+                      /\ readerDelta' = [readerDelta EXCEPT ![self] = Head(stack[self]).readerDelta]
+                      /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
+                      /\ Locks' = Locks
+                   \/ /\ Queue # << >>
+                      /\ IF ActualReaderCount[self] >= 0 /\ Head(Queue).Type = "Read"
+                            THEN /\ Locks' = (Locks \union { (Head(Queue)) })
+                                 /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = ActualReaderCount[self] + 1]
+                                 /\ pc' = [pc EXCEPT ![self] = "Resume_Dequeue"]
+                            ELSE /\ IF ActualReaderCount[self] = 0 /\ Head(Queue).Type = "Write"
+                                       THEN /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = -1]
+                                            /\ Locks' = (Locks \union { (Head(Queue)) })
+                                            /\ pc' = [pc EXCEPT ![self] = "Resume_Dequeue"]
+                                       ELSE /\ pc' = [pc EXCEPT ![self] = "Resume_Unlock"]
+                                            /\ UNCHANGED << Locks, 
+                                                            ActualReaderCount >>
+                      /\ UNCHANGED <<ReaderCount, stack, readerDelta>>
+                /\ Queue' = Queue
 
-AcquireRead_WaitForReaderCountOwnership(self) == /\ pc[self] = "AcquireRead_WaitForReaderCountOwnership"
-                                                 /\ ReaderCountOwner = << self >>
-                                                 /\ ReaderCount' = ReaderCount + 1
-                                                 /\ IF ReaderCount' = 1
-                                                       THEN /\ IF ResourceOwner = << >>
-                                                                  THEN /\ ResourceOwner' = << self >>
-                                                                       /\ UNCHANGED ResourceWaiters
-                                                                  ELSE /\ ResourceWaiters' = ResourceWaiters \o << self >>
-                                                                       /\ UNCHANGED ResourceOwner
-                                                            /\ pc' = [pc EXCEPT ![self] = "AcquireRead_WaitForResourceOwnership"]
-                                                            /\ UNCHANGED << ServiceQueue, 
-                                                                            ServiceQueueOwner >>
-                                                       ELSE /\ IF ServiceQueue = << >>
-                                                                  THEN /\ ServiceQueueOwner' = << >>
-                                                                       /\ UNCHANGED ServiceQueue
-                                                                  ELSE /\ ServiceQueueOwner' = << Head(ServiceQueue) >>
-                                                                       /\ ServiceQueue' = Tail(ServiceQueue)
-                                                            /\ pc' = [pc EXCEPT ![self] = "AcquireRead_ReleaseReaderCountOwnership"]
-                                                            /\ UNCHANGED << ResourceWaiters, 
-                                                                            ResourceOwner >>
-                                                 /\ UNCHANGED << ReaderCountWaiters, 
-                                                                 ReaderCountOwner, 
-                                                                 AcquiredLocks >>
+Resume_Dequeue(self) == /\ pc[self] = "Resume_Dequeue"
+                        /\ Queue' = Tail(Queue)
+                        /\ pc' = [pc EXCEPT ![self] = "Resume_Unlock"]
+                        /\ UNCHANGED << ReaderCount, Locks, stack, readerDelta, 
+                                        ActualReaderCount >>
 
-AcquireRead_WaitForResourceOwnership(self) == /\ pc[self] = "AcquireRead_WaitForResourceOwnership"
-                                              /\ ResourceOwner = << self >>
-                                              /\ IF ServiceQueue = << >>
-                                                    THEN /\ ServiceQueueOwner' = << >>
-                                                         /\ UNCHANGED ServiceQueue
-                                                    ELSE /\ ServiceQueueOwner' = << Head(ServiceQueue) >>
-                                                         /\ ServiceQueue' = Tail(ServiceQueue)
-                                              /\ pc' = [pc EXCEPT ![self] = "AcquireRead_ReleaseReaderCountOwnership"]
-                                              /\ UNCHANGED << ReaderCount, 
-                                                              ReaderCountWaiters, 
-                                                              ReaderCountOwner, 
-                                                              ResourceWaiters, 
-                                                              ResourceOwner, 
-                                                              AcquiredLocks >>
+Resume_Unlock(self) == /\ pc[self] = "Resume_Unlock"
+                       /\ ReaderCount' = ActualReaderCount[self]
+                       /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
+                       /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = Head(stack[self]).ActualReaderCount]
+                       /\ readerDelta' = [readerDelta EXCEPT ![self] = Head(stack[self]).readerDelta]
+                       /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
+                       /\ UNCHANGED << Queue, Locks >>
 
-AcquireRead_ReleaseReaderCountOwnership(self) == /\ pc[self] = "AcquireRead_ReleaseReaderCountOwnership"
-                                                 /\ IF ReaderCountWaiters = << >>
-                                                       THEN /\ ReaderCountOwner' = << >>
-                                                            /\ UNCHANGED ReaderCountWaiters
-                                                       ELSE /\ ReaderCountOwner' = << Head(ReaderCountWaiters) >>
-                                                            /\ ReaderCountWaiters' = Tail(ReaderCountWaiters)
-                                                 /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Read"]
-                                                 /\ pc' = [pc EXCEPT ![self] = "ReleaseRead_AcquireReaderCountOwnership"]
-                                                 /\ UNCHANGED << ReaderCount, 
-                                                                 ResourceWaiters, 
-                                                                 ResourceOwner, 
-                                                                 ServiceQueue, 
-                                                                 ServiceQueueOwner >>
+ResumeWaiters(self) == Resume_Lock(self) \/ Resume(self)
+                          \/ Resume_Dequeue(self) \/ Resume_Unlock(self)
 
-ReleaseRead_AcquireReaderCountOwnership(self) == /\ pc[self] = "ReleaseRead_AcquireReaderCountOwnership"
-                                                 /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Released"]
-                                                 /\ IF ReaderCountOwner = << >>
-                                                       THEN /\ ReaderCountOwner' = << self >>
-                                                            /\ UNCHANGED ReaderCountWaiters
-                                                       ELSE /\ ReaderCountWaiters' = ReaderCountWaiters \o << self >>
-                                                            /\ UNCHANGED ReaderCountOwner
-                                                 /\ pc' = [pc EXCEPT ![self] = "ReleaseRead_WaitForReaderCountOwnership"]
-                                                 /\ UNCHANGED << ReaderCount, 
-                                                                 ResourceWaiters, 
-                                                                 ResourceOwner, 
-                                                                 ServiceQueue, 
-                                                                 ServiceQueueOwner >>
+Lock(self) == /\ pc[self] = "Lock"
+              /\ \/ /\ ReaderCount = 0
+                    /\ ReaderCount' = -1
+                    /\ pc' = [pc EXCEPT ![self] = "Lock_FastWrite"]
+                    /\ Queue' = Queue
+                 \/ /\ Queue # << >>
+                    /\ Queue' = Queue \o << (WriteLock(self)) >>
+                    /\ pc' = [pc EXCEPT ![self] = "Unlock_Write"]
+                    /\ UNCHANGED ReaderCount
+                 \/ /\ ReaderCount >= 0
+                    /\ ReaderCount' = ReaderCount + 1
+                    /\ pc' = [pc EXCEPT ![self] = "Lock_FastRead"]
+                    /\ Queue' = Queue
+                 \/ /\ Queue # << >>
+                    /\ Queue' = Queue \o << (ReadLock(self)) >>
+                    /\ pc' = [pc EXCEPT ![self] = "Lock_Read_ResumeWaiters"]
+                    /\ UNCHANGED ReaderCount
+              /\ UNCHANGED << Locks, stack, readerDelta, ActualReaderCount >>
 
-ReleaseRead_WaitForReaderCountOwnership(self) == /\ pc[self] = "ReleaseRead_WaitForReaderCountOwnership"
-                                                 /\ ReaderCountOwner = << self >>
-                                                 /\ ReaderCount' = ReaderCount - 1
-                                                 /\ IF ReaderCount' = 0
-                                                       THEN /\ IF ResourceWaiters = << >>
-                                                                  THEN /\ ResourceOwner' = << >>
-                                                                       /\ UNCHANGED ResourceWaiters
-                                                                  ELSE /\ ResourceOwner' = << Head(ResourceWaiters) >>
-                                                                       /\ ResourceWaiters' = Tail(ResourceWaiters)
-                                                       ELSE /\ TRUE
-                                                            /\ UNCHANGED << ResourceWaiters, 
-                                                                            ResourceOwner >>
-                                                 /\ pc' = [pc EXCEPT ![self] = "ReleaseRead_ReleaseReaderCountOwnership"]
-                                                 /\ UNCHANGED << ReaderCountWaiters, 
-                                                                 ReaderCountOwner, 
-                                                                 ServiceQueue, 
-                                                                 ServiceQueueOwner, 
-                                                                 AcquiredLocks >>
+Lock_FastWrite(self) == /\ pc[self] = "Lock_FastWrite"
+                        /\ \/ /\ Queue = << >>
+                              /\ Locks' = (Locks \union { (WriteLock(self)) })
+                              /\ pc' = [pc EXCEPT ![self] = "Unlock_Write"]
+                              /\ UNCHANGED <<Queue, stack, readerDelta, ActualReaderCount>>
+                           \/ /\ Queue # << >>
+                              /\ Queue' = Queue \o << (WriteLock(self)) >>
+                              /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = 1]
+                                 /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                                                                          pc        |->  "Unlock_Write",
+                                                                          ActualReaderCount |->  ActualReaderCount[self],
+                                                                          readerDelta |->  readerDelta[self] ] >>
+                                                                      \o stack[self]]
+                              /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
+                              /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
+                              /\ Locks' = Locks
+                        /\ UNCHANGED ReaderCount
 
-ReleaseRead_ReleaseReaderCountOwnership(self) == /\ pc[self] = "ReleaseRead_ReleaseReaderCountOwnership"
-                                                 /\ IF ReaderCountWaiters = << >>
-                                                       THEN /\ ReaderCountOwner' = << >>
-                                                            /\ UNCHANGED ReaderCountWaiters
-                                                       ELSE /\ ReaderCountOwner' = << Head(ReaderCountWaiters) >>
-                                                            /\ ReaderCountWaiters' = Tail(ReaderCountWaiters)
-                                                 /\ pc' = [pc EXCEPT ![self] = "Done"]
-                                                 /\ UNCHANGED << ReaderCount, 
-                                                                 ResourceWaiters, 
-                                                                 ResourceOwner, 
-                                                                 ServiceQueue, 
-                                                                 ServiceQueueOwner, 
-                                                                 AcquiredLocks >>
+Lock_Write_ResumeWaiters(self) == /\ pc[self] = "Lock_Write_ResumeWaiters"
+                                  /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = 0]
+                                     /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                                                                              pc        |->  "Unlock_Write",
+                                                                              ActualReaderCount |->  ActualReaderCount[self],
+                                                                              readerDelta |->  readerDelta[self] ] >>
+                                                                          \o stack[self]]
+                                  /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
+                                  /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
+                                  /\ UNCHANGED << ReaderCount, Queue, Locks >>
 
-AcquireWrite_AddToResourceQueue(self) == /\ pc[self] = "AcquireWrite_AddToResourceQueue"
-                                         /\ IF ResourceOwner = << >>
-                                               THEN /\ ResourceOwner' = << self >>
-                                                    /\ UNCHANGED ResourceWaiters
-                                               ELSE /\ ResourceWaiters' = ResourceWaiters \o << self >>
-                                                    /\ UNCHANGED ResourceOwner
-                                         /\ pc' = [pc EXCEPT ![self] = "AcquireWrite_WaitForResourceOwnership"]
-                                         /\ UNCHANGED << ReaderCount, 
-                                                         ReaderCountWaiters, 
-                                                         ReaderCountOwner, 
-                                                         ServiceQueue, 
-                                                         ServiceQueueOwner, 
-                                                         AcquiredLocks >>
+Unlock_Write(self) == /\ pc[self] = "Unlock_Write"
+                      /\ WriteLock(self) \in Locks
+                      /\ Locks' = Locks \ { (WriteLock(self)) }
+                      /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = 1]
+                         /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                                                                  pc        |->  "Lock",
+                                                                  ActualReaderCount |->  ActualReaderCount[self],
+                                                                  readerDelta |->  readerDelta[self] ] >>
+                                                              \o stack[self]]
+                      /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
+                      /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
+                      /\ UNCHANGED << ReaderCount, Queue >>
 
-AcquireWrite_WaitForResourceOwnership(self) == /\ pc[self] = "AcquireWrite_WaitForResourceOwnership"
-                                               /\ ResourceOwner = << self >>
-                                               /\ pc' = [pc EXCEPT ![self] = "AcquireWrite_ReleaseServiceQueue"]
-                                               /\ UNCHANGED << ReaderCount, 
-                                                               ReaderCountWaiters, 
-                                                               ReaderCountOwner, 
-                                                               ResourceWaiters, 
-                                                               ResourceOwner, 
-                                                               ServiceQueue, 
-                                                               ServiceQueueOwner, 
-                                                               AcquiredLocks >>
+Lock_FastRead(self) == /\ pc[self] = "Lock_FastRead"
+                       /\ \/ /\ Queue = << >>
+                             /\ Locks' = (Locks \union { (ReadLock(self)) })
+                             /\ pc' = [pc EXCEPT ![self] = "Unlock_Read"]
+                             /\ Queue' = Queue
+                          \/ /\ Queue # << >>
+                             /\ Queue' = Queue \o << (ReadLock(self)) >>
+                             /\ pc' = [pc EXCEPT ![self] = "Lock_FastRead_ResumeWaiters"]
+                             /\ Locks' = Locks
+                       /\ UNCHANGED << ReaderCount, stack, readerDelta, 
+                                       ActualReaderCount >>
 
-AcquireWrite_ReleaseServiceQueue(self) == /\ pc[self] = "AcquireWrite_ReleaseServiceQueue"
-                                          /\ IF ServiceQueue = << >>
-                                                THEN /\ ServiceQueueOwner' = << >>
-                                                     /\ UNCHANGED ServiceQueue
-                                                ELSE /\ ServiceQueueOwner' = << Head(ServiceQueue) >>
-                                                     /\ ServiceQueue' = Tail(ServiceQueue)
-                                          /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Write"]
-                                          /\ pc' = [pc EXCEPT ![self] = "AcquireWrite_ReleaseResourceOwnership"]
-                                          /\ UNCHANGED << ReaderCount, 
-                                                          ReaderCountWaiters, 
-                                                          ReaderCountOwner, 
-                                                          ResourceWaiters, 
-                                                          ResourceOwner >>
+Lock_FastRead_ResumeWaiters(self) == /\ pc[self] = "Lock_FastRead_ResumeWaiters"
+                                     /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = -1]
+                                        /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                                                                                 pc        |->  "Unlock_Read",
+                                                                                 ActualReaderCount |->  ActualReaderCount[self],
+                                                                                 readerDelta |->  readerDelta[self] ] >>
+                                                                             \o stack[self]]
+                                     /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
+                                     /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
+                                     /\ UNCHANGED << ReaderCount, Queue, Locks >>
 
-AcquireWrite_ReleaseResourceOwnership(self) == /\ pc[self] = "AcquireWrite_ReleaseResourceOwnership"
-                                               /\ IF ResourceWaiters = << >>
-                                                     THEN /\ ResourceOwner' = << >>
-                                                          /\ UNCHANGED ResourceWaiters
-                                                     ELSE /\ ResourceOwner' = << Head(ResourceWaiters) >>
-                                                          /\ ResourceWaiters' = Tail(ResourceWaiters)
-                                               /\ AcquiredLocks' = [AcquiredLocks EXCEPT ![self] = "Released"]
-                                               /\ pc' = [pc EXCEPT ![self] = "Done"]
-                                               /\ UNCHANGED << ReaderCount, 
-                                                               ReaderCountWaiters, 
-                                                               ReaderCountOwner, 
-                                                               ServiceQueue, 
-                                                               ServiceQueueOwner >>
+Lock_Read_ResumeWaiters(self) == /\ pc[self] = "Lock_Read_ResumeWaiters"
+                                 /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = 0]
+                                    /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                                                                             pc        |->  "Unlock_Read",
+                                                                             ActualReaderCount |->  ActualReaderCount[self],
+                                                                             readerDelta |->  readerDelta[self] ] >>
+                                                                         \o stack[self]]
+                                 /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
+                                 /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
+                                 /\ UNCHANGED << ReaderCount, Queue, Locks >>
 
-Worker(self) == Start(self) \/ WaitForServiceQueueOwnership(self)
-                   \/ AcquireRead_WaitForReaderCountOwnership(self)
-                   \/ AcquireRead_WaitForResourceOwnership(self)
-                   \/ AcquireRead_ReleaseReaderCountOwnership(self)
-                   \/ ReleaseRead_AcquireReaderCountOwnership(self)
-                   \/ ReleaseRead_WaitForReaderCountOwnership(self)
-                   \/ ReleaseRead_ReleaseReaderCountOwnership(self)
-                   \/ AcquireWrite_AddToResourceQueue(self)
-                   \/ AcquireWrite_WaitForResourceOwnership(self)
-                   \/ AcquireWrite_ReleaseServiceQueue(self)
-                   \/ AcquireWrite_ReleaseResourceOwnership(self)
+Unlock_Read(self) == /\ pc[self] = "Unlock_Read"
+                     /\ ReadLock(self) \in Locks
+                     /\ Locks' = Locks \ { (ReadLock(self)) }
+                     /\ /\ readerDelta' = [readerDelta EXCEPT ![self] = -1]
+                        /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeWaiters",
+                                                                 pc        |->  "Lock",
+                                                                 ActualReaderCount |->  ActualReaderCount[self],
+                                                                 readerDelta |->  readerDelta[self] ] >>
+                                                             \o stack[self]]
+                     /\ ActualReaderCount' = [ActualReaderCount EXCEPT ![self] = 0]
+                     /\ pc' = [pc EXCEPT ![self] = "Resume_Lock"]
+                     /\ UNCHANGED << ReaderCount, Queue >>
+
+Thread(self) == Lock(self) \/ Lock_FastWrite(self)
+                   \/ Lock_Write_ResumeWaiters(self) \/ Unlock_Write(self)
+                   \/ Lock_FastRead(self)
+                   \/ Lock_FastRead_ResumeWaiters(self)
+                   \/ Lock_Read_ResumeWaiters(self) \/ Unlock_Read(self)
 
 (* Allow infinite stuttering to prevent deadlock on termination. *)
 Terminating == /\ \A self \in ProcSet: pc[self] = "Done"
                /\ UNCHANGED vars
 
-Next == (\E self \in Threads: Worker(self))
+Next == (\E self \in ProcSet: ResumeWaiters(self))
+           \/ (\E self \in Threads: Thread(self))
            \/ Terminating
 
 Spec == /\ Init /\ [][Next]_vars
-        /\ \A self \in Threads : WF_vars(Worker(self))
+        /\ \A self \in Threads : WF_vars(Thread(self)) /\ WF_vars(ResumeWaiters(self))
 
 Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 
 \* END TRANSLATION 
 
-Symmetry == Permutations(Threads)
-
-AllLocksAreCompatible ==
-    \/  /\  \A thread \in Threads : AcquiredLocks[thread] # "Write"
-    \/  /\  \A thread1, thread2 \in Threads : 
-            /\  AcquiredLocks[thread1] # "Read"
-            /\  (
-                    /\  AcquiredLocks[thread1] = "Write"
-                    /\  AcquiredLocks[thread2] = "Write"
-                ) => (thread1 = thread2)
-
-LocksServicedInOrder ==
-    [](
-        \A thread1, thread2 \in Threads :
-            (
-                /\  thread1 # thread2
-                /\  AcquiredLocks[thread1] = "Unlocked"
-                /\  AcquiredLocks[thread2] = "Pending"
-            ) ~> (
-                /\  AcquiredLocks[thread1] # "Released"
-                /\  AcquiredLocks[thread2] \in { "Read", "Write" }
-            )
-    )
+Property ==
+    /\  FairLock!Spec
+    /\  []TypeOk
 
 ==== 
