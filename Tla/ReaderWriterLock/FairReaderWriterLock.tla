@@ -125,9 +125,7 @@ Next ==
     \/  Unlock(thread)
     \/  Destroy
 
-Spec ==
-    /\  Init
-    /\  [][Next]_vars
+Fairness ==
     /\  \A thread \in Threads :
         /\  WF_vars(QueueRead(thread))
         /\  WF_vars(QueueWrite(thread))
@@ -138,6 +136,11 @@ Spec ==
         /\  WF_vars(Unlock(thread))
         /\  WF_vars(Destroy)
 
+Spec ==
+    /\  Init
+    /\  [][Next]_vars
+    /\  Fairness
+    
 Property ==
     /\  Spec
     /\  []AbstractLock!TypeOk
@@ -159,6 +162,8 @@ Alias == [
             IsNotLocked |-> IsNotLocked(thread),
             IsNotQueued |-> IsNotQueued(thread)
         ]
-    ]
+    ],
+    DestroyEnabled |-> ENABLED(Destroy),
+    Destroyed |-> Destroyed
 ]
 ====
