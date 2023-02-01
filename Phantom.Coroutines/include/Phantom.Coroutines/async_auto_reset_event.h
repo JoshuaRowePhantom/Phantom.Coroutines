@@ -337,7 +337,7 @@ public:
         do
         {
             state = m_state.read(sequenceNumber);
-            state.m_setCount = std::min(state.m_setCount + 1, state.m_waitingCount);
+            state.m_setCount = std::min(state.m_setCount + 1, state.m_waitingCount + 1);
         } while (!m_state.compare_exchange_weak(state, sequenceNumber));
 
         if (state.m_setCount == 1
@@ -351,6 +351,7 @@ public:
 
     void reset() noexcept
     {
+
     }
 
     awaiter operator co_await()
