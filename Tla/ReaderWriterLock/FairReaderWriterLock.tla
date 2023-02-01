@@ -141,7 +141,8 @@ Property ==
     /\  []TypeOk
     /\  \A lock \in LockType :
         []((\E index \in DOMAIN Queue : Queue[index] = lock) ~> lock \in Locks)
-
+    /\  []Invariant
+ 
 Alias == [
     Locks |-> Locks,
     Queue |-> Queue,
