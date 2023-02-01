@@ -80,8 +80,8 @@
     <Type Name="Phantom::Coroutines::detail::basic_async_auto_reset_event&lt;*,*,*,*&gt;">
         <DisplayString Condition="m_state.m_value.m_setCount == 1 &amp;&amp; !m_state.m_value.m_waitingCount">Signalled</DisplayString>
         <DisplayString Condition="m_state.m_value.m_setCount > m_state.m_value.m_waitingCount">Signalled, Dispatching Awaiters</DisplayString>
-        <DisplayString Condition="m_state.m_value.m_waitingCount == 0">Not Signalled, No Waiters</DisplayString>
-        <DisplayString>Dispatching Waiters</DisplayString>
+        <DisplayString Condition="m_state.m_value.m_waitingCount > 0">Not Signalled, Has Awaiters</DisplayString>
+        <DisplayString>Not Signalled, No Awaiters</DisplayString>
         
         <Expand>
 
