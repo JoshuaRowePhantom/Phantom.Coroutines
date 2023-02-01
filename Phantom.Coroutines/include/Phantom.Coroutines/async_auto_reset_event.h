@@ -351,7 +351,21 @@ public:
 
     void reset() noexcept
     {
+        /*
+            await SetCount > WaiterCount;
+            SetCount := SetCount - 1;
+        */
 
+        state_type state;
+        sequence_number sequenceNumber;
+        do
+        {
+            state = m_state.read(sequenceNumber);
+            if (state.m_setCount > state.m_waitingCount)
+            {
+                state.m_setCount--;
+            }
+        } while (!m_state.compare_exchange_weak(state, sequenceNumber));
     }
 
     awaiter operator co_await()
