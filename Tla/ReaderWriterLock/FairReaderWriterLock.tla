@@ -127,9 +127,9 @@ Fairness ==
     /\  WF_vars(Unlock)
     /\  \A thread \in Threads : 
         /\  WF_vars(QueueRead(thread))
-        \* /\  WF_vars(QueueWrite(thread))
-        \* /\  WF_vars(LockReadFast(thread))
-        \* /\  WF_vars(LockWriteFast(thread))
+        /\  WF_vars(QueueWrite(thread))
+        /\  WF_vars(LockReadFast(thread))
+        /\  WF_vars(LockWriteFast(thread))
 
 Spec ==
     /\  Init
