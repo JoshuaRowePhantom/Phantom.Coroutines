@@ -36,7 +36,8 @@ add_executable(
     "manual_scheduler.h"
     "async_latch_test.cpp" 
     "async_reader_writer_lock_test.cpp" 
-    "sequence_lock_test.cpp")
+    "sequence_lock_test.cpp" 
+    "double_wide_atomic_test.cpp")
 
 target_link_libraries(
     Phantom.Coroutines.Test
