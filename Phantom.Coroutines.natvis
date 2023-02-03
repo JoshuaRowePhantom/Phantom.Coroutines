@@ -73,49 +73,30 @@
         </Expand>
     </Type>
 
-    <Type Name="Phantom::Coroutines::detail::auto_reset_event::awaiter">
+    <Type Name="Phantom::Coroutines::detail::basic_async_auto_reset_event&lt;*,*,*,*&gt;::awaiter">
         <DisplayString>{m_continuation}</DisplayString>
     </Type>
     
     <Type Name="Phantom::Coroutines::detail::basic_async_auto_reset_event&lt;*,*,*,*&gt;">
-        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled, No Waiters</DisplayString>
-        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue">Not Signalled, No Waiters</DisplayString>
-        <DisplayString Condition="(reinterpret_cast&lt;uintptr_t&gt;(m_state.m_atomicRepresentation._Storage._Value) &amp; 0x1) == 0">Not Signalled, Has Waiters</DisplayString>
-        <DisplayString Condition="(reinterpret_cast&lt;uintptr_t&gt;(m_state.m_atomicRepresentation._Storage._Value) &amp; 0x1) == 1">Signalling, Has Waiters</DisplayString>
-        <DisplayString>Unknown state</DisplayString>
+        <DisplayString Condition="m_state.m_value.m_setCount == 1 &amp;&amp; !m_state.m_value.m_waitingCount">Signalled</DisplayString>
+        <DisplayString Condition="m_state.m_value.m_setCount > m_state.m_value.m_waitingCount">Signalled, Dispatching Awaiters</DisplayString>
+        <DisplayString Condition="m_state.m_value.m_waitingCount > 0">Not Signalled, Has Awaiters</DisplayString>
+        <DisplayString>Not Signalled, No Awaiters</DisplayString>
         
         <Expand>
-            
-            <Item Name="Waiters To Signal Next"
-                  Condition="m_pendingAwaiters">m_pendingAwaiters</Item>
 
-            <LinkedListItems>
-                <HeadPointer>m_pendingAwaiters</HeadPointer>
+            <Item Name="Waiters To Signal Next">m_unservicedAwaiters</Item>
+
+            <LinkedListItems Condition="m_unservicedAwaiters != nullptr">
+                <HeadPointer>m_unservicedAwaiters</HeadPointer>
                 <NextPointer>m_nextAwaiter</NextPointer>
                 <ValueNode>this</ValueNode>
             </LinkedListItems>
 
-            <Item Name="Enqueued Waiters"
-                  Condition="
-                  m_state.m_atomicRepresentation._Storage._Value != &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::NoWaitingCoroutineState&gt;::g_objectWithUniqueAddressValue
-                  &amp;&amp;
-                  m_state.m_atomicRepresentation._Storage._Value != &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::auto_reset_event::SignalledState&gt;::g_objectWithUniqueAddressValue
-                  ">
-                <![CDATA[
-                reinterpret_cast<Phantom::Coroutines::detail::auto_reset_event::awaiter*>(
-                    reinterpret_cast<uintptr_t>(m_state.m_atomicRepresentation._Storage._Value) & ~0x1ULL
-                )
-                ]]>
-            </Item>
+            <Item Name="Enqueued Waiters">m_pendingAwaiters._Storage._Value</Item>
 
             <LinkedListItems>
-                <HeadPointer>
-                    <![CDATA[
-                    reinterpret_cast<Phantom::Coroutines::detail::auto_reset_event::awaiter*>
-                        (
-                        reinterpret_cast<uintptr_t>(m_state.m_atomicRepresentation._Storage._Value) & ~0x1ULL
-                    )]]>
-                </HeadPointer>
+                <HeadPointer>m_pendingAwaiters._Storage._Value</HeadPointer>
                 <NextPointer>m_nextAwaiter</NextPointer>
                 <ValueNode>this</ValueNode>
             </LinkedListItems>
@@ -171,6 +152,28 @@
             <Item Name="promise handle">
                 m_value
             </Item>
+        </Expand>
+    </Type>
+
+    <Type Name="Phantom::Coroutines::detail::basic_async_reader_writer_lock&lt;*,*,*,*&gt;">
+        <DisplayString Condition="m_state.m_value.m_value.m_readerLockCount &gt; 0">{m_state.m_value.m_value.m_readerLockCount} Readers</DisplayString>
+        <DisplayString Condition="m_state.m_value.m_value.m_readerLockCount &lt; 0">Locked For Write</DisplayString>
+        <DisplayString>Unlocked</DisplayString>
+
+        <Expand>
+            <Item Name="Waiters To Signal Next">""</Item>
+            <LinkedListItems>
+                <HeadPointer>m_pending</HeadPointer>
+                <NextPointer>m_next</NextPointer>
+                <ValueNode>this</ValueNode>
+            </LinkedListItems>
+
+            <Item Name="Queued Waiters">""</Item>
+            <LinkedListItems>
+                <HeadPointer>reinterpret_cast&lt;Phantom::Coroutines::detail::basic_async_reader_writer_lock&lt;$T1,$T2,$T3,$T4&gt;::operation*&gt;(m_state.m_value.m_value.m_queue.m_value &amp; ~0x3)</HeadPointer>
+                <NextPointer>m_next</NextPointer>
+                <ValueNode>this</ValueNode>
+            </LinkedListItems>
         </Expand>
     </Type>
 </AutoVisualizer>

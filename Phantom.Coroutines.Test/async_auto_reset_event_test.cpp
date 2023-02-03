@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "async_test.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/suspend_result.h"
@@ -111,6 +112,39 @@ TEST(async_auto_reset_event_test, Set_before_await_causes_awaiter_to_not_suspend
     ASSERT_EQ(true, stateBeforeWait);
     ASSERT_EQ(false, suspendResult.did_suspend());
     ASSERT_EQ(false, stateAfterWait);
+}
+
+ASYNC_TEST(async_auto_reset_event_test, reentrant_set_leaves_signalled)
+{
+    async_auto_reset_event<> event;
+    auto lambda = [&]() -> task<>
+    {
+        co_await event;
+        event.set();
+        event.set();
+        event.set();
+        co_await event;
+    };
+    async_scope<> scope;
+    scope.spawn(lambda);
+    event.set();
+    co_await scope.join();
+}
+
+ASYNC_TEST(async_auto_reset_event_test, can_destroy_from_resumption_of_coroutine)
+{
+    async_auto_reset_event<>* innerEventPointer;
+
+    auto lambda = [&]() -> task<>
+    {
+        async_auto_reset_event<> event;
+        innerEventPointer = &event;
+        co_await event;
+    };
+    async_scope<> scope;
+    scope.spawn(lambda);
+    innerEventPointer->set();
+    co_await scope.join();
 }
 
 }
