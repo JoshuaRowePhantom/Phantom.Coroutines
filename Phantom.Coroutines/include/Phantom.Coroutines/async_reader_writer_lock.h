@@ -3,6 +3,8 @@
 #include "policies.h"
 #include "async_scope.h"
 #include "async_auto_reset_event.h"
+#include "double_wide_atomic.h"
+#include "tagged_pointer.h"
 #include "reusable_task.h"
 
 namespace Phantom::Coroutines
@@ -68,10 +70,25 @@ private:
 
     class operation;
 
-    async_auto_reset_event<single_awaiter> m_operationsSignal;
-    std::atomic<operation*> m_operations = nullptr;
-    async_auto_reset_event<single_awaiter> m_pendingUnlockOperationCountSignal;
-    std::atomic<size_t> m_pendingUnlockOperationCount = 0;
+    enum QueueState : uintptr_t
+    {
+        NotResuming_NoPending = 0,
+        NotResuming_HasPending = 1,
+        IsResuming_NoPending = 2,
+        IsResuming_HasPending = 3,
+        HasPendingMask = 1,
+        IsResumingMask = 2,
+    };
+
+    struct state
+    {
+        tagged_pointer<operation, 2, QueueState> m_queue = { nullptr, NotResuming_NoPending };
+        intptr_t m_readerLockCount = 0;
+    };
+
+    std::atomic<double_wide_value<state>> m_state;
+    operation* m_pending = nullptr;
+    operation** m_pendingTail = &m_pending;
 
     class operation
     {
@@ -95,118 +112,210 @@ private:
             return false;
         }
 
-        void await_suspend(
+        bool await_suspend(
             auto continuation
         )
         {
-            m_continuation = continuation;
-            m_next = m_lock.m_operations.load(std::memory_order_relaxed);
-            while (!m_lock.m_operations.compare_exchange_weak(
-                m_next,
-                this,
-                std::memory_order_release
+            double_wide_value previousState = m_lock.m_state.load_inconsistent();
+            double_wide_value nextState = state{};
+            bool suspended;
+
+            do
+            {
+                auto queueState = previousState->m_queue.tag();
+                auto queue = previousState->m_queue.value();
+                auto readerCount = previousState->m_readerLockCount;
+
+                if (queueState == NotResuming_NoPending
+                    && !queue
+                    && readerCount >= 0
+                    && m_operationType == operation_type::read)
+                {
+                    suspended = false;
+                    nextState = state
+                    {
+                        .m_queue = { nullptr, NotResuming_NoPending },
+                        .m_readerLockCount = readerCount + 1,
+                    };
+                }
+                else if (
+                    queueState == NotResuming_NoPending
+                    && !queue
+                    && readerCount == 0
+                    && m_operationType == operation_type::write)
+                {
+                    suspended = false;
+                    nextState = state
+                    {
+                        .m_queue = { nullptr, NotResuming_NoPending },
+                        .m_readerLockCount = -1,
+                    };
+                }
+                else
+                {
+                    m_next = queue;
+                    suspended = true;
+                    nextState = state
+                    {
+                        .m_queue = { this, queueState, },
+                        .m_readerLockCount = readerCount,
+                    };
+                }
+            } while (!m_lock.m_state.compare_exchange_weak(
+                previousState,
+                nextState
             ));
 
-            // There's no need to set the event if m_next is non-zero:
-            // the event is already set and the data hasn't been consumed.
-            if (!m_next)
+            if (suspended)
             {
-                m_lock.m_operationsSignal.set();
+                m_continuation = continuation;
             }
+
+            return suspended;
         }
 
         void await_resume() const noexcept
         {}
     };
 
-    reusable_task<> acquisition_loop()
-    {
-        using enum operation_type;
-        operation_type lastOperationType;
-        operation* pendingOperations = nullptr;
-        size_t runningOperationCount = 0;
-
-        while (true)
-        {
-            if (!pendingOperations)
-            {
-                auto reversed = m_operations.exchange(
-                    nullptr,
-                    std::memory_order_acquire
-                );
-
-                // Reverse the list to provide FIFO order.
-                while (reversed)
-                {
-                    auto next = reversed->m_next;
-                    reversed->m_next = pendingOperations;
-                    pendingOperations = reversed;
-                    reversed = next;
-                }
-            }
-
-            if (!pendingOperations)
-            {
-                co_await m_operationsSignal;
-                continue;
-            }
-
-            while (pendingOperations)
-            {
-                if (runningOperationCount == 0
-                    ||
-                    lastOperationType == operation_type::read
-                    && pendingOperations->m_operationType == operation_type::read)
-                {
-                    runningOperationCount++;
-
-                    // The operation can be released!
-                    // We have to copy the next pointer before resuming,
-                    // as resuming destroys the operation.
-                    auto nextOperation = pendingOperations->m_next;
-
-                    // Whatever operation type just got released is the last operation type.
-                    lastOperationType = pendingOperations->m_operationType;
-
-                    pendingOperations->m_continuation.resume();
-                    pendingOperations = nextOperation;
-                }
-                else
-                {
-                    // The latest operation could not be released because it is of
-                    // the wrong type. Wait until some task completes.
-                    co_await m_pendingUnlockOperationCountSignal;
-
-                    auto pendingUnlockOperationCount = m_pendingUnlockOperationCount.exchange(
-                        0,
-                        // If the previous operation type was a write, we want to 
-                        // acquire the memory released by the write.
-                        // Otherwise we have no ordering restrictions.
-                        lastOperationType == operation_type::write ? std::memory_order_acquire : std::memory_order_relaxed
-                    );
-                    runningOperationCount -= pendingUnlockOperationCount;
-                }
-            }
-
-            // We have no more pending operations to process, so go back and wait for more.
-        }
-    }
-
     void unlock(
-        operation_type operationType)
+        intptr_t readerCountChange)
     {
-        // If the previous operation type was a write, we want to 
-        // release the memory written by the write operation.
-        // Otherwise we have no ordering restrictions.
-        // Also, we only need to signal the event if the fetch_add started from zero,
-        // as otherwise the thread that first got zero will have signalled the event.
-        if (0 ==
-            m_pendingUnlockOperationCount.fetch_add(
-                1,
-                operationType == operation_type::write ? std::memory_order_release : std::memory_order_relaxed
-            ))
+        double_wide_value previousState = m_state.load_inconsistent();
+        QueueState previousQueueState;
+        operation* queue;
+        intptr_t readerCount;
+        bool resumeLocks;
+
+        double_wide_value resumingState = state{};
+        do
         {
-            m_pendingUnlockOperationCountSignal.set();
+            queue = previousState->m_queue.value();
+            previousQueueState = previousState->m_queue.tag();
+            readerCount = previousState->m_readerLockCount;
+
+            resumingState->m_readerLockCount = readerCount + readerCountChange;
+
+            if (!queue && !(previousQueueState & HasPendingMask)
+                || resumingState->m_readerLockCount < 0)
+            {
+                resumingState->m_queue = previousState->m_queue;
+                resumeLocks = false;
+            }
+            else if (previousQueueState & IsResumingMask)
+            {
+                resumingState->m_queue = previousState->m_queue;
+                resumeLocks = false;
+            }
+            else
+            {
+                resumingState->m_queue = { nullptr, IsResuming_NoPending };
+                resumeLocks = true;
+            }
+        } while (!m_state.compare_exchange_weak(
+            previousState,
+            resumingState
+        ));
+
+        if (!resumeLocks)
+        {
+            return;
+        }
+
+        intptr_t locksToResumeCount = 0;
+        operation* locksToResume = nullptr;
+
+    CollectPendingItems:
+        readerCount = resumingState->m_readerLockCount;
+
+        // Move all the queue items to the pending list,
+        // reversing the queue in the process.
+        operation* previous = nullptr;
+        auto newPendingTail = queue ? &queue->m_next : m_pendingTail;
+        while (queue)
+        {
+            auto next = queue->m_next;
+            queue->m_next = previous;
+            previous = queue;
+            *m_pendingTail = queue;
+            queue = next;
+        }
+        m_pendingTail = newPendingTail;
+
+        if (!locksToResume)
+        {
+            locksToResume = m_pending;
+        }
+
+        // Now collect a set of awaiters to resume.
+        while (
+            m_pending
+            &&
+            (
+                readerCount >= 0
+                && m_pending->m_operationType == operation_type::read
+                && locksToResume->m_operationType == operation_type::read
+                ||
+                readerCount == 0
+                && locksToResume == m_pending
+                && m_pending->m_operationType == operation_type::write)
+            )
+        {
+            m_pending = m_pending->m_next;
+            if (!m_pending)
+            {
+                m_pendingTail = &m_pending;
+            }
+            ++locksToResumeCount;
+        }
+
+        // Now locksToResume is a linked list that ends at m_pending
+        // containing the awaiters to resume.
+        bool needToReReadQueue = false;
+        double_wide_value resumedState = state{};
+        do
+        {
+            if (resumingState->m_queue.value()
+                || resumingState->m_readerLockCount != readerCount)
+            {
+                needToReReadQueue = true;
+                resumedState->m_queue = { nullptr, IsResuming_NoPending };
+                resumedState->m_readerLockCount = resumedState->m_readerLockCount;
+            }
+            else if (
+                locksToResume != m_pending)
+            {
+                needToReReadQueue = false;
+                resumedState->m_queue = { nullptr, m_pending ? NotResuming_HasPending : NotResuming_NoPending };
+                resumedState->m_readerLockCount = 
+                    locksToResume->m_operationType == operation_type::write
+                    ?
+                    -1
+                    :
+                    readerCount + locksToResumeCount;
+            }
+            else
+            {
+                needToReReadQueue = false;
+                resumedState->m_queue = { nullptr, m_pending ? NotResuming_HasPending : NotResuming_NoPending };
+                resumedState->m_readerLockCount = resumingState->m_readerLockCount;
+            }
+        } while (!m_state.compare_exchange_weak(
+            resumingState,
+            resumedState
+        ));
+
+        if (needToReReadQueue)
+        {
+            readerCount = resumedState->m_readerLockCount;
+            goto CollectPendingItems;
+        }
+
+        while (locksToResume != m_pending)
+        {
+            auto next = locksToResume->m_next;
+            locksToResume->m_continuation.resume();
+            locksToResume = next;
         }
     }
 
@@ -269,14 +378,9 @@ private:
         }
     };
 
-    async_scope<> m_acquisitionLoopScope;
-    reusable_task<> m_acquisitionLoop = this->acquisition_loop();
-
 public:
     basic_async_reader_writer_lock()
     {
-        m_acquisitionLoopScope.spawn(
-            m_acquisitionLoop);
     }
 
     class reader_lock :
@@ -294,8 +398,7 @@ public:
     public:
         void unlock() noexcept
         {
-            m_lock.unlock(
-                operation_type::read);
+            m_lock.unlock(-1);
         }
 
         auto lock_async() noexcept
@@ -324,8 +427,7 @@ public:
     public:
         void unlock() noexcept
         {
-            m_lock.unlock(
-                operation_type::write);
+            m_lock.unlock(1);
         }
 
         auto lock_async() noexcept

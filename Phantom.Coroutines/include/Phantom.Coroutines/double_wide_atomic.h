@@ -40,7 +40,7 @@ public:
     {}
 
     operator Value() const { return m_value; }
-    auto operator &(this auto& self) { return &m_value; }
+    auto operator->(this auto& self) { return &self.m_value; }
 };
 
 }
@@ -82,8 +82,13 @@ public:
             expected.rawValue);
     }
 
+    T load_inconsistent()
+    {
+        return m_value;
+    }
+
     T load(
-        std::memory_order = std::memory_order_seq_cst)
+        std::memory_order memoryOrder = std::memory_order_seq_cst)
     {
         auto value = m_value;
         while (!compare_exchange_weak(

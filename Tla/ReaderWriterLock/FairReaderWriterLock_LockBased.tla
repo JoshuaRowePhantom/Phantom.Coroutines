@@ -115,7 +115,7 @@ ResumeWaiters_CheckQueue:
     ReaderLockCount := ReaderLockCount + readerCountChange;
     readerCountChange := 0;
 
-    if (Queue = << >> /\ ~HasPending) \/ (ReaderLockCount - readerCountChange) < 0 then
+    if (Queue = << >> /\ ~HasPending) \/ ReaderLockCount < 0 then
         goto ResumeLocks;
     elsif Resuming then
         goto ResumeLocks;
@@ -126,7 +126,7 @@ ResumeWaiters_CheckQueue:
         ||
         pending := Queue
         ||
-        HasPending := HasPending \/ Queue # << >>
+        HasPending := FALSE
         ||
         readerCount := ReaderLockCount
         ||
@@ -163,7 +163,7 @@ UpdateLockState:
         if Queue # << >> \/ ReaderLockCount # readerCount then
             pending := Queue;
             Queue := << >>;
-            HasPending := pending # << >>;
+            HasPending := FALSE;
             readerCount := ReaderLockCount;
             goto AppendToPending;
         elsif locksToResume # << >> then
@@ -195,9 +195,9 @@ begin
 AcquireOrEnqueue:
     assert ~Destroyed;
     if  /\  ~Resuming 
-        /\  ReaderLockCount >= 0 
-        /\  Queue = << >> 
         /\  ~HasPending 
+        /\  Queue = << >> 
+        /\  ReaderLockCount >= 0 
         /\  lockToAcquire = ReadLock(self) 
         then
         \* Become a reader fast.
@@ -206,9 +206,9 @@ AcquireOrEnqueue:
         goto Unlock_Read;
     elsif   
         /\  ~Resuming 
-        /\  ReaderLockCount = 0 
-        /\  Queue = << >> 
         /\  ~HasPending 
+        /\  Queue = << >> 
+        /\  ReaderLockCount = 0 
         /\  lockToAcquire = WriteLock(self) 
         then
         \* Become a writer fast.
@@ -260,7 +260,7 @@ DestroyIfIdle:
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "158471d8" /\ chksum(tla) = "a956003a")
+\* BEGIN TRANSLATION (chksum(pcal) = "7dbdd923" /\ chksum(tla) = "8e7d4392")
 VARIABLES ReaderLockCount, Queue, HasPending, Resuming, Pending, Locks, 
           Destroyed, pc, stack, readerCountChange, lockToUnlock, 
           locksToResume, pending, readerCount, lockToAcquire
@@ -310,7 +310,7 @@ ResumeWaiters_CheckQueue(self) == /\ pc[self] = "ResumeWaiters_CheckQueue"
                                                                         readerCount >>
                                                    ELSE /\ Assert(~Destroyed, 
                                                                   "Failure of assertion at line 123, column 9.")
-                                                        /\ /\ HasPending' = (HasPending \/ Queue # << >>)
+                                                        /\ /\ HasPending' = FALSE
                                                            /\ Queue' = << >>
                                                            /\ Resuming' = TRUE
                                                            /\ pending' = [pending EXCEPT ![self] = Queue]
@@ -364,7 +364,7 @@ UpdateLockState(self) == /\ pc[self] = "UpdateLockState"
                          /\ IF Queue # << >> \/ ReaderLockCount # readerCount[self]
                                THEN /\ pending' = [pending EXCEPT ![self] = Queue]
                                     /\ Queue' = << >>
-                                    /\ HasPending' = (pending'[self] # << >>)
+                                    /\ HasPending' = FALSE
                                     /\ readerCount' = [readerCount EXCEPT ![self] = ReaderLockCount]
                                     /\ pc' = [pc EXCEPT ![self] = "AppendToPending"]
                                     /\ UNCHANGED << ReaderLockCount, Resuming >>
@@ -412,18 +412,18 @@ AcquireOrEnqueue(self) == /\ pc[self] = "AcquireOrEnqueue"
                           /\ Assert(~Destroyed, 
                                     "Failure of assertion at line 196, column 5.")
                           /\ IF /\  ~Resuming
-                                /\  ReaderLockCount >= 0
-                                /\  Queue = << >>
                                 /\  ~HasPending
+                                /\  Queue = << >>
+                                /\  ReaderLockCount >= 0
                                 /\  lockToAcquire[self] = ReadLock(self)
                                 THEN /\ ReaderLockCount' = ReaderLockCount + 1
                                      /\ Locks' = (Locks \union { lockToAcquire[self] })
                                      /\ pc' = [pc EXCEPT ![self] = "Unlock_Read"]
                                      /\ Queue' = Queue
                                 ELSE /\ IF /\  ~Resuming
-                                           /\  ReaderLockCount = 0
-                                           /\  Queue = << >>
                                            /\  ~HasPending
+                                           /\  Queue = << >>
+                                           /\  ReaderLockCount = 0
                                            /\  lockToAcquire[self] = WriteLock(self)
                                            THEN /\ ReaderLockCount' = -1
                                                 /\ Locks' = (Locks \union { lockToAcquire[self] })

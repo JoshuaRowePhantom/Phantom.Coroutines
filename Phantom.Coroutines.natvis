@@ -154,4 +154,26 @@
             </Item>
         </Expand>
     </Type>
+
+    <Type Name="Phantom::Coroutines::detail::basic_async_reader_writer_lock&lt;*,*,*,*&gt;">
+        <DisplayString Condition="m_state.m_value.m_value.m_readerLockCount &gt; 0">{m_state.m_value.m_value.m_readerLockCount} Readers</DisplayString>
+        <DisplayString Condition="m_state.m_value.m_value.m_readerLockCount &lt; 0">Locked For Write</DisplayString>
+        <DisplayString>Unlocked</DisplayString>
+
+        <Expand>
+            <Item Name="Waiters To Signal Next">""</Item>
+            <LinkedListItems>
+                <HeadPointer>m_pending</HeadPointer>
+                <NextPointer>m_next</NextPointer>
+                <ValueNode>this</ValueNode>
+            </LinkedListItems>
+
+            <Item Name="Queued Waiters">""</Item>
+            <LinkedListItems>
+                <HeadPointer>reinterpret_cast&lt;Phantom::Coroutines::detail::basic_async_reader_writer_lock&lt;$T1,$T2,$T3,$T4&gt;::operation*&gt;(m_state.m_value.m_value.m_queue.m_value &amp; ~0x3)</HeadPointer>
+                <NextPointer>m_next</NextPointer>
+                <ValueNode>this</ValueNode>
+            </LinkedListItems>
+        </Expand>
+    </Type>
 </AutoVisualizer>
