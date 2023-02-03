@@ -73,6 +73,10 @@ CanDestroy ==
     /\  Queue = << >>
     /\  Pending = << >>
 
+IsLockRequest(request, type) == request # << >> /\ request[1].Type = type
+IsWriteRequest(request) == IsLockRequest(request, "Write")
+IsReadRequest(request) == IsLockRequest(request, "Read")
+
 (* --algorithm FairReaderWriterLock_AtomicState_Queue
 
 variables
@@ -111,19 +115,20 @@ procedure UpdateLockState(
 variable 
     locksToResume = << >>,
     unservedPendingDecrements = 0,
-    nextLockState = ""
+    nextLockState = "",
+    previousLockState = ""
 begin
 IncrementPendingDecrementCount:
     assert Len(lockToEnqueue \o lockToUnlock) = 1;
     assert ~Destroyed;
-    if lockToUnlock # << >> /\ lockToUnlock[1].Type = "Read" then
+    if IsReadRequest(lockToUnlock) then
         PendingLockDecrementCount := PendingLockDecrementCount + 1;
     end if;
 
 EnqueueLock:
     assert ~Destroyed;
     
-    if  ResumeLock = "Resuming" /\ LockState = "Write" /\ lockToUnlock # << >> then
+    if  ResumeLock = "Resuming" /\ LockState = "Write" /\ IsWriteRequest(lockToUnlock) then
         LockState := "Unlocked";
         lockToUnlock := << >>;
         HasPendingDecrements := TRUE;
@@ -131,17 +136,17 @@ EnqueueLock:
     elsif ResumeLock = "Resuming" then
         Queue := Queue \o lockToEnqueue;
         lockToEnqueue := << >>;
-        HasPendingDecrements := HasPendingDecrements \/ (lockToUnlock # << >> /\ lockToUnlock[1].Type = "Read");
+        HasPendingDecrements := HasPendingDecrements \/ IsReadRequest(lockToUnlock);
         goto ResumeLocks;
     elsif 
         \/  LockState = "Write" /\ lockToEnqueue # << >>
-        \/  LockState = "Read" /\ lockToEnqueue # << >> /\ lockToEnqueue[1].Type = "Write" then
+        \/  LockState = "Read" /\ IsWriteRequest(lockToEnqueue) then
         Queue := Queue \o lockToEnqueue;
         lockToEnqueue := << >>;
         goto ResumeLocks;
     else
         ResumeLock := "Resuming";
-        if lockToUnlock # << >> /\ lockToUnlock[1].Type = "Write" then
+        if IsWriteRequest(lockToUnlock) then
             nextLockState := "Unlocked";
         else
             nextLockState := LockState;
@@ -156,6 +161,7 @@ EnqueueLock:
         HasPendingDecrements := FALSE;
         Queue := << >>;
         lockToEnqueue := << >>;
+        previousLockState := LockState;
         goto ReadPendingDecrements;
     end if;
 
@@ -169,6 +175,7 @@ ServicePendingDecrements:
         LockCount := LockCount - unservedPendingDecrements;
         unservedPendingDecrements := 0;
         if LockCount = 0 then
+            previousLockState := "Unlocked";
             nextLockState := "Unlocked";
         end if;
     end if;
@@ -177,26 +184,10 @@ CollectPendingLocks:
     assert ~Destroyed;
     with 
         allPendingLocks = locksToResume \o Pending,
-        index \in 0..Len(Pending),
-        previousLockState \in { nextLockState }
+        index \in 0..Len(Pending)
         do
 
         locksToResume := locksToResume \o SubSeq(Pending, 1, index);
-
-        if locksToResume # << >> then
-            if locksToResume[1].Type = "Read" then
-                LockCount := LockCount + index;
-                nextLockState := "Read";
-            else
-                nextLockState := "Write";
-            end if;
-        else
-            if lockToUnlock # << >> /\ lockToUnlock[1].Type = "Write" then
-                nextLockState := "Unlocked"
-            else
-                nextLockState := previousLockState;
-            end if;
-        end if;
 
         await 
             /\  \A otherIndex \in 1..index :
@@ -209,27 +200,43 @@ CollectPendingLocks:
                     (allPendingLocks # << >> =>
                         \/  nextLockState = "Read" /\ allPendingLocks[1].Type = "Write"
                         \/  nextLockState = "Write" /\ allPendingLocks[1].Type = "Read");
-        
+
+        if locksToResume # << >> then
+            nextLockState := locksToResume[1].Type;
+            if locksToResume[1].Type = "Read" then
+                LockCount := LockCount + index;
+            end if;
+        end if;
+
         Pending := SubSeq(Pending, index + 1, Len(Pending));
-        
+
     end with;
 
 CheckResumeLock:
     assert ~Destroyed;
-    if HasPendingDecrements then
+    if HasPendingDecrements \/ Queue # << >> then
         HasPendingDecrements := FALSE;
         Pending := Pending \o Queue;
         Queue := << >>;
         ResumeLock := "Resuming";
+        previousLockState := LockState;
         goto ReadPendingDecrements;
     elsif Queue # << >> then
         Pending := Pending \o Queue;
         Queue := << >>;
+        nextLockState := LockState;
+        previousLockState := LockState;
         goto CollectPendingLocks;
+    elsif LockState = "Unlocked" /\ locksToResume = << >> then
+        LockState := "Unlocked";
+        ResumeLock := "Unlocked";
+        nextLockState := "";
+        previousLockState := "";
     else
         LockState := nextLockState;
         ResumeLock := "Unlocked";
         nextLockState := "";
+        previousLockState := "";
     end if;
 
 ResumeLocks:
@@ -295,16 +302,16 @@ DestroyIfIdle:
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "f8f52492" /\ chksum(tla) = "d277050c")
+\* BEGIN TRANSLATION (chksum(pcal) = "9146df85" /\ chksum(tla) = "9a6f8ced")
 VARIABLES LockCount, PendingLockDecrementCount, HasPendingDecrements, 
           ResumeLock, LockState, Queue, Pending, Locks, Destroyed, pc, stack, 
           lockToEnqueue, lockToUnlock, locksToResume, 
-          unservedPendingDecrements, nextLockState
+          unservedPendingDecrements, nextLockState, previousLockState
 
 vars == << LockCount, PendingLockDecrementCount, HasPendingDecrements, 
            ResumeLock, LockState, Queue, Pending, Locks, Destroyed, pc, stack, 
            lockToEnqueue, lockToUnlock, locksToResume, 
-           unservedPendingDecrements, nextLockState >>
+           unservedPendingDecrements, nextLockState, previousLockState >>
 
 ProcSet == (Threads) \cup ({ "Destroyer" })
 
@@ -324,16 +331,17 @@ Init == (* Global variables *)
         /\ locksToResume = [ self \in ProcSet |-> << >>]
         /\ unservedPendingDecrements = [ self \in ProcSet |-> 0]
         /\ nextLockState = [ self \in ProcSet |-> ""]
+        /\ previousLockState = [ self \in ProcSet |-> ""]
         /\ stack = [self \in ProcSet |-> << >>]
         /\ pc = [self \in ProcSet |-> CASE self \in Threads -> "Lock"
                                         [] self \in { "Destroyer" } -> "DestroyIfIdle"]
 
 IncrementPendingDecrementCount(self) == /\ pc[self] = "IncrementPendingDecrementCount"
                                         /\ Assert(Len(lockToEnqueue[self] \o lockToUnlock[self]) = 1, 
-                                                  "Failure of assertion at line 117, column 5.")
+                                                  "Failure of assertion at line 122, column 5.")
                                         /\ Assert(~Destroyed, 
-                                                  "Failure of assertion at line 118, column 5.")
-                                        /\ IF lockToUnlock[self] # << >> /\ lockToUnlock[self][1].Type = "Read"
+                                                  "Failure of assertion at line 123, column 5.")
+                                        /\ IF IsReadRequest(lockToUnlock[self])
                                               THEN /\ PendingLockDecrementCount' = PendingLockDecrementCount + 1
                                               ELSE /\ TRUE
                                                    /\ UNCHANGED PendingLockDecrementCount
@@ -347,42 +355,47 @@ IncrementPendingDecrementCount(self) == /\ pc[self] = "IncrementPendingDecrement
                                                         lockToUnlock, 
                                                         locksToResume, 
                                                         unservedPendingDecrements, 
-                                                        nextLockState >>
+                                                        nextLockState, 
+                                                        previousLockState >>
 
 EnqueueLock(self) == /\ pc[self] = "EnqueueLock"
                      /\ Assert(~Destroyed, 
-                               "Failure of assertion at line 124, column 5.")
-                     /\ IF ResumeLock = "Resuming" /\ LockState = "Write" /\ lockToUnlock[self] # << >>
+                               "Failure of assertion at line 129, column 5.")
+                     /\ IF ResumeLock = "Resuming" /\ LockState = "Write" /\ IsWriteRequest(lockToUnlock[self])
                            THEN /\ LockState' = "Unlocked"
                                 /\ lockToUnlock' = [lockToUnlock EXCEPT ![self] = << >>]
                                 /\ HasPendingDecrements' = TRUE
                                 /\ pc' = [pc EXCEPT ![self] = "ResumeLocks"]
                                 /\ UNCHANGED << ResumeLock, Queue, Pending, 
-                                                lockToEnqueue, nextLockState >>
+                                                lockToEnqueue, nextLockState, 
+                                                previousLockState >>
                            ELSE /\ IF ResumeLock = "Resuming"
                                       THEN /\ Queue' = Queue \o lockToEnqueue[self]
                                            /\ lockToEnqueue' = [lockToEnqueue EXCEPT ![self] = << >>]
-                                           /\ HasPendingDecrements' = (HasPendingDecrements \/ (lockToUnlock[self] # << >> /\ lockToUnlock[self][1].Type = "Read"))
+                                           /\ HasPendingDecrements' = (HasPendingDecrements \/ IsReadRequest(lockToUnlock[self]))
                                            /\ pc' = [pc EXCEPT ![self] = "ResumeLocks"]
                                            /\ UNCHANGED << ResumeLock, Pending, 
-                                                           nextLockState >>
+                                                           nextLockState, 
+                                                           previousLockState >>
                                       ELSE /\ IF \/  LockState = "Write" /\ lockToEnqueue[self] # << >>
-                                                 \/  LockState = "Read" /\ lockToEnqueue[self] # << >> /\ lockToEnqueue[self][1].Type = "Write"
+                                                 \/  LockState = "Read" /\ IsWriteRequest(lockToEnqueue[self])
                                                  THEN /\ Queue' = Queue \o lockToEnqueue[self]
                                                       /\ lockToEnqueue' = [lockToEnqueue EXCEPT ![self] = << >>]
                                                       /\ pc' = [pc EXCEPT ![self] = "ResumeLocks"]
                                                       /\ UNCHANGED << HasPendingDecrements, 
                                                                       ResumeLock, 
                                                                       Pending, 
-                                                                      nextLockState >>
+                                                                      nextLockState, 
+                                                                      previousLockState >>
                                                  ELSE /\ ResumeLock' = "Resuming"
-                                                      /\ IF lockToUnlock[self] # << >> /\ lockToUnlock[self][1].Type = "Write"
+                                                      /\ IF IsWriteRequest(lockToUnlock[self])
                                                             THEN /\ nextLockState' = [nextLockState EXCEPT ![self] = "Unlocked"]
                                                             ELSE /\ nextLockState' = [nextLockState EXCEPT ![self] = LockState]
                                                       /\ Pending' = Pending \o Queue \o lockToEnqueue[self]
                                                       /\ HasPendingDecrements' = FALSE
                                                       /\ Queue' = << >>
                                                       /\ lockToEnqueue' = [lockToEnqueue EXCEPT ![self] = << >>]
+                                                      /\ previousLockState' = [previousLockState EXCEPT ![self] = LockState]
                                                       /\ pc' = [pc EXCEPT ![self] = "ReadPendingDecrements"]
                                 /\ UNCHANGED << LockState, lockToUnlock >>
                      /\ UNCHANGED << LockCount, PendingLockDecrementCount, 
@@ -391,7 +404,7 @@ EnqueueLock(self) == /\ pc[self] = "EnqueueLock"
 
 ReadPendingDecrements(self) == /\ pc[self] = "ReadPendingDecrements"
                                /\ Assert(~Destroyed, 
-                                         "Failure of assertion at line 163, column 5.")
+                                         "Failure of assertion at line 169, column 5.")
                                /\ unservedPendingDecrements' = [unservedPendingDecrements EXCEPT ![self] = PendingLockDecrementCount]
                                /\ PendingLockDecrementCount' = 0
                                /\ IF unservedPendingDecrements'[self] > 0
@@ -402,15 +415,18 @@ ReadPendingDecrements(self) == /\ pc[self] = "ReadPendingDecrements"
                                                Pending, Locks, Destroyed, 
                                                stack, lockToEnqueue, 
                                                lockToUnlock, locksToResume, 
-                                               nextLockState >>
+                                               nextLockState, 
+                                               previousLockState >>
 
 ServicePendingDecrements(self) == /\ pc[self] = "ServicePendingDecrements"
                                   /\ LockCount' = LockCount - unservedPendingDecrements[self]
                                   /\ unservedPendingDecrements' = [unservedPendingDecrements EXCEPT ![self] = 0]
                                   /\ IF LockCount' = 0
-                                        THEN /\ nextLockState' = [nextLockState EXCEPT ![self] = "Unlocked"]
+                                        THEN /\ previousLockState' = [previousLockState EXCEPT ![self] = "Unlocked"]
+                                             /\ nextLockState' = [nextLockState EXCEPT ![self] = "Unlocked"]
                                         ELSE /\ TRUE
-                                             /\ UNCHANGED nextLockState
+                                             /\ UNCHANGED << nextLockState, 
+                                                             previousLockState >>
                                   /\ pc' = [pc EXCEPT ![self] = "CollectPendingLocks"]
                                   /\ UNCHANGED << PendingLockDecrementCount, 
                                                   HasPendingDecrements, 
@@ -421,60 +437,67 @@ ServicePendingDecrements(self) == /\ pc[self] = "ServicePendingDecrements"
 
 CollectPendingLocks(self) == /\ pc[self] = "CollectPendingLocks"
                              /\ Assert(~Destroyed, 
-                                       "Failure of assertion at line 177, column 5.")
+                                       "Failure of assertion at line 184, column 5.")
                              /\ LET allPendingLocks == locksToResume[self] \o Pending IN
                                   \E index \in 0..Len(Pending):
-                                    \E previousLockState \in { nextLockState[self] }:
-                                      /\ locksToResume' = [locksToResume EXCEPT ![self] = locksToResume[self] \o SubSeq(Pending, 1, index)]
-                                      /\ IF locksToResume'[self] # << >>
-                                            THEN /\ IF locksToResume'[self][1].Type = "Read"
-                                                       THEN /\ LockCount' = LockCount + index
-                                                            /\ nextLockState' = [nextLockState EXCEPT ![self] = "Read"]
-                                                       ELSE /\ nextLockState' = [nextLockState EXCEPT ![self] = "Write"]
-                                                            /\ UNCHANGED LockCount
-                                            ELSE /\ IF lockToUnlock[self] # << >> /\ lockToUnlock[self][1].Type = "Write"
-                                                       THEN /\ nextLockState' = [nextLockState EXCEPT ![self] = "Unlocked"]
-                                                       ELSE /\ nextLockState' = [nextLockState EXCEPT ![self] = previousLockState]
-                                                 /\ UNCHANGED LockCount
-                                      /\ /\  \A otherIndex \in 1..index :
-                                             /\  LocksAreCompatible(locksToResume'[self][1], Pending[otherIndex])
-                                         /\  ~ \E otherIndex \in (index + 1)..Len(Pending) :
-                                             /\  otherIndex = index + 1
-                                             /\  locksToResume'[self] # << >>
-                                             /\  LocksAreCompatible(locksToResume'[self][1], Pending[otherIndex])
-                                         /\  (locksToResume'[self] = << >>) =>
-                                                 (allPendingLocks # << >> =>
-                                                     \/  nextLockState'[self] = "Read" /\ allPendingLocks[1].Type = "Write"
-                                                     \/  nextLockState'[self] = "Write" /\ allPendingLocks[1].Type = "Read")
-                                      /\ Pending' = SubSeq(Pending, index + 1, Len(Pending))
+                                    /\ locksToResume' = [locksToResume EXCEPT ![self] = locksToResume[self] \o SubSeq(Pending, 1, index)]
+                                    /\ /\  \A otherIndex \in 1..index :
+                                           /\  LocksAreCompatible(locksToResume'[self][1], Pending[otherIndex])
+                                       /\  ~ \E otherIndex \in (index + 1)..Len(Pending) :
+                                           /\  otherIndex = index + 1
+                                           /\  locksToResume'[self] # << >>
+                                           /\  LocksAreCompatible(locksToResume'[self][1], Pending[otherIndex])
+                                       /\  (locksToResume'[self] = << >>) =>
+                                               (allPendingLocks # << >> =>
+                                                   \/  nextLockState[self] = "Read" /\ allPendingLocks[1].Type = "Write"
+                                                   \/  nextLockState[self] = "Write" /\ allPendingLocks[1].Type = "Read")
+                                    /\ IF locksToResume'[self] # << >>
+                                          THEN /\ nextLockState' = [nextLockState EXCEPT ![self] = locksToResume'[self][1].Type]
+                                               /\ IF locksToResume'[self][1].Type = "Read"
+                                                     THEN /\ LockCount' = LockCount + index
+                                                     ELSE /\ TRUE
+                                                          /\ UNCHANGED LockCount
+                                          ELSE /\ TRUE
+                                               /\ UNCHANGED << LockCount, 
+                                                               nextLockState >>
+                                    /\ Pending' = SubSeq(Pending, index + 1, Len(Pending))
                              /\ pc' = [pc EXCEPT ![self] = "CheckResumeLock"]
                              /\ UNCHANGED << PendingLockDecrementCount, 
                                              HasPendingDecrements, ResumeLock, 
                                              LockState, Queue, Locks, 
                                              Destroyed, stack, lockToEnqueue, 
                                              lockToUnlock, 
-                                             unservedPendingDecrements >>
+                                             unservedPendingDecrements, 
+                                             previousLockState >>
 
 CheckResumeLock(self) == /\ pc[self] = "CheckResumeLock"
                          /\ Assert(~Destroyed, 
-                                   "Failure of assertion at line 218, column 5.")
-                         /\ IF HasPendingDecrements
+                                   "Failure of assertion at line 216, column 5.")
+                         /\ IF HasPendingDecrements \/ Queue # << >>
                                THEN /\ HasPendingDecrements' = FALSE
                                     /\ Pending' = Pending \o Queue
                                     /\ Queue' = << >>
                                     /\ ResumeLock' = "Resuming"
+                                    /\ previousLockState' = [previousLockState EXCEPT ![self] = LockState]
                                     /\ pc' = [pc EXCEPT ![self] = "ReadPendingDecrements"]
                                     /\ UNCHANGED << LockState, nextLockState >>
                                ELSE /\ IF Queue # << >>
                                           THEN /\ Pending' = Pending \o Queue
                                                /\ Queue' = << >>
+                                               /\ nextLockState' = [nextLockState EXCEPT ![self] = LockState]
+                                               /\ previousLockState' = [previousLockState EXCEPT ![self] = LockState]
                                                /\ pc' = [pc EXCEPT ![self] = "CollectPendingLocks"]
                                                /\ UNCHANGED << ResumeLock, 
-                                                               LockState, 
-                                                               nextLockState >>
-                                          ELSE /\ LockState' = nextLockState[self]
-                                               /\ ResumeLock' = "Unlocked"
-                                               /\ nextLockState' = [nextLockState EXCEPT ![self] = ""]
+                                                               LockState >>
+                                          ELSE /\ IF LockState = "Unlocked" /\ locksToResume[self] = << >>
+                                                     THEN /\ LockState' = "Unlocked"
+                                                          /\ ResumeLock' = "Unlocked"
+                                                          /\ nextLockState' = [nextLockState EXCEPT ![self] = ""]
+                                                          /\ previousLockState' = [previousLockState EXCEPT ![self] = ""]
+                                                     ELSE /\ LockState' = nextLockState[self]
+                                                          /\ ResumeLock' = "Unlocked"
+                                                          /\ nextLockState' = [nextLockState EXCEPT ![self] = ""]
+                                                          /\ previousLockState' = [previousLockState EXCEPT ![self] = ""]
                                                /\ pc' = [pc EXCEPT ![self] = "ResumeLocks"]
                                                /\ UNCHANGED << Queue, Pending >>
                                     /\ UNCHANGED HasPendingDecrements
@@ -492,11 +515,13 @@ ResumeLocks(self) == /\ pc[self] = "ResumeLocks"
                                 /\ UNCHANGED << stack, lockToEnqueue, 
                                                 lockToUnlock, 
                                                 unservedPendingDecrements, 
-                                                nextLockState >>
+                                                nextLockState, 
+                                                previousLockState >>
                            ELSE /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
                                 /\ locksToResume' = [locksToResume EXCEPT ![self] = Head(stack[self]).locksToResume]
                                 /\ unservedPendingDecrements' = [unservedPendingDecrements EXCEPT ![self] = Head(stack[self]).unservedPendingDecrements]
                                 /\ nextLockState' = [nextLockState EXCEPT ![self] = Head(stack[self]).nextLockState]
+                                /\ previousLockState' = [previousLockState EXCEPT ![self] = Head(stack[self]).previousLockState]
                                 /\ lockToEnqueue' = [lockToEnqueue EXCEPT ![self] = Head(stack[self]).lockToEnqueue]
                                 /\ lockToUnlock' = [lockToUnlock EXCEPT ![self] = Head(stack[self]).lockToUnlock]
                                 /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
@@ -515,10 +540,10 @@ UpdateLockState(self) == IncrementPendingDecrementCount(self)
 Lock(self) == /\ pc[self] = "Lock"
               /\ \/ /\ Destroyed
                     /\ pc' = [pc EXCEPT ![self] = "Done"]
-                    /\ UNCHANGED <<stack, lockToEnqueue, lockToUnlock, locksToResume, unservedPendingDecrements, nextLockState>>
+                    /\ UNCHANGED <<stack, lockToEnqueue, lockToUnlock, locksToResume, unservedPendingDecrements, nextLockState, previousLockState>>
                  \/ /\ ~Destroyed
                     /\ \/ /\ Assert(~Destroyed, 
-                                    "Failure of assertion at line 254, column 9.")
+                                    "Failure of assertion at line 261, column 9.")
                           /\ /\ lockToEnqueue' = [lockToEnqueue EXCEPT ![self] = << ReadLock(self) >>]
                              /\ lockToUnlock' = [lockToUnlock EXCEPT ![self] = << >>]
                              /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "UpdateLockState",
@@ -526,12 +551,14 @@ Lock(self) == /\ pc[self] = "Lock"
                                                                       locksToResume |->  locksToResume[self],
                                                                       unservedPendingDecrements |->  unservedPendingDecrements[self],
                                                                       nextLockState |->  nextLockState[self],
+                                                                      previousLockState |->  previousLockState[self],
                                                                       lockToEnqueue |->  lockToEnqueue[self],
                                                                       lockToUnlock |->  lockToUnlock[self] ] >>
                                                                   \o stack[self]]
                           /\ locksToResume' = [locksToResume EXCEPT ![self] = << >>]
                           /\ unservedPendingDecrements' = [unservedPendingDecrements EXCEPT ![self] = 0]
                           /\ nextLockState' = [nextLockState EXCEPT ![self] = ""]
+                          /\ previousLockState' = [previousLockState EXCEPT ![self] = ""]
                           /\ pc' = [pc EXCEPT ![self] = "IncrementPendingDecrementCount"]
                        \/ /\ /\ lockToEnqueue' = [lockToEnqueue EXCEPT ![self] = << WriteLock(self) >>]
                              /\ lockToUnlock' = [lockToUnlock EXCEPT ![self] = << >>]
@@ -540,12 +567,14 @@ Lock(self) == /\ pc[self] = "Lock"
                                                                       locksToResume |->  locksToResume[self],
                                                                       unservedPendingDecrements |->  unservedPendingDecrements[self],
                                                                       nextLockState |->  nextLockState[self],
+                                                                      previousLockState |->  previousLockState[self],
                                                                       lockToEnqueue |->  lockToEnqueue[self],
                                                                       lockToUnlock |->  lockToUnlock[self] ] >>
                                                                   \o stack[self]]
                           /\ locksToResume' = [locksToResume EXCEPT ![self] = << >>]
                           /\ unservedPendingDecrements' = [unservedPendingDecrements EXCEPT ![self] = 0]
                           /\ nextLockState' = [nextLockState EXCEPT ![self] = ""]
+                          /\ previousLockState' = [previousLockState EXCEPT ![self] = ""]
                           /\ pc' = [pc EXCEPT ![self] = "IncrementPendingDecrementCount"]
               /\ UNCHANGED << LockCount, PendingLockDecrementCount, 
                               HasPendingDecrements, ResumeLock, LockState, 
@@ -553,7 +582,7 @@ Lock(self) == /\ pc[self] = "Lock"
 
 Unlock_Read(self) == /\ pc[self] = "Unlock_Read"
                      /\ Assert(~Destroyed, 
-                               "Failure of assertion at line 261, column 9.")
+                               "Failure of assertion at line 268, column 9.")
                      /\ ReadLock(self) \in Locks
                      /\ Locks' = Locks \ { ReadLock(self) }
                      /\ /\ lockToEnqueue' = [lockToEnqueue EXCEPT ![self] = << >>]
@@ -563,12 +592,14 @@ Unlock_Read(self) == /\ pc[self] = "Unlock_Read"
                                                                  locksToResume |->  locksToResume[self],
                                                                  unservedPendingDecrements |->  unservedPendingDecrements[self],
                                                                  nextLockState |->  nextLockState[self],
+                                                                 previousLockState |->  previousLockState[self],
                                                                  lockToEnqueue |->  lockToEnqueue[self],
                                                                  lockToUnlock |->  lockToUnlock[self] ] >>
                                                              \o stack[self]]
                      /\ locksToResume' = [locksToResume EXCEPT ![self] = << >>]
                      /\ unservedPendingDecrements' = [unservedPendingDecrements EXCEPT ![self] = 0]
                      /\ nextLockState' = [nextLockState EXCEPT ![self] = ""]
+                     /\ previousLockState' = [previousLockState EXCEPT ![self] = ""]
                      /\ pc' = [pc EXCEPT ![self] = "IncrementPendingDecrementCount"]
                      /\ UNCHANGED << LockCount, PendingLockDecrementCount, 
                                      HasPendingDecrements, ResumeLock, 
@@ -576,7 +607,7 @@ Unlock_Read(self) == /\ pc[self] = "Unlock_Read"
 
 Unlock_Write(self) == /\ pc[self] = "Unlock_Write"
                       /\ Assert(~Destroyed, 
-                                "Failure of assertion at line 277, column 9.")
+                                "Failure of assertion at line 284, column 9.")
                       /\ WriteLock(self) \in Locks
                       /\ Locks' = Locks \ { WriteLock(self) }
                       /\ /\ lockToEnqueue' = [lockToEnqueue EXCEPT ![self] = << >>]
@@ -586,12 +617,14 @@ Unlock_Write(self) == /\ pc[self] = "Unlock_Write"
                                                                   locksToResume |->  locksToResume[self],
                                                                   unservedPendingDecrements |->  unservedPendingDecrements[self],
                                                                   nextLockState |->  nextLockState[self],
+                                                                  previousLockState |->  previousLockState[self],
                                                                   lockToEnqueue |->  lockToEnqueue[self],
                                                                   lockToUnlock |->  lockToUnlock[self] ] >>
                                                               \o stack[self]]
                       /\ locksToResume' = [locksToResume EXCEPT ![self] = << >>]
                       /\ unservedPendingDecrements' = [unservedPendingDecrements EXCEPT ![self] = 0]
                       /\ nextLockState' = [nextLockState EXCEPT ![self] = ""]
+                      /\ previousLockState' = [previousLockState EXCEPT ![self] = ""]
                       /\ pc' = [pc EXCEPT ![self] = "IncrementPendingDecrementCount"]
                       /\ UNCHANGED << LockCount, PendingLockDecrementCount, 
                                       HasPendingDecrements, ResumeLock, 
@@ -609,7 +642,7 @@ DestroyIfIdle(self) == /\ pc[self] = "DestroyIfIdle"
                                        lockToEnqueue, lockToUnlock, 
                                        locksToResume, 
                                        unservedPendingDecrements, 
-                                       nextLockState >>
+                                       nextLockState, previousLockState >>
 
 Destroy(self) == DestroyIfIdle(self)
 
@@ -669,6 +702,7 @@ Alias ==
         lockToEnqueue |-> lockToEnqueue,
         locksToResume |-> locksToResume,
         nextLockState |-> nextLockState,
+        previousLockState |-> previousLockState,
         unservedPendingDecrements |-> unservedPendingDecrements,
         HasPendingDecrements |-> HasPendingDecrements,
         PendingLockDecrementCount |-> PendingLockDecrementCount
