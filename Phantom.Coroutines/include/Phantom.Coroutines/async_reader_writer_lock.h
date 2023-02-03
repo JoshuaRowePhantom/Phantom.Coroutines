@@ -86,6 +86,8 @@ private:
         intptr_t m_readerLockCount = 0;
     };
 
+    static constexpr intptr_t WriteLockAcquiredLockCount = intptr_t(-1);
+
     std::atomic<double_wide_value<state>> m_state;
     operation* m_pending = nullptr;
     operation** m_pendingTail = &m_pending;
@@ -148,7 +150,7 @@ private:
                     nextState = state
                     {
                         .m_queue = { nullptr, NotResuming_NoPending },
-                        .m_readerLockCount = -1,
+                        .m_readerLockCount = WriteLockAcquiredLockCount,
                     };
                 }
                 else
@@ -192,9 +194,8 @@ private:
         {
             queue = previousState->m_queue.value();
             previousQueueState = previousState->m_queue.tag();
-            readerCount = previousState->m_readerLockCount;
-
-            resumingState->m_readerLockCount = readerCount + readerCountChange;
+            readerCount = previousState->m_readerLockCount + readerCountChange;
+            resumingState->m_readerLockCount = readerCount;
 
             if (!queue && !(previousQueueState & HasPendingMask)
                 || resumingState->m_readerLockCount < 0)
@@ -273,6 +274,7 @@ private:
         // containing the awaiters to resume.
         bool needToReReadQueue = false;
         double_wide_value resumedState = state{};
+        auto lastToUnlock = m_pending;
         do
         {
             if (resumingState->m_queue.value()
@@ -290,7 +292,7 @@ private:
                 resumedState->m_readerLockCount = 
                     locksToResume->m_operationType == operation_type::write
                     ?
-                    -1
+                    WriteLockAcquiredLockCount
                     :
                     readerCount + locksToResumeCount;
             }
@@ -307,11 +309,10 @@ private:
 
         if (needToReReadQueue)
         {
-            readerCount = resumedState->m_readerLockCount;
             goto CollectPendingItems;
         }
 
-        while (locksToResume != m_pending)
+        while (locksToResume != lastToUnlock)
         {
             auto next = locksToResume->m_next;
             locksToResume->m_continuation.resume();

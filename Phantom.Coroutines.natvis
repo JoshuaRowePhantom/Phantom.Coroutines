@@ -176,4 +176,9 @@
             </LinkedListItems>
         </Expand>
     </Type>
+
+    <Type Name="Phantom::Coroutines::detail::basic_async_reader_writer_lock&lt;*,*,*,*&gt;::operation">
+        <DisplayString>{m_operationType} {m_continuation}</DisplayString>
+    </Type>
+
 </AutoVisualizer>
