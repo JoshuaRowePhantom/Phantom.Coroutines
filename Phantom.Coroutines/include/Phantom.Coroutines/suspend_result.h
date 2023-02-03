@@ -1,3 +1,5 @@
+#pragma once
+
 #include <type_traits>
 #include "awaiter_wrapper.h"
 #include "detail/coroutine.h"
