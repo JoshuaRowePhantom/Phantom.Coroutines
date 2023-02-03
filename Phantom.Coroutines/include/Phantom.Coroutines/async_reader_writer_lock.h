@@ -283,6 +283,7 @@ private:
                 needToReReadQueue = true;
                 resumedState->m_queue = { nullptr, IsResuming_NoPending };
                 resumedState->m_readerLockCount = resumedState->m_readerLockCount;
+                queue = resumingState->m_queue.value();
             }
             else if (
                 locksToResume != m_pending)
