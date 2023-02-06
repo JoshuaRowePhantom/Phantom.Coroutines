@@ -115,12 +115,9 @@ ASYNC_TEST(async_reader_writer_lock_test, can_destroy_after_awaiting)
     auto lock = co_await readerWriterLock.reader().scoped_lock_async();
 }
 
-async_reader_writer_lock<>* g_readerWriterLock;
-
-TEST(async_reader_writer_lock_test, do_many_operations)
+TEST(async_reader_writer_lock_test, fifo_ordering_do_many_operations)
 {
     async_reader_writer_lock<> readerWriterLock;
-    g_readerWriterLock = &readerWriterLock;
     static_thread_pool<> threadPool;
     sync_wait([&]() -> task<>
     {
