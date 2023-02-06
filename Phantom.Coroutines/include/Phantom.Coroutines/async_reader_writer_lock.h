@@ -91,7 +91,7 @@ private:
     std::atomic<double_wide_value<state>> m_state;
     operation* m_pending = nullptr;
     operation** m_pendingTail = &m_pending;
-
+    
     class operation
     {
         friend class basic_async_reader_writer_lock;
@@ -335,15 +335,32 @@ private:
         assert(!(resumedState->m_queue.tag() & IsResumingMask));
         assert(!resumedState->m_queue.value() || resumedState->m_readerLockCount == WriteLockAcquiredLockCount);
 
-        auto resumedCount = 0;
+        // Add all the entries to the thread-local resuming list.
+        static thread_local operation* tls_resumingList = nullptr;
+        static thread_local bool tls_resuming = false;
+
+        bool alreadyResuming = tls_resuming;
+
         while (locksToResume != endOfUnlockList)
         {
             auto next = locksToResume->m_next;
-            locksToResume->m_continuation.resume();
+            locksToResume->m_next = tls_resumingList;
+            tls_resumingList = locksToResume;
             locksToResume = next;
-            resumedCount++;
         }
-        assert(resumedCount == locksToResumeCount);
+
+        // If we are the top-level resumer, resume.
+        if (!alreadyResuming)
+        {
+            tls_resuming = true;
+            while (tls_resumingList)
+            {
+                auto itemToResume = tls_resumingList;
+                tls_resumingList = tls_resumingList->m_next;
+                itemToResume->m_continuation.resume();
+            }
+            tls_resuming = false;
+        }
     }
 
     class read_lock_operation;
