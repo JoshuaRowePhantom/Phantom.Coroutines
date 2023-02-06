@@ -103,10 +103,21 @@ ASYNC_TEST(async_reader_writer_lock_test, can_loop_without_stack_overflow)
 {
     async_reader_writer_lock<> readerWriterLock;
 
+    auto writeLambda = [&]() -> task<>
+    {
+        std::ignore = co_await readerWriterLock.writer().scoped_lock_async();
+    };
+
+    auto readLock = co_await readerWriterLock.reader().scoped_lock_async();
+    async_scope<> scope;
+
     for (int counter = 0; counter < 100000; ++counter)
     {
-        auto lock = co_await readerWriterLock.reader().scoped_lock_async();
+        scope.spawn(writeLambda);
     }
+
+    readLock.unlock();
+    co_await scope.join();
 }
 
 ASYNC_TEST(async_reader_writer_lock_test, can_destroy_after_awaiting)
