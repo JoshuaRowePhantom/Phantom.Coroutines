@@ -98,16 +98,6 @@ public:
         return value;
     }
 
-    //void store(
-    //    T value,
-    //    std::memory_order memoryOrder = std::memory_order_seq_cst
-    //    )
-    //{
-    //    return store(
-    //        ::Phantom::Coroutines::double_wide_value{ value }, 
-    //        memoryOrder);
-    //}
-
     void store(
         ::Phantom::Coroutines::double_wide_value<T> value,
         std::memory_order = std::memory_order_seq_cst)
