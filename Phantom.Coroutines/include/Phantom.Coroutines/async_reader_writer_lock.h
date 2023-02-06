@@ -155,8 +155,8 @@ private:
                 }
                 else
                 {
-                    m_next = queue;
                     suspended = true;
+                    m_next = queue;
                     nextState = state
                     {
                         .m_queue = { this, queueState, },
@@ -197,13 +197,11 @@ private:
             readerCount = previousState->m_readerLockCount + readerCountChange;
             resumingState->m_readerLockCount = readerCount;
 
-            if (!queue && !(previousQueueState & HasPendingMask)
-                || resumingState->m_readerLockCount < 0)
-            {
-                resumingState->m_queue = previousState->m_queue;
-                resumeLocks = false;
-            }
-            else if (previousQueueState & IsResumingMask)
+            if (previousQueueState & QueueState::IsResumingMask
+                ||
+                !queue && !(previousQueueState & QueueState::HasPendingMask)
+                || 
+                readerCount > 0)
             {
                 resumingState->m_queue = previousState->m_queue;
                 resumeLocks = false;
@@ -225,6 +223,9 @@ private:
 
         intptr_t locksToResumeCount = 0;
         operation* locksToResume = nullptr;
+        operation* lastLockToResume = nullptr;
+
+        queue = previousState->m_queue.value();
 
     CollectPendingItems:
         readerCount = resumingState->m_readerLockCount;
@@ -232,6 +233,13 @@ private:
         // Move all the queue items to the pending list,
         // reversing the queue in the process.
         operation* previous = nullptr;
+
+        if (lastLockToResume
+            && lastLockToResume->m_next == nullptr)
+        {
+            m_pendingTail = &lastLockToResume->m_next;
+        }
+
         auto newPendingTail = queue ? &queue->m_next : m_pendingTail;
         while (queue)
         {
@@ -246,6 +254,7 @@ private:
         if (!locksToResume)
         {
             locksToResume = m_pending;
+            lastLockToResume = nullptr;
         }
 
         // Now collect a set of awaiters to resume.
@@ -262,6 +271,7 @@ private:
                 && m_pending->m_operationType == operation_type::write)
             )
         {
+            lastLockToResume = m_pending;
             m_pending = m_pending->m_next;
             if (!m_pending)
             {
@@ -274,28 +284,31 @@ private:
         // containing the awaiters to resume.
         bool needToReReadQueue = false;
         double_wide_value resumedState = state{};
-        auto lastToUnlock = m_pending;
+        auto endOfUnlockList = m_pending;
         do
         {
-            if (resumingState->m_queue.value()
-                || resumingState->m_readerLockCount != readerCount)
+            if (
+                resumingState->m_queue.value()
+                || resumingState->m_readerLockCount != readerCount
+                )
             {
                 needToReReadQueue = true;
                 resumedState->m_queue = { nullptr, IsResuming_NoPending };
-                resumedState->m_readerLockCount = resumedState->m_readerLockCount;
-                queue = resumingState->m_queue.value();
+                resumedState->m_readerLockCount = resumingState->m_readerLockCount;
             }
             else if (
-                locksToResume != m_pending)
+                locksToResume != endOfUnlockList)
             {
                 needToReReadQueue = false;
                 resumedState->m_queue = { nullptr, m_pending ? NotResuming_HasPending : NotResuming_NoPending };
-                resumedState->m_readerLockCount = 
-                    locksToResume->m_operationType == operation_type::write
-                    ?
-                    WriteLockAcquiredLockCount
-                    :
-                    readerCount + locksToResumeCount;
+                if (locksToResume->m_operationType == operation_type::write)
+                {
+                    resumedState->m_readerLockCount = WriteLockAcquiredLockCount;
+                }
+                else
+                {
+                    resumedState->m_readerLockCount = readerCount + locksToResumeCount;
+                }
             }
             else
             {
@@ -310,15 +323,23 @@ private:
 
         if (needToReReadQueue)
         {
+            queue = resumingState->m_queue.value();
             goto CollectPendingItems;
         }
 
-        while (locksToResume != lastToUnlock)
+        assert(resumingState->m_queue.tag()& IsResumingMask);
+        assert(!(resumedState->m_queue.tag() & IsResumingMask));
+        assert(!resumedState->m_queue.value() || resumedState->m_readerLockCount == WriteLockAcquiredLockCount);
+
+        auto resumedCount = 0;
+        while (locksToResume != endOfUnlockList)
         {
             auto next = locksToResume->m_next;
             locksToResume->m_continuation.resume();
             locksToResume = next;
+            resumedCount++;
         }
+        assert(resumedCount == locksToResumeCount);
     }
 
     class read_lock_operation;

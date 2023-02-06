@@ -2,6 +2,7 @@
 #include <array>
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_reader_writer_lock.h"
+#include "Phantom.Coroutines/static_thread_pool.h"
 
 namespace Phantom::Coroutines
 {
@@ -114,4 +115,37 @@ ASYNC_TEST(async_reader_writer_lock_test, can_destroy_after_awaiting)
     auto lock = co_await readerWriterLock.reader().scoped_lock_async();
 }
 
+async_reader_writer_lock<>* g_readerWriterLock;
+
+TEST(async_reader_writer_lock_test, do_many_operations)
+{
+    async_reader_writer_lock<> readerWriterLock;
+    g_readerWriterLock = &readerWriterLock;
+    static_thread_pool<> threadPool;
+    sync_wait([&]() -> task<>
+    {
+        async_scope<> scope;
+
+        auto doWaitOperations = [&]() -> task<>
+        {
+            co_await threadPool.schedule();
+            for (auto counter = 0; counter < 100; counter++)
+            {
+                auto writeLock = co_await readerWriterLock.writer().scoped_lock_async();
+                co_await threadPool.schedule();
+                writeLock.unlock();
+
+                auto readLock1 = co_await readerWriterLock.reader().scoped_lock_async();
+                co_await threadPool.schedule();
+            }
+        };
+
+        for (int counter = 0; counter < 10000; counter++)
+        {
+            scope.spawn(doWaitOperations);
+        }
+
+        co_await scope.join();
+    }());
+}
 }

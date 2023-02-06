@@ -115,7 +115,7 @@ ResumeWaiters_CheckQueue:
     ReaderLockCount := ReaderLockCount + readerCountChange;
     readerCountChange := 0;
 
-    if (Queue = << >> /\ ~HasPending) \/ ReaderLockCount < 0 then
+    if (Queue = << >> /\ ~HasPending) \/ (ReaderLockCount > 0) then
         goto ResumeLocks;
     elsif Resuming then
         goto ResumeLocks;
@@ -160,7 +160,9 @@ CollectAwaiters:
         
 UpdateLockState:
         assert ~Destroyed;
-        if Queue # << >> \/ ReaderLockCount # readerCount then
+        if 
+            Queue # << >> \/ ReaderLockCount # readerCount
+            then
             pending := Queue;
             Queue := << >>;
             HasPending := FALSE;
@@ -260,7 +262,7 @@ DestroyIfIdle:
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "7dbdd923" /\ chksum(tla) = "8e7d4392")
+\* BEGIN TRANSLATION (chksum(pcal) = "33342fbe" /\ chksum(tla) = "4f4cdf50")
 VARIABLES ReaderLockCount, Queue, HasPending, Resuming, Pending, Locks, 
           Destroyed, pc, stack, readerCountChange, lockToUnlock, 
           locksToResume, pending, readerCount, lockToAcquire
@@ -296,7 +298,7 @@ ResumeWaiters_CheckQueue(self) == /\ pc[self] = "ResumeWaiters_CheckQueue"
                                             "Failure of assertion at line 114, column 5.")
                                   /\ ReaderLockCount' = ReaderLockCount + readerCountChange[self]
                                   /\ readerCountChange' = [readerCountChange EXCEPT ![self] = 0]
-                                  /\ IF (Queue = << >> /\ ~HasPending) \/ (ReaderLockCount' - readerCountChange'[self]) < 0
+                                  /\ IF (Queue = << >> /\ ~HasPending) \/ (ReaderLockCount' > 0)
                                         THEN /\ pc' = [pc EXCEPT ![self] = "ResumeLocks"]
                                              /\ UNCHANGED << Queue, HasPending, 
                                                              Resuming, pending, 
@@ -410,7 +412,7 @@ ResumeWaiters(self) == ResumeWaiters_CheckQueue(self)
 
 AcquireOrEnqueue(self) == /\ pc[self] = "AcquireOrEnqueue"
                           /\ Assert(~Destroyed, 
-                                    "Failure of assertion at line 196, column 5.")
+                                    "Failure of assertion at line 198, column 5.")
                           /\ IF /\  ~Resuming
                                 /\  ~HasPending
                                 /\  Queue = << >>
@@ -433,7 +435,7 @@ AcquireOrEnqueue(self) == /\ pc[self] = "AcquireOrEnqueue"
                                                       THEN /\ Queue' = Queue \o << lockToAcquire[self] >>
                                                            /\ pc' = [pc EXCEPT ![self] = "Unlock_Read"]
                                                       ELSE /\ Assert(lockToAcquire[self] = WriteLock(self), 
-                                                                     "Failure of assertion at line 229, column 9.")
+                                                                     "Failure of assertion at line 231, column 9.")
                                                            /\ Queue' = Queue \o << lockToAcquire[self] >>
                                                            /\ pc' = [pc EXCEPT ![self] = "Unlock_Write"]
                                                 /\ UNCHANGED << ReaderLockCount, 
@@ -445,7 +447,7 @@ AcquireOrEnqueue(self) == /\ pc[self] = "AcquireOrEnqueue"
 
 Unlock_Read(self) == /\ pc[self] = "Unlock_Read"
                      /\ Assert(~Destroyed, 
-                               "Failure of assertion at line 223, column 9.")
+                               "Failure of assertion at line 225, column 9.")
                      /\ lockToAcquire[self] \in Locks
                      /\ Locks' = Locks \ { lockToAcquire[self] }
                      /\ /\ lockToUnlock' = [lockToUnlock EXCEPT ![self] = << lockToAcquire[self] >>]
@@ -468,7 +470,7 @@ Unlock_Read(self) == /\ pc[self] = "Unlock_Read"
 
 Unlock_Write(self) == /\ pc[self] = "Unlock_Write"
                       /\ Assert(~Destroyed, 
-                                "Failure of assertion at line 233, column 9.")
+                                "Failure of assertion at line 235, column 9.")
                       /\ lockToAcquire[self] \in Locks
                       /\ Locks' = Locks \ { lockToAcquire[self]}
                       /\ /\ lockToUnlock' = [lockToUnlock EXCEPT ![self] = << lockToAcquire[self] >>]
@@ -569,6 +571,9 @@ Property ==
                     \/  ResumeWaiters(thread) 
                     \/  Lock(thread)
                 )
+    /\  []~\A thread \in Threads : 
+            /\  pc[thread] \in { "Unlock_Read", "Unlock_Write" }
+            /\  ~\E lock \in Locks : lock.Thread = thread
 
 Alias ==
     [

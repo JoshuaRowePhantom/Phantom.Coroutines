@@ -78,6 +78,8 @@ ServiceQueue ==
                 \/  Cardinality(Locks') <= 1
             /\  \/  lock \in Locks
                 \/  \E queueIndex \in 1..index : Queue[queueIndex] = lock
+    /\  Locks # Locks'
+    /\  Queue # Queue'
     /\  UNCHANGED Destroyed
 
 LockReadFast(thread) ==
@@ -143,7 +145,7 @@ Property ==
     /\  \A lock \in LockType :
         []((\E index \in DOMAIN Queue : Queue[index] = lock) ~> lock \in Locks)
     /\  []Invariant
- 
+    
 Alias == [
     Locks |-> Locks,
     Queue |-> Queue,
