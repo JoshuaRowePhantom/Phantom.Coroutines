@@ -197,11 +197,11 @@ private:
             readerCount = previousState->m_readerLockCount + readerCountChange;
             resumingState->m_readerLockCount = readerCount;
 
-            if (previousQueueState & QueueState::IsResumingMask
+            if ((previousQueueState & QueueState::IsResumingMask)
                 ||
-                !queue && !(previousQueueState & QueueState::HasPendingMask)
+                (!queue && !(previousQueueState & QueueState::HasPendingMask))
                 || 
-                readerCount > 0)
+                (readerCount > 0))
             {
                 resumingState->m_queue = previousState->m_queue;
                 resumeLocks = false;
@@ -234,12 +234,6 @@ private:
         // reversing the queue in the process.
         operation* previous = nullptr;
 
-        if (lastLockToResume
-            && lastLockToResume->m_next == nullptr)
-        {
-            m_pendingTail = &lastLockToResume->m_next;
-        }
-
         auto newPendingTail = queue ? &queue->m_next : m_pendingTail;
         while (queue)
         {
@@ -250,6 +244,12 @@ private:
             queue = next;
         }
         m_pendingTail = newPendingTail;
+
+        if (lastLockToResume
+            && lastLockToResume->m_next == nullptr)
+        {
+            lastLockToResume->m_next = m_pending;
+        }
 
         if (!locksToResume)
         {
@@ -262,13 +262,17 @@ private:
             m_pending
             &&
             (
-                readerCount >= 0
-                && m_pending->m_operationType == operation_type::read
-                && locksToResume->m_operationType == operation_type::read
+                (
+                    (readerCount >= 0)
+                    && m_pending->m_operationType == operation_type::read
+                    && locksToResume->m_operationType == operation_type::read
+                    )
                 ||
-                readerCount == 0
-                && locksToResume == m_pending
-                && m_pending->m_operationType == operation_type::write)
+                (
+                    readerCount == 0
+                    && locksToResume == m_pending
+                    && m_pending->m_operationType == operation_type::write)
+                )
             )
         {
             lastLockToResume = m_pending;
