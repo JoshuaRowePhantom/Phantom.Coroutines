@@ -7,7 +7,7 @@
 namespace Phantom::Coroutines
 {
 
-ASYNC_TEST(async_reader_writer_lock_test, has_correct_reader_writer_sequencing)
+ASYNC_TEST(async_reader_writer_lock_test, fifo_ordering_has_correct_reader_writer_sequencing)
 {
     async_reader_writer_lock<> reader_writer_lock;
 
