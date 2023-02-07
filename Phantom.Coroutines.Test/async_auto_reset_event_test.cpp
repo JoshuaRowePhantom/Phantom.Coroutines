@@ -147,4 +147,24 @@ ASYNC_TEST(async_auto_reset_event_test, can_destroy_from_resumption_of_coroutine
     co_await scope.join();
 }
 
+ASYNC_TEST(async_auto_reset_event_test, DISABLED_can_loop_without_stack_overflow)
+{
+    async_auto_reset_event<> event;
+
+    auto lambda = [&]() -> task<>
+    {
+        co_await event;
+        event.set();
+    };
+
+    async_scope<> scope;
+    for (auto counter = 0; counter < 10000; ++counter)
+    {
+        scope.spawn(lambda());
+    }
+
+    event.set();
+    co_await scope.join();
+}
+
 }
