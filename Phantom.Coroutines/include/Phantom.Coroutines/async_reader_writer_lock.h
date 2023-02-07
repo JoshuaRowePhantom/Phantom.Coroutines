@@ -1,11 +1,9 @@
 #pragma once
 
 #include "policies.h"
-#include "async_scope.h"
-#include "async_auto_reset_event.h"
+#include "awaiter_list.h"
 #include "double_wide_atomic.h"
 #include "tagged_pointer.h"
-#include "reusable_task.h"
 
 namespace Phantom::Coroutines
 {

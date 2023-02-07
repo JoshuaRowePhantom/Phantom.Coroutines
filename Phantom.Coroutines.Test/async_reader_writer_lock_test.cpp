@@ -2,6 +2,7 @@
 #include <array>
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_reader_writer_lock.h"
+#include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
 
 namespace Phantom::Coroutines
