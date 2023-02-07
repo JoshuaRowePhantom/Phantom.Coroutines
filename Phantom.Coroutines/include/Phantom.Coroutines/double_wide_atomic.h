@@ -35,7 +35,7 @@ class alignas(16) double_wide_value
 
 public:
     double_wide_value(
-        Value value)
+        Value value = {})
         : m_value { value }
     {}
 
@@ -49,9 +49,11 @@ namespace std
 {
 template<
     ::Phantom::Coroutines::detail::is_double_wide_value T
-> class std::atomic<::Phantom::Coroutines::double_wide_value<T>>
+> class atomic<::Phantom::Coroutines::double_wide_value<T>>
 {
-    ::Phantom::Coroutines::double_wide_value<T> m_value;
+public:
+    using value_type = ::Phantom::Coroutines::double_wide_value<T>;
+    value_type m_value;
 
 public:
     atomic(T value = { })
@@ -59,8 +61,8 @@ public:
     {}
 
     bool compare_exchange_weak(
-        ::Phantom::Coroutines::double_wide_value<T>& expected,
-        ::Phantom::Coroutines::double_wide_value<T> desired,
+        value_type& expected,
+        value_type desired,
         std::memory_order = std::memory_order_seq_cst,
         std::memory_order = std::memory_order_seq_cst)
     {
@@ -70,8 +72,8 @@ public:
     }
 
     bool compare_exchange_strong(
-        ::Phantom::Coroutines::double_wide_value<T>& expected,
-        ::Phantom::Coroutines::double_wide_value<T> desired,
+        value_type& expected,
+        value_type desired,
         std::memory_order = std::memory_order_seq_cst,
         std::memory_order = std::memory_order_seq_cst)
     {
@@ -82,16 +84,18 @@ public:
             expected.rawValue);
     }
 
-    T load_inconsistent()
+    value_type load_inconsistent(
+    ) const
     {
         return m_value;
     }
 
-    T load(
-        std::memory_order memoryOrder = std::memory_order_seq_cst)
+    value_type load(
+        std::memory_order memoryOrder = std::memory_order_seq_cst
+    ) const
     {
-        auto value = m_value;
-        while (!compare_exchange_weak(
+        auto value = load_inconsistent();
+        while (!const_cast<atomic*>(this)->compare_exchange_weak(
             value,
             value
         ));
@@ -99,10 +103,10 @@ public:
     }
 
     void store(
-        ::Phantom::Coroutines::double_wide_value<T> value,
+        value_type value,
         std::memory_order = std::memory_order_seq_cst)
     {
-        auto oldValue = m_value;
+        auto oldValue = load_inconsistent();
         while (!compare_exchange_weak(
             oldValue,
             value
