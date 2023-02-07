@@ -8,6 +8,7 @@
 #include "Phantom.Coroutines/reusable_task.h"
 #include "lifetime_tracker.h"
 #include "async_test.h"
+#include "pmr_task.h"
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
@@ -447,4 +448,36 @@ ASYNC_TEST(reusable_task_test, when_ready_does_not_throw_exception)
     catch (int)
     {
     }
+}
+
+namespace
+{
+using Test::pmr_reusable_task;
+using Test::memory_tracker;
+}
+
+ASYNC_TEST(reusable_task_test, DISABLED_can_elide_allocations)
+{
+    memory_tracker tracker;
+    std::pmr::polymorphic_allocator<> allocator(&tracker);
+
+    size_t outerAllocation;
+    size_t innerAllocation;
+
+    auto inner = [&](std::pmr::polymorphic_allocator<> allocator) -> pmr_reusable_task<>
+    {
+        innerAllocation = tracker.allocated_memory();
+        co_return;
+    };
+
+    auto outer = [&](std::pmr::polymorphic_allocator<> allocator) -> pmr_reusable_task<>
+    {
+        outerAllocation = tracker.allocated_memory();
+        co_await inner(allocator);
+    };
+
+    co_await outer(allocator);
+#if NDEBUG
+    EXPECT_EQ(innerAllocation, outerAllocation);
+#endif
 }

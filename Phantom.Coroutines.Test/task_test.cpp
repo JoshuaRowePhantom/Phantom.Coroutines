@@ -8,6 +8,7 @@
 #include "Phantom.Coroutines/sync_wait.h"
 #include "lifetime_tracker.h"
 #include "async_test.h"
+#include "pmr_task.h"
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
@@ -381,4 +382,36 @@ ASYNC_TEST(task_test, Destroys_thrown_exception)
 
     EXPECT_EQ(1, instanceCountBeforeDestruction);
     EXPECT_EQ(0, instanceCountAfterDestruction);
+}
+
+namespace
+{
+using Test::pmr_task;
+using Test::memory_tracker;
+}
+
+ASYNC_TEST(task_test, DISABLED_can_elide_allocations)
+{
+    memory_tracker tracker;
+    std::pmr::polymorphic_allocator<> allocator(&tracker);
+
+    size_t outerAllocation;
+    size_t innerAllocation;
+
+    auto inner = [&](std::pmr::polymorphic_allocator<> allocator) -> pmr_task<>
+    {
+        innerAllocation = tracker.allocated_memory();
+        co_return;
+    };
+
+    auto outer = [&](std::pmr::polymorphic_allocator<> allocator) -> pmr_task<>
+    {
+        outerAllocation = tracker.allocated_memory();
+        co_await inner(allocator);
+    };
+
+    co_await outer(allocator);
+#if NDEBUG
+    EXPECT_EQ(innerAllocation, outerAllocation);
+#endif
 }

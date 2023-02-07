@@ -38,7 +38,7 @@ add_executable(
     "async_reader_writer_lock_test.cpp" 
     "sequence_lock_test.cpp" 
     "double_wide_atomic_test.cpp" 
-    "tagged_pointer_test.cpp")
+    "tagged_pointer_test.cpp" "pmr_task.h")
 
 target_link_libraries(
     Phantom.Coroutines.Test

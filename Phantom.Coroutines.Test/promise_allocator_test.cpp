@@ -1,48 +1,14 @@
 #include "async_test.h"
-#include "Phantom.Coroutines/promise_allocator.h"
-#include <memory_resource>
+#include "pmr_task.h"
 
 namespace Phantom::Coroutines
 {
 
 namespace
 {
-
-struct memory_tracker_data
-{
-    size_t m_allocatedMemory = 0;
-};
-
-class memory_tracker : 
-    public std::pmr::memory_resource
-{
-    std::shared_ptr<memory_tracker_data> m_trackerData 
-        = std::make_shared<memory_tracker_data>();
-
-    // Inherited via memory_resource
-    virtual void* do_allocate(size_t _Bytes, size_t _Align) override
-    {
-        m_trackerData->m_allocatedMemory += _Bytes;
-        return new char[_Bytes];
-    }
-
-    virtual void do_deallocate(void* _Ptr, size_t _Bytes, size_t _Align) override
-    {
-        m_trackerData->m_allocatedMemory -= _Bytes;
-        delete _Ptr;
-    }
-
-    virtual bool do_is_equal(const memory_resource& _That) const noexcept override
-    {
-        return false;
-    }
-
-public:
-    size_t allocated_memory() const
-    {
-        return m_trackerData->m_allocatedMemory;
-    }
-};
+using Test::memory_tracker_data;
+using Test::memory_tracker;
+using Test::pmr_task;
 
 class throwing_memory_resource :
     public std::pmr::memory_resource

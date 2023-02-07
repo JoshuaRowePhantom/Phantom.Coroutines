@@ -184,9 +184,8 @@ protected:
     )
     {
         std::rethrow_exception(
-            std::move(
-                get<exception_index>(
-                    result()))
+            get<exception_index>(
+                result())
         );
     }
 
