@@ -204,9 +204,17 @@ template<
 
 
 struct ordering_policy {};
+// The user has no ordering preference.
 struct no_ordering_preference : public ordering_policy, concrete_policy {};
+// The user requires that any available operation be immediately serviced.
 struct first_available_ordering : public ordering_policy, concrete_policy {};
+// The user requires strict FIFO ordering.
+// Generally, FIFO ordering is relaxed for simultaneous operations, but all
+// operations queue operations that happens-before a dequeue operation
+// will be serviced in FIFO order.
 struct fifo_ordering : public ordering_policy, concrete_policy {};
+// The user requires bounded ordering, but not necessarily strict FIFO.
+struct bounded_ordering : public ordering_policy, concrete_policy {};
 
 template<
     typename T

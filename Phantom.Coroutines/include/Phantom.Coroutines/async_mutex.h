@@ -16,7 +16,8 @@ template<
     is_await_cancellation_policy AwaitCancellationPolicy,
     is_continuation Continuation,
     is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
-    is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
+    is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy,
+    is_ordering_policy OrderingPolicy
 >
 class basic_async_mutex;
 
@@ -29,8 +30,9 @@ is_concrete_policy<T, await_is_not_cancellable>
 // wouldn't be useful, but actually it is:
 // a common case is that there only two threads of control vying
 // for the mutex, and therefore only one of them can be awaiting.
-|| is_awaiter_cardinality_policy<T> 
-|| is_continuation_type_policy<T>;
+|| is_awaiter_cardinality_policy<T>
+|| is_continuation_type_policy<T>
+|| is_ordering_policy<T>;
 
 template<
     is_async_mutex_policy ... Policy
@@ -38,14 +40,16 @@ template<
     select_await_cancellation_policy<Policy..., await_is_not_cancellable>,
     select_continuation_type<Policy..., default_continuation_type>,
     select_awaiter_cardinality_policy<Policy..., multiple_awaiters>,
-    select_await_result_on_destruction_policy<Policy..., noop_on_destroy>
+    select_await_result_on_destruction_policy<Policy..., noop_on_destroy>,
+    select_ordering_policy<Policy..., fifo_ordering>
 >;
 
 template<
     is_await_cancellation_policy AwaitCancellationPolicy,
     is_continuation Continuation,
     is_awaiter_cardinality_policy AwaiterCardinalityPolicy,
-    is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy
+    is_await_result_on_destruction_policy AwaitResultOnDestructionPolicy,
+    is_ordering_policy OrderingPolicy
 >
 class basic_async_mutex
     :
