@@ -1,7 +1,7 @@
 #pragma once
 
 #include <atomic>
-#include "sequence_lock.h"
+#include "double_wide_atomic.h"
 #include "detail/coroutine.h"
 #include "policies.h"
 
@@ -58,17 +58,17 @@ template<
     // Awaiters that have been pulled from the m_state variable
     // and that should be resumed before those in the m_state variable.
     std::atomic<awaiter*> m_pendingAwaiters = nullptr;
-    sequence_lock<state_type> m_state;
+    std::atomic<double_wide_value<state_type>> m_state;
     awaiter* m_unservicedAwaiters = nullptr;
     awaiter** m_unservicedAwaitersTail = &m_unservicedAwaiters;
-    using sequence_number = typename sequence_lock<state_type>::sequence_number;
 
     void resume_awaiters(
-        state_type state,
-        sequence_number stateSequenceNumber
+        double_wide_value<state_type> previousState
     )
     {
-        auto fetchCount = std::min(state.m_setCount, state.m_waitingCount);
+        auto fetchCount = std::min(
+            previousState->m_setCount, 
+            previousState->m_waitingCount);
         awaiter* waitersToService = nullptr;
 
         /*
@@ -89,7 +89,7 @@ Resume_FetchListenersToService:
                 nullptr,
                 std::memory_order_acquire);
 
-                /*
+            /*
 Resume_DecrementCounts_and_AdjustLists:
         assert ~Destroyed;
         ListenersToService := ListenersToService \o
@@ -106,8 +106,8 @@ Resume_DecrementCounts_and_AdjustLists:
         FetchedListeners := << >>;
         */
 
-            // fetchedWaiters is in reverse order of delivery,
-            // so reverse it and append to m_unservicedAwaiters
+        // fetchedWaiters is in reverse order of delivery,
+        // so reverse it and append to m_unservicedAwaiters
             awaiter* unservicedAwaiters = nullptr;
             auto newTail = &fetchedWaiters->m_nextAwaiter;
             while (fetchedWaiters)
@@ -125,7 +125,7 @@ Resume_DecrementCounts_and_AdjustLists:
             // Note that this changes the order, but this is within contract
             // as the multiple overlapping set / wait operations
             // can be delivered in any order.
-            for(size_t counter = 0; counter < fetchCount; ++counter)
+            for (size_t counter = 0; counter < fetchCount; ++counter)
             {
                 auto next = m_unservicedAwaiters->m_nextAwaiter;
                 m_unservicedAwaiters->m_nextAwaiter = waitersToService;
@@ -149,26 +149,20 @@ Resume_DecrementCounts_and_AdjustLists:
         else
             FetchingCount := 0;
         end if;
-        */ 
-            state.m_setCount -= fetchCount;
-            state.m_waitingCount -= fetchCount;
-            while (!m_state.compare_exchange_weak(
-                state,
-                stateSequenceNumber
-            ))
+        */
+            double_wide_value<state_type> nextState;
+            do
             {
-                state = m_state.read(stateSequenceNumber);
-            }
+                nextState = previousState;
+                nextState->m_setCount -= fetchCount;
+                nextState->m_waitingCount -= fetchCount;
+            } while (!m_state.compare_exchange_weak(
+                previousState,
+                nextState));
 
-            if (state.m_setCount > 0
-                && state.m_waitingCount > 0)
-            {
-                fetchCount = std::min(state.m_setCount, state.m_waitingCount);
-            }
-            else
-            {
-                fetchCount = 0;
-            }
+            fetchCount = std::min(
+                nextState->m_setCount,
+                nextState->m_waitingCount);
         /*
     end while;
     */
@@ -236,14 +230,16 @@ end procedure;
             // so hold onto event locally.
             auto event = m_event;
 
-            sequence_number sequenceNumber;
-            state_type state = event->m_state.read(sequenceNumber);
-            while (state.m_setCount > state.m_waitingCount)
+            double_wide_value previousState = event->m_state.load_inconsistent();
+            
+            // Try once to resume with a single compare-exchange.
+            auto nextState = previousState;
+            if (nextState->m_setCount > nextState->m_waitingCount)
             {
-                state.m_setCount--;
+                nextState->m_setCount--;
                 if (event->m_state.compare_exchange_weak(
-                    state,
-                    sequenceNumber))
+                    previousState,
+                    nextState))
                 {
                     return continuation;
                 }
@@ -275,21 +271,19 @@ Listen_IncrementWaiterCount:
                 Min({ SetCount, WaiterCount }));
         end if;
             */
-            state.m_waitingCount++;
-            while (!event->m_state.compare_exchange_weak(
-                state,
-                sequenceNumber
-            ))
+            do
             {
-                state.m_waitingCount++;
-            }
+                nextState = previousState;
+                nextState->m_waitingCount++;
+            } while (!event->m_state.compare_exchange_weak(
+                previousState,
+                nextState));
 
-            if (state.m_setCount > 0
-                && state.m_waitingCount == 1)
+            if (nextState->m_setCount > 0
+                && nextState->m_waitingCount == 1)
             {
                 event->resume_awaiters(
-                    state,
-                    sequenceNumber);
+                    nextState);
             }
 
             if (m_referenceCount.fetch_sub(1, std::memory_order_acquire) == 1)
@@ -321,8 +315,8 @@ public:
 
     bool is_set() const noexcept
     {
-        auto state = m_state.read();
-        return state.m_setCount > state.m_waitingCount;
+        auto state = m_state.load();
+        return state->m_setCount > state->m_waitingCount;
     }
 
     void set() noexcept
@@ -341,20 +335,23 @@ public:
         end if;
 
         */
-        state_type state;
-        sequence_number sequenceNumber;
+        double_wide_value<state_type> previousState = m_state.load_inconsistent();
+        double_wide_value<state_type> nextState;
         do
         {
-            state = m_state.read(sequenceNumber);
-            state.m_setCount = std::min(state.m_setCount + 1, state.m_waitingCount + 1);
-        } while (!m_state.compare_exchange_weak(state, sequenceNumber));
+            nextState = previousState;
+            nextState->m_setCount = std::min(
+                nextState->m_setCount + 1, 
+                nextState->m_waitingCount + 1);
+        } while (!m_state.compare_exchange_weak(
+            previousState, 
+            nextState));
 
-        if (state.m_setCount == 1
-            && state.m_waitingCount > 0)
+        if (nextState->m_setCount == 1
+            && nextState->m_waitingCount > 0)
         {
             resume_awaiters(
-                state,
-                sequenceNumber);
+                nextState);
         }
     }
 
@@ -365,16 +362,18 @@ public:
             SetCount := SetCount - 1;
         */
 
-        state_type state;
-        sequence_number sequenceNumber;
+        double_wide_value<state_type> previousState = m_state.load_inconsistent();
+        double_wide_value<state_type> nextState;
         do
         {
-            state = m_state.read(sequenceNumber);
-            if (state.m_setCount > state.m_waitingCount)
+            nextState = previousState;
+            if (nextState->m_setCount > nextState->m_waitingCount)
             {
-                state.m_setCount--;
+                nextState->m_setCount--;
             }
-        } while (!m_state.compare_exchange_weak(state, sequenceNumber));
+        } while (!m_state.compare_exchange_weak(
+            previousState,
+            nextState));
     }
 
     awaiter operator co_await()
