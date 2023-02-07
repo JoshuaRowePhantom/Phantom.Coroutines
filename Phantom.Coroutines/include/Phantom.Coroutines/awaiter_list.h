@@ -46,7 +46,7 @@ template<
     DerivedAwaiter
 >
 {
-    DerivedAwaiter* m_next;
+    DerivedAwaiter* m_next = nullptr;
 
 public:
     void set_next(
@@ -64,7 +64,9 @@ public:
 
 template<
     typename Awaiter
-> concept is_awaiter_list_entry = requires(Awaiter * awaiter)
+> concept is_awaiter_list_entry = requires(
+    Awaiter * awaiter
+)
 {
     { awaiter->set_next(awaiter) };
     { awaiter->next() } -> std::same_as<Awaiter*>;
@@ -122,6 +124,24 @@ template<
         invocation(awaiters);
         awaiters = nextAwaiter;
     }
+}
+
+// Given a source list of awaiters, reverse it
+// and prepend it to the destination list.
+template<
+    is_awaiter_list_entry Awaiter
+> void reverse_and_prepend_awaiter_list(
+    Awaiter* source,
+    Awaiter** destination
+)
+{
+    invoke_on_awaiters(
+        source,
+        [&](auto awaiter)
+    {
+        awaiter->set_next(*destination);
+        *destination = awaiter;
+    });
 }
 
 inline void resume_from_destruction_of_awaitable_object(
