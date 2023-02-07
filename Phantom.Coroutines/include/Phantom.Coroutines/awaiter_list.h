@@ -1,3 +1,5 @@
+#pragma once
+
 #include "policies.h"
 #include <future>
 #include <mutex>
