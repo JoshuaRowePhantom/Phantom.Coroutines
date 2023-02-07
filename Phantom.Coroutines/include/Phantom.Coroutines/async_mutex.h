@@ -220,52 +220,51 @@ public:
         // We maintain the ordered list in m_awaiters;
         // when that empties out, we copy the atomically added awaiters into
         // m_awaiters.
-
-        // Question: do we have to memory_order_acquire something here
-        // to ensure m_awaiters is correct?
         if (!m_awaiters)
         {
-            state_type previousState = LockedNoWaitersState;
-
-            // See if we can atomically determine there are no more waiters in the atomic
-            // and unlock.
-            if (m_state.compare_exchange_strong(
-                previousState,
-                UnlockedState{},
-                std::memory_order_release
-            ))
+            state_type previousState = m_state.load(std::memory_order_relaxed);
+            state_type nextState = nullptr;
+            lock_operation* awaiters;
+            do
             {
-                // There are no other waiters and we're now unlocked.
-                return;
-            }
-
-            // Otherwise, grab all the current waiters and put them in m_awaiters in reverse order.
-            // No other thread will be attempting to do an unlock at the same time, so
-            // we'll gain exclusive ownership of the linked list of waiters.
-            auto awaiter = m_state.exchange(
-                LockedNoWaitersState,
-                std::memory_order_acquire
-            ).as<LockedState>();
-
-            invoke_on_awaiters(
-                awaiter,
-                [&](auto awaiter)
+                if (previousState.is<LockedState>())
                 {
-                    awaiter->set_next(m_awaiters);
-                    m_awaiters = awaiter;
-                });
+                    awaiters = previousState.as<LockedState>();
+                }
+                else
+                {
+                    awaiters = nullptr;
+                }
+                
+                if (awaiters)
+                {
+                    nextState = LockedNoWaitersState;
+                }
+                else
+                {
+                    nextState = UnlockedState{};
+                }
+            } while (!m_state.compare_exchange_weak(
+                previousState,
+                nextState,
+                std::memory_order_acq_rel
+            ));
+
+            reverse_and_prepend_awaiter_list(
+                awaiters,
+                &m_awaiters);
         }
 
-        auto awaiter = m_awaiters;
-        assert(awaiter != nullptr);
-        m_awaiters = m_awaiters->next();
+        if (m_awaiters)
+        {
+            auto awaiter = m_awaiters;
+            m_awaiters = m_awaiters->next();
 
-        // Question: do we have to memory_order_release something here
-        // to ensure m_awaiters is correct?
+            // This has the potential to overflow the stack.
+            // We expect callers to be using suspend_result.
+            awaiter->resume();
+        }
 
-        // This has the potential to overflow the stack.
-        // We expect callers to be using suspend_result.
-        awaiter->resume();
         return;
     }
 
