@@ -58,6 +58,8 @@ using error_task = early_termination_task<
 
 error_task<int> MyErrorReturningCoroutine()
 {
+    // This co_return will immediately cause the resumption of MyErrorHandlingCoroutine,
+    // without ever resuming code in MyOuterCoroutine.
     co_return std::unexpected { std::make_error_condition(std::errc::bad_address) };
 }
 
@@ -71,8 +73,8 @@ error_task<int> MyOuterCoroutine()
     return
         // This co_await will succeed
         co_await MySuccessfulCoroutine()
-        // This co_await will fail, and will resume the caller
-        // of MyOuterCoroutine.
+        // This co_await will not return to this coroutine at all, 
+        // with MyErrorReturningCoroutine immediately resuming MyErrorHandlingCoroutine.
         + co_await MyErrorReturningCoroutine();
 }
 
