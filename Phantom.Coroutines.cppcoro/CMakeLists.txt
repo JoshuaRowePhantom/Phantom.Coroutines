@@ -9,4 +9,8 @@ target_include_directories(
     Phantom.Coroutines.cppcoro
     INTERFACE
     include)
-    
+
+target_link_libraries(
+    Phantom.Coroutines.cppcoro
+    INTERFACE
+    Phantom.Coroutines)
