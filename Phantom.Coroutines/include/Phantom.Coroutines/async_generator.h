@@ -187,7 +187,7 @@ public:
     {}
 
     auto await_ready(
-        this auto& self,
+        this auto&& self,
         auto&&... args
     )
     {
@@ -204,7 +204,7 @@ public:
     }
 
     auto await_suspend(
-        this auto& self,
+        this auto&& self,
         auto continuation,
         auto&&... args)
     {
@@ -217,7 +217,7 @@ public:
     }
 
     auto await_resume(
-        this auto& self
+        this auto&& self
         )
     {
         if (
@@ -296,7 +296,7 @@ public:
     typedef std::input_iterator_tag iterator_category;
 
     auto operator++(
-        this auto& self)
+        this auto&& self)
     {
         self.promise().m_currentValue.emplace<size_t(EmptyIndex)>();
         return async_generator_increment_awaiter
