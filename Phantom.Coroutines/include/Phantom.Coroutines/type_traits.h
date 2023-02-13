@@ -29,6 +29,17 @@ template<
 > = true;
 
 template<
+    typename... Args,
+    template <typename ...> typename Template
+> constexpr bool is_template_instantiation_v<
+    Template<Args...>&,
+    Template
+> = is_template_instantiation_v<
+    Template<Args...>,
+    Template
+>;
+
+template<
     typename T,
     template <typename ...> typename Template
 > concept is_template_instantiation = is_template_instantiation_v<T, Template>;
@@ -393,65 +404,12 @@ template<
 
 template<
     is_awaitable Awaitable
-> struct awaiter_type_s
-{
-    static_assert(always_false<Awaitable>, "awaiter_type_s doesn't cover all cases.");
-};
-
-template<
-    has_co_await_member Awaitable
-> struct awaiter_type_s<
-    Awaitable
->
-{
-    using type = decltype(std::declval<Awaitable>().operator co_await());
-};
-
-template<
-    has_co_await_non_member Awaitable
-> struct awaiter_type_s<
-    Awaitable
->
-{
-    using type = decltype(operator co_await(std::declval<Awaitable>()));
-};
-
-template<
-    is_awaiter Awaiter
-> struct awaiter_type_s<
-    Awaiter
->
-{
-    using type = Awaiter;
-};
-
-template<
-    is_awaitable Awaitable
-> using awaiter_type = typename awaiter_type_s<Awaitable>::type;
+> using awaiter_type = decltype(get_awaiter(std::declval<Awaitable>()));
 
 template<
     is_awaitable TAwaitable
 >
-decltype(auto) get_awaitable_result(
-    TAwaitable&& awaitable
-)
-{
-    auto awaiter = get_awaiter(std::forward<TAwaitable>(awaitable));
-    return awaiter.await_resume();
-}
-
-template<
-    is_awaitable TAwaitable
->
-struct awaitable_result_type
-{
-    typedef decltype((get_awaitable_result(std::declval<TAwaitable>()))) type;
-};
-
-template<
-    is_awaitable TAwaitable
->
-using awaitable_result_type_t = typename awaitable_result_type<TAwaitable>::type;
+using awaitable_result_type_t = decltype(std::declval<awaiter_type<TAwaitable>>().await_resume());
 
 template<
     typename T
@@ -549,29 +507,15 @@ template<
     typename Owner,
     typename Value
 > decltype(auto) forward_owned(
-    std::remove_reference_t<Value>&& value
+    std::type_identity_t<Value>&& value
 ) noexcept
 {
     if constexpr (
-        std::is_lvalue_reference_v<Owner>
-        || std::is_lvalue_reference_v<Value>)
-    {
-        return (value);
-    }
-    else
+        std::is_rvalue_reference_v<Value>)
     {
         return std::move(value);
     }
-}
-
-template<
-    typename Owner,
-    typename Value
-> decltype(auto) forward_owned(
-    std::remove_reference_t<Value>& value
-) noexcept
-{
-    if constexpr (
+    else if constexpr (
         std::is_lvalue_reference_v<Owner>
         || std::is_lvalue_reference_v<Value>)
     {
@@ -637,7 +581,6 @@ protected:
 
 using detail::awaiter_type;
 using detail::awaitable_result_type_t;
-using detail::awaitable_result_type;
 using detail::is_awaitable;
 using detail::is_awaiter;
 using detail::has_co_await_member;

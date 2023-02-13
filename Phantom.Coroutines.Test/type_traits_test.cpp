@@ -17,6 +17,10 @@ static_assert(true == is_in_types<int, bool, int>);
 static_assert(true == is_in_types<int, int, int>);
 static_assert(false == is_in_types<int, bool, bool>);
 
+static_assert(true == is_template_instantiation_v<std::tuple<>, std::tuple>);
+static_assert(true == is_template_instantiation_v<std::tuple<>&, std::tuple>);
+static_assert(false == is_template_instantiation_v<int, std::tuple>);
+
 // Verify that filter_tuple_types works
 template<
     typename T
@@ -111,10 +115,10 @@ static_assert(has_co_await_member<generic_awaitable_rvalue<>>);
 static_assert(!has_co_await_member<generic_awaitable_rvalue<>&>);
 static_assert(has_co_await_member<generic_awaitable_rvalue<>&&>);
 
-static_assert(std::same_as<typed_awaiter<void>, awaiter_type<typed_awaiter<void>>>);
-static_assert(std::same_as<typed_awaiter<int>, awaiter_type<typed_awaiter<int>>>);
-static_assert(std::same_as<typed_awaiter<int&>, awaiter_type<typed_awaiter<int&>>>);
-static_assert(std::same_as<typed_awaiter<int&&>, awaiter_type<typed_awaiter<int&&>>>);
+static_assert(std::same_as<typed_awaiter<void>&&, awaiter_type<typed_awaiter<void>>>);
+static_assert(std::same_as<typed_awaiter<int>&&, awaiter_type<typed_awaiter<int>>>);
+static_assert(std::same_as<typed_awaiter<int&>&&, awaiter_type<typed_awaiter<int&>>>);
+static_assert(std::same_as<typed_awaiter<int&&>&&, awaiter_type<typed_awaiter<int&&>>>);
 
 static_assert(std::same_as<typed_awaiter<void>&, awaiter_type<typed_awaiter<void>&>>);
 static_assert(std::same_as<typed_awaiter<int>&, awaiter_type<typed_awaiter<int>&>>);
@@ -208,4 +212,39 @@ TEST(type_traits_test, get_awaiter_returns_co_await_rvalue_reference_as_rvalue_r
     ASSERT_EQ(&result, &awaitable.m_awaiter);
 }
 
+template<
+    typename Owner,
+    typename Value,
+    typename ExpectedResult
+>
+struct assert_forward_owned_expected_result
+{
+    assert_forward_owned_expected_result()
+    {
+        std::decay_t<Owner> ownerVariable;
+        std::decay_t<Value> valueVariable;
+        
+        Owner owner = static_cast<Owner>(ownerVariable);
+        Value value = static_cast<Value>(valueVariable);
+
+        static_assert(std::same_as<decltype(forward_owned<Owner, Value>(std::declval<Value>())), ExpectedResult>);
+        auto&& result = forward_owned<Owner, Value>(std::forward<Value>(value));
+        EXPECT_EQ(&value, &result);
+    }
+};
+
+TEST(forward_owned_test, return_types_are_correct)
+{
+    struct Owner {};
+    struct Value {};
+    assert_forward_owned_expected_result<Owner, Value, Value&&> {};
+    assert_forward_owned_expected_result<Owner, Value&, Value&> {};
+    assert_forward_owned_expected_result<Owner, Value&&, Value&&> {};
+    assert_forward_owned_expected_result<Owner&, Value, Value&> {};
+    assert_forward_owned_expected_result<Owner&, Value&, Value&> {};
+    assert_forward_owned_expected_result<Owner&, Value&&, Value&&> {};
+    assert_forward_owned_expected_result<Owner&&, Value, Value&&> {};
+    assert_forward_owned_expected_result<Owner&&, Value&, Value&> {};
+    assert_forward_owned_expected_result<Owner&&, Value&&, Value&&> {};
+}
 }

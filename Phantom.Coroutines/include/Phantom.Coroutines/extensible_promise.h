@@ -233,13 +233,13 @@ private:
     coroutine_handle<promise_type> m_coroutineHandle;
 
 public:
-    extensible_promise_handle(
+    explicit extensible_promise_handle(
         Promise& promise
     ) :
         m_coroutineHandle{ coroutine_handle_type::from_promise(promise) }
     {}
 
-    extensible_promise_handle(
+    explicit extensible_promise_handle(
         coroutine_handle_type coroutineHandle = nullptr
     ) :
         m_coroutineHandle { coroutineHandle }
@@ -358,11 +358,25 @@ template<
 public:
     using typename single_owner_promise_handle::extensible_promise_handle::coroutine_handle_type;
 
-    using single_owner_promise_handle::extensible_promise_handle::extensible_promise_handle;
-
-    single_owner_promise_handle(
+    explicit single_owner_promise_handle(
         const single_owner_promise_handle&
     ) = delete;
+
+    explicit single_owner_promise_handle(
+        Promise& promise
+    ) : extensible_promise_handle<Promise> { promise.handle() }
+    {
+    }
+
+    explicit single_owner_promise_handle(
+        coroutine_handle_type&& other = coroutine_handle_type{}
+    )
+    {
+        std::swap(
+            this->handle(),
+            other
+        );
+    }
 
     single_owner_promise_handle(
         single_owner_promise_handle&& other

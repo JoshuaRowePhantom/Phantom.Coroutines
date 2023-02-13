@@ -109,6 +109,13 @@ public:
     {
         return m_movedFrom;
     }
+
+    bool operator==(
+        const lifetime_statistics& other
+        ) const
+    {
+        return m_statistics == &other;
+    }
 };
 
 lifetime_tracker lifetime_statistics::tracker()

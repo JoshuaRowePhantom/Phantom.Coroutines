@@ -43,13 +43,17 @@ static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<>&>, vo
 static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<int&&>&>, int&&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<int&>&>, int&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<int&&>&>, int&&>);
-
 // Awaiting r-values of reusable_task should
 // return values as r-value references
 // and other references as the underlying type.
+static_assert(std::same_as<decltype(std::declval<awaiter_type<reusable_task<std::string>>>().await_resume()), std::string&&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<std::string>>, std::string&&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<std::string&>>, std::string&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<std::string&&>>, std::string&&>);
+
+static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<std::string>&&>, std::string&&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<std::string&>&&>, std::string&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<reusable_task<std::string&&>&&>, std::string&&>);
 
 // Awaiting l-values of reusable_task should
 // return value as l-value references 

@@ -1,6 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <variant>
+#include "../type_traits.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -87,7 +88,6 @@ template<
 {
     typedef T result_type;
     typedef T& get_result_type;
-    typedef T&& return_result_type;
 
     static constexpr bool is_void = false;
     static constexpr bool is_reference = false;
@@ -108,11 +108,12 @@ template<
     template<
         size_t Index,
         typename Variant
-    > static return_result_type resume_variant_result(
-        Variant& variant
+    > static decltype(auto) resume_variant_result(
+        Variant&& variant
     )
     {
-        return std::move(std::get<Index>(variant));
+        return std::get<Index>(
+            std::forward<Variant>(variant));
     }
 };
 
@@ -123,7 +124,6 @@ template<
 {
     typedef void result_type;
     typedef void get_result_type;
-    typedef void return_result_type;
 
     static constexpr bool is_void = true;
     static constexpr bool is_reference = false;
@@ -145,7 +145,7 @@ template<
         size_t Index,
         typename Variant
     > static void resume_variant_result(
-        Variant& variant
+        Variant&& variant
     )
     {
         return;
@@ -160,7 +160,6 @@ template<
 {
     typedef T& result_type;
     typedef T& get_result_type;
-    typedef T& return_result_type;
 
     static constexpr bool is_void = false;
     static constexpr bool is_reference = true;
@@ -172,7 +171,7 @@ template<
         size_t Index,
         typename Variant
     > static T& get_result(
-        Variant& variant
+        Variant&& variant
     )
     {
         return std::get<Index>(variant).get();
@@ -182,7 +181,7 @@ template<
         size_t Index,
         typename Variant
     > static T& resume_variant_result(
-        Variant& variant
+        Variant&& variant
     )
     {
         return std::get<Index>(variant).get();
@@ -197,7 +196,6 @@ template<
 {
     typedef T&& result_type;
     typedef T&& get_result_type;
-    typedef T&& return_result_type;
 
     static constexpr bool is_void = false;
     static constexpr bool is_reference = true;
@@ -219,7 +217,7 @@ template<
         size_t Index,
         typename Variant
     > static T&& resume_variant_result(
-        Variant& variant
+        Variant&& variant
     )
     {
         return std::move(std::get<Index>(variant).get());

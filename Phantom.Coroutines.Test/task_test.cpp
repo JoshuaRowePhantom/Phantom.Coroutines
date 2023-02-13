@@ -18,32 +18,40 @@ static_assert(!std::is_copy_assignable_v<task<>>);
 static_assert(std::is_move_constructible_v<task<>>);
 static_assert(std::is_move_assignable_v<task<>>);
 
-static_assert(detail::is_awaiter<task_awaiter<task_promise<void>>>);
-static_assert(detail::is_awaiter<task_awaiter<task_promise<int>>>);
-static_assert(detail::is_awaiter<task_awaiter<task_promise<int&>>>);
-static_assert(detail::is_awaiter<task_awaiter<task_promise<int&&>>>);
+static_assert(detail::is_awaiter<decltype(std::declval<task<task_promise<void>>>().operator co_await())>);
+static_assert(detail::is_awaiter<decltype(std::declval<task<task_promise<int>>>().operator co_await())>);
+static_assert(detail::is_awaiter<decltype(std::declval<task<task_promise<int&>>>().operator co_await())>);
+static_assert(detail::is_awaiter<decltype(std::declval<task<task_promise<int&&>>>().operator co_await())>);
 
+// tasks are awaitable
 static_assert(detail::is_awaitable<task<>>);
 static_assert(detail::is_awaitable<task<int>>);
 static_assert(detail::is_awaitable<task<int&>>);
 static_assert(detail::is_awaitable<task<int&&>>);
-
-static_assert(detail::is_awaiter<task_awaiter<task_promise<void>>>);
-static_assert(detail::is_awaiter<task_awaiter<task_promise<std::string>>>);
-static_assert(detail::is_awaiter<task_awaiter<task_promise<std::string&>>>);
-static_assert(detail::is_awaiter<task_awaiter<task_promise<std::string&&>>>);
-
-static_assert(detail::is_awaitable<task<>>);
-static_assert(detail::is_awaitable<task<std::string>>);
-static_assert(detail::is_awaitable<task<std::string&>>);
-static_assert(detail::is_awaitable<task<std::string&&>>);
+// l-value references to tasks are not awaitable
+static_assert(!detail::is_awaitable<task<>&>);
+static_assert(!detail::is_awaitable<task<int>&>);
+static_assert(!detail::is_awaitable<task<int&>&>);
+static_assert(!detail::is_awaitable<task<int&&>&>);
+// r-value references to tasks are awaitable
+static_assert(detail::is_awaitable<task<>&&>);
+static_assert(detail::is_awaitable<task<int>&&>);
+static_assert(detail::is_awaitable<task<int&>&&>);
+static_assert(detail::is_awaitable<task<int&&>&&>);
 
 static_assert(detail::has_co_await_member<task<>&&>);
 
 static_assert(std::same_as<detail::awaitable_result_type_t<task<>>, void>);
-static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int>>, int&&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<int&>>, int&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>>, int&&>);
+// These are not valid, as task<>& is not awaitable.
+// static_assert(std::same_as<detail::awaitable_result_type_t<task<int>&>, int&&>);
+// static_assert(std::same_as<detail::awaitable_result_type_t<task<int&>&>, int&>);
+// static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>&>, int&&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int>&&>, int&&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int&>&&>, int&>);
+static_assert(std::same_as<detail::awaitable_result_type_t<task<int&&>&&>, int&&>);
 
 static_assert(std::same_as<detail::awaitable_result_type_t<task<std::string>>, std::string&&>);
 static_assert(std::same_as<detail::awaitable_result_type_t<task<std::string&>>, std::string&>);

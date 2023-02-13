@@ -238,7 +238,7 @@ public:
     }
 
     decltype(auto) await_resume(
-        this auto& self
+        this auto&& self
     )
     {
         return self.promise().await_resume(

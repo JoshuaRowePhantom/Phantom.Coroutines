@@ -524,7 +524,7 @@ public:
     }
 
     decltype(auto) await_resume(
-        this auto& self
+        this auto&& self
     )
     {
         auto destroyer = self.destroy_on_scope_exit();
@@ -534,7 +534,7 @@ public:
         // Transform the result into the final result type.
         return self.promise().get_success_value(
             variant_result_storage::template resume_variant_result<result_index>(
-                self.m_result));
+                std::forward<decltype(self)>(self).m_result));
     }
 };
 
@@ -576,7 +576,7 @@ template<
     typename Continuation
 > class basic_early_termination_promise
     :
-    public basic_task_promise<ErrorResult, Continuation>,
+    public derived_promise<task_promise<ErrorResult, continuation_type<Continuation>>>,
     public await_all_await_transform
 {
     template<
@@ -607,7 +607,7 @@ template<
     Continuation m_continuation;
 
 public:
-    using typename basic_task_promise<ErrorResult, Continuation>::result_type;
+    using typename basic_early_termination_promise::derived_promise::result_type;
 
     void return_error_value(
         this auto& self,
