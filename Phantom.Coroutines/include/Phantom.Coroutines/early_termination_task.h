@@ -9,6 +9,7 @@
 #include "detail/variant_result_storage.h"
 #include "extensible_promise.h"
 #include "task.h"
+#include "policies.h"
 #include "type_traits.h"
 
 namespace Phantom::Coroutines
@@ -221,7 +222,7 @@ protected:
     {
         self.promise().return_error_value(
             std::forward<decltype(value)>(value));
-        return self.promise().m_continuation;
+        return self.promise().continuation();
     }
 
 public:
@@ -363,8 +364,7 @@ template<
     private early_termination_result_sink<typename CalledPromise::result_type>
 {
     template<
-        typename ErrorResult,
-        typename Continuation
+        typename BasePromise
     > friend class basic_early_termination_promise;
 
     using result_type = typename CalledPromise::result_type;
@@ -382,14 +382,14 @@ template<
     // that is awaiting it.
     virtual coroutine_handle<> propagate_error() override
     {
-        return this->promise().m_continuation;
+        return this->promise().continuation();
     }
 
     // An error_handling awaiter should always continue the coroutine
     // that is awaiting it.
     virtual coroutine_handle<> propagate_exception() override
     {
-        return this->promise().m_continuation;
+        return this->promise().continuation();
     }
 
     // Propagate the exception to awaiting coroutine.
@@ -424,7 +424,7 @@ public:
         auto continuation
     )
     {
-        this->promise().m_continuation = continuation;
+        this->promise().continuation() = continuation;
         this->promise().m_resultSink = this;
         this->promise().m_exceptionSink = this;
         return this->handle();
@@ -456,8 +456,7 @@ template<
     public early_termination_result_sink<typename CalledPromise::result_type>
 {
     template<
-        typename ErrorResult,
-        typename Continuation
+        typename BasePromise
     > friend class basic_early_termination_promise;
 
     using result_type = typename CalledPromise::result_type;
@@ -517,7 +516,7 @@ public:
     )
     {
         this->m_continuation = continuation;
-        this->promise().m_continuation = continuation;
+        this->promise().continuation() = continuation;
         this->promise().m_resultSink = this;
         this->promise().m_exceptionSink = continuation.promise().m_exceptionSink;
         return this->handle();
@@ -572,16 +571,18 @@ template<
 > basic_early_termination_task(coroutine_handle<Promise>) -> basic_early_termination_task<Promise>;
 
 template<
-    typename ErrorResult,
-    typename Continuation
+    typename BasePromise
 > class basic_early_termination_promise
     :
-    public derived_promise<task_promise<ErrorResult, continuation_type<Continuation>>>,
+    public derived_promise<BasePromise>,
     public await_all_await_transform
 {
+public:
+    using typename basic_early_termination_promise::derived_promise::result_type;
+
+private:
     template<
-        typename ErrorResult,
-        typename Continuation
+        typename BasePromise
     > friend class basic_early_termination_promise;
 
     template<
@@ -598,26 +599,18 @@ template<
     > friend class basic_non_error_handling_early_termination_task_awaiter;
 
     early_termination_exception_sink* m_exceptionSink;
-    early_termination_result_sink<ErrorResult>* m_resultSink;
-
-    // The continuation to resume from final_suspend.
-    // This value starts by being the value passed to await_suspend,
-    // but can be reset via unhandled_exception() or
-    // return_value() when the value represents an error.
-    Continuation m_continuation;
+    early_termination_result_sink<result_type>* m_resultSink;
 
 public:
-    using typename basic_early_termination_promise::derived_promise::result_type;
-
     void return_error_value(
         this auto& self,
         auto&& value
     )
     {
         self.basic_early_termination_promise::m_resultSink->return_value(
-            self.get_error_result<ErrorResult>(
+            self.get_error_result<result_type>(
                 std::forward<decltype(value)>(value)));
-        self.basic_early_termination_promise::m_continuation = self.basic_early_termination_promise::m_resultSink->propagate_error();
+        self.basic_early_termination_promise::continuation() = self.basic_early_termination_promise::m_resultSink->propagate_error();
     }
 
     void return_result_value(
@@ -640,7 +633,7 @@ public:
 
     void return_value(
         this auto& self,
-        ErrorResult& value
+        result_type& value
     )
     {
         return self.return_result_value(
@@ -649,7 +642,7 @@ public:
 
     void return_value(
         this auto& self,
-        ErrorResult&& value
+        result_type&& value
     )
     {
         return self.return_result_value(
@@ -671,18 +664,8 @@ public:
     ) noexcept
     {
         self.basic_early_termination_promise::m_exceptionSink->return_unhandled_exception();
-        self.basic_early_termination_promise::m_continuation = 
+        self.basic_early_termination_promise::continuation() =
             self.basic_early_termination_promise::m_resultSink->propagate_exception();
-    }
-
-    auto final_suspend(
-        this auto& self
-    ) noexcept
-    {
-        return final_suspend_transfer
-        {
-            self.basic_early_termination_promise::m_continuation
-        };
     }
 
     using await_all_await_transform::await_transform;
@@ -705,10 +688,6 @@ public:
         };
     }
 };
-
-template<
-    typename Promise
-> constexpr bool is_early_termination_promise_v = false;
 
 template<
     typename Promise
@@ -763,8 +742,10 @@ template<
     early_termination_promise_inheritor<
         basic_early_termination_promise
         <
-            ErrorResult,
-            select_continuation_type<Policies..., default_continuation_type>
+            task_promise
+            <
+                ErrorResult
+            >
         >,
         typename filter_types<
             early_termination_policy_selector,

@@ -1,17 +1,8 @@
 #pragma once
 
-#include "detail/coroutine.h"
-#include "detail/core_task.h"
-#include "detail/final_suspend_transfer.h"
-#include "detail/immovable_object.h"
-#include "detail/non_copyable.h"
-#include "detail/variant_result_storage.h"
 #include <concepts>
-#include <exception>
-#include <type_traits>
-#include <variant>
-#include "extensible_promise.h"
 #include "policies.h"
+#include "detail/core_task.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -19,7 +10,10 @@ namespace Phantom::Coroutines::detail
 template<
     typename Policy
 > concept is_task_policy =
-is_continuation_type_policy<Policy>;
+is_continuation_type_policy<Policy>
+|| is_concrete_policy<Policy, single_awaiter>
+|| is_concrete_policy<Policy, noop_on_destroy>
+|| is_concrete_policy<Policy, await_is_not_cancellable>;
 
 template<
     typename Result,

@@ -10,7 +10,10 @@ namespace Phantom::Coroutines::detail
 template<
     typename Policy
 > concept is_reusable_task_policy =
-is_continuation_type_policy<Policy>;
+is_continuation_type_policy<Policy>
+|| is_concrete_policy<Policy, single_awaiter>
+|| is_concrete_policy<Policy, noop_on_destroy>
+|| is_concrete_policy<Policy, await_is_not_cancellable>;
 
 template<
     typename Result,

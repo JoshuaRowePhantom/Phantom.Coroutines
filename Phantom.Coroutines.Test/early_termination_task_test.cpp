@@ -53,8 +53,7 @@ static_assert(assert_is_type<
         detail::basic_early_termination_task<
             detail::early_termination_promise_inheritor<
                 detail::basic_early_termination_promise<
-                    std::expected<void, int>,
-                    std::coroutine_handle<>
+                    task_promise<std::expected<void, int>>
                 >,
                 std::tuple<
                     expected_early_termination_result,
