@@ -127,11 +127,11 @@ class expected_early_termination_transformer
 
 public:
     template<
-        typename Expected
+        is_template_instantiation<std::expected> Expected
     > auto await_transform(
         this auto& self,
         Expected&& expected
-    ) requires is_template_instantiation<Expected, std::expected>
+    )
     {
         return expected_awaiter
         {

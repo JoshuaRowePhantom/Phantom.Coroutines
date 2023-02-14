@@ -29,20 +29,9 @@ template<
 > = true;
 
 template<
-    typename... Args,
-    template <typename ...> typename Template
-> constexpr bool is_template_instantiation_v<
-    Template<Args...>&,
-    Template
-> = is_template_instantiation_v<
-    Template<Args...>,
-    Template
->;
-
-template<
     typename T,
     template <typename ...> typename Template
-> concept is_template_instantiation = is_template_instantiation_v<T, Template>;
+> concept is_template_instantiation = is_template_instantiation_v<std::remove_cvref_t<T>, Template>;
 
 // Determine if a given type is a derived class of an instantiation of
 // a template accepting type arguments.
@@ -441,6 +430,10 @@ template<
 template<
     typename Promise
 > constexpr bool has_await_transform<Promise, std::void_t<decltype(has_await_transform_conflict_detector<Promise>::await_transform)>> = false;
+
+template<
+    typename T
+> using has_await_transform_filter = std::bool_constant<has_await_transform<T>>;
 
 template<
     typename Promise,

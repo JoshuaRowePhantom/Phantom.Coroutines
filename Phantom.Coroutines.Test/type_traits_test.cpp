@@ -17,9 +17,12 @@ static_assert(true == is_in_types<int, bool, int>);
 static_assert(true == is_in_types<int, int, int>);
 static_assert(false == is_in_types<int, bool, bool>);
 
-static_assert(true == is_template_instantiation_v<std::tuple<>, std::tuple>);
-static_assert(true == is_template_instantiation_v<std::tuple<>&, std::tuple>);
-static_assert(false == is_template_instantiation_v<int, std::tuple>);
+static_assert(true == is_template_instantiation<std::tuple<>, std::tuple>);
+static_assert(true == is_template_instantiation<std::tuple<>&, std::tuple>);
+static_assert(true == is_template_instantiation<const std::tuple<>&, std::tuple>);
+static_assert(true == is_template_instantiation<std::tuple<>&&, std::tuple>);
+static_assert(true == is_template_instantiation<const std::tuple<>&&, std::tuple>);
+static_assert(false == is_template_instantiation<int, std::tuple>);
 
 // Verify that filter_tuple_types works
 template<

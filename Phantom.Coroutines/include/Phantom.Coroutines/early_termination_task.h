@@ -790,11 +790,11 @@ template<
     <
         early_termination_promise
         <
+            Policies...,
             base_promise_type
             <
                 task_promise<ErrorResult>
-            >,
-            Policies...
+            >
         >
     >;
 }

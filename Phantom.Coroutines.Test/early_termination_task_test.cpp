@@ -237,4 +237,50 @@ ASYNC_TEST(expected_early_termination_test, exception_terminates_nested_coroutin
     }
 }
 
+namespace
+{
+template<
+    typename Result
+> using expected_early_termination_ordinary_task = 
+basic_task<
+    derived_promise<
+        task_promise<
+            std::expected<Result, int>
+        >,
+        expected_early_termination_transformer,
+        await_all_await_transform
+    >
+>;
+
+}
+ASYNC_TEST(expected_early_termination_ordinary_task_test, can_complete_task_and_resume_caller_with_error)
+{
+    auto lambda1 = [&]() -> expected_early_termination_ordinary_task<std::string>
+    {
+        co_await std::expected<std::string, int>(std::unexpect, 5);
+        EXPECT_EQ(false, true);
+        co_return "Hello world";
+    };
+
+    derived_promise<
+        task_promise<
+        std::expected<long, int>
+        >,
+        expected_early_termination_transformer,
+        await_all_await_transform
+    > p;
+    p.await_transform(std::expected<int, int>());
+
+    auto lambda2 = [&]() -> expected_early_termination_ordinary_task<long>
+    {
+        auto result = co_await lambda1();
+        static_assert(std::same_as<std::expected<std::string, int>, decltype(result)>);
+        EXPECT_EQ(result, (std::expected<std::string, int>( std::unexpect, 5 )));
+        co_return 6;
+    };
+
+    auto result = co_await lambda2();
+    EXPECT_EQ(result, (std::expected<long, int>(6)));
+}
+
 }
