@@ -736,16 +736,12 @@ public:
 };
 
 template<
-    typename ErrorResult,
     typename ... Policies
 > using early_termination_promise = 
     early_termination_promise_inheritor<
         basic_early_termination_promise
         <
-            task_promise
-            <
-                ErrorResult
-            >
+            select_base_promise_type<Policies...>
         >,
         typename filter_types<
             early_termination_policy_selector,
@@ -757,9 +753,14 @@ template<
     typename ErrorResult,
     typename ... Policies
 > using early_termination_task =
-    basic_early_termination_task<
-        early_termination_promise<
-            ErrorResult,
+    basic_early_termination_task
+    <
+        early_termination_promise
+        <
+            base_promise_type
+            <
+                task_promise<ErrorResult>
+            >,
             Policies...
         >
     >;
