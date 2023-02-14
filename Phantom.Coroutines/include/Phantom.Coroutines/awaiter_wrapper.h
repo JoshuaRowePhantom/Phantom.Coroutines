@@ -95,6 +95,8 @@ template<
     public awaiter_wrapper_storage<Awaiter>,
     public awaiter_wrapper_methods<Awaiter, awaiter_wrapper<Awaiter>>
 {
+    friend class awaiter_wrapper_methods<Awaiter, awaiter_wrapper<Awaiter>>;
+
 protected:
     typedef Awaiter awaiter_type;
 

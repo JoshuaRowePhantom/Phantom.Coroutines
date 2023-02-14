@@ -2,8 +2,10 @@
 
 #include <concepts>
 #include <exception>
+#include <optional>
 #include <tuple>
 #include <type_traits>
+#include "awaiter_wrapper.h"
 #include "await_all_await_transform.h"
 #include "detail/final_suspend_transfer.h"
 #include "detail/variant_result_storage.h"
@@ -214,15 +216,45 @@ class early_termination_awaiter
     public early_termination_policy,
     public extensible_promise_handle<Promise>
 {
+    using final_suspend_awaitable_type = decltype(std::declval<Promise>().final_suspend());
+    std::optional<awaiter_wrapper<final_suspend_awaitable_type>> m_finalSuspendAwaiter;
+
 protected:
-    auto return_error_value(
+    coroutine_handle<> return_error_value(
         this auto& self,
+        auto continuation,
         auto&& value
     )
     {
-        self.promise().return_error_value(
-            std::forward<decltype(value)>(value));
-        return self.promise().continuation();
+        self.promise().return_value(
+            std::forward<decltype(value)>(value)
+        );
+        
+        auto& finalSuspendAwaiter = self.early_termination_awaiter::m_finalSuspendAwaiter;
+        finalSuspendAwaiter.emplace(
+            [&]() -> decltype(auto) { return self.promise().final_suspend(); }
+        );
+
+        auto ready = finalSuspendAwaiter->await_ready();
+        assert(!ready);
+        
+        if constexpr (std::same_as<void, decltype(finalSuspendAwaiter->await_suspend(continuation))>)
+        {
+            finalSuspendAwaiter->await_suspend(continuation);
+            return noop_coroutine();
+        }
+        else if constexpr (std::same_as<bool, decltype(finalSuspendAwaiter->await_suspend(continuation))>)
+        {
+            bool result = finalSuspendAwaiter->await_suspend(continuation);
+            assert(!result);
+            return noop_coroutine();
+        }
+        else
+        {
+            auto result = finalSuspendAwaiter->await_suspend(continuation);
+            assert(result != continuation);
+            return result;
+        }
     }
 
 public:
@@ -293,6 +325,7 @@ public:
         // so it represents an error situation.
         // We should resume the error-handling continuation of the promise.
         return self.return_error_value(
+            continuation,
             self.get_error_result()
         );
     }
