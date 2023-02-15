@@ -251,8 +251,8 @@ basic_task<
         await_all_await_transform
     >
 >;
-
 }
+
 ASYNC_TEST(expected_early_termination_ordinary_task_test, can_complete_task_and_resume_caller_with_error)
 {
     auto lambda1 = [&]() -> expected_early_termination_ordinary_task<std::string>
