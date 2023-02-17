@@ -78,9 +78,9 @@
     </Type>
     
     <Type Name="Phantom::Coroutines::detail::basic_async_auto_reset_event&lt;*,*,*,*&gt;">
-        <DisplayString Condition="m_state.m_value.m_setCount == 1 &amp;&amp; !m_state.m_value.m_waitingCount">Signalled</DisplayString>
-        <DisplayString Condition="m_state.m_value.m_setCount > m_state.m_value.m_waitingCount">Signalled, Dispatching Awaiters</DisplayString>
-        <DisplayString Condition="m_state.m_value.m_waitingCount > 0">Not Signalled, Has Awaiters</DisplayString>
+        <DisplayString Condition="m_state.m_value.m_value.m_setCount == 1 &amp;&amp; !m_state.m_value.m_value.m_waitingCount">Signalled</DisplayString>
+        <DisplayString Condition="m_state.m_value.m_value.m_setCount > m_state.m_value.m_value.m_waitingCount">Signalled, Dispatching Awaiters</DisplayString>
+        <DisplayString Condition="m_state.m_value.m_value.m_waitingCount > 0">Not Signalled, Has Awaiters</DisplayString>
         <DisplayString>Not Signalled, No Awaiters</DisplayString>
         
         <Expand>
@@ -155,6 +155,10 @@
         </Expand>
     </Type>
 
+    <Type Name="Phantom::Coroutines::detail::extended_promise_handle&lt;void&gt;">
+        <DisplayString>extended_promise_handle&lt;void&gt;</DisplayString>
+    </Type>
+
     <Type Name="Phantom::Coroutines::detail::basic_async_reader_writer_lock&lt;*,*,*,*&gt;">
         <DisplayString Condition="m_state.m_value.m_value.m_readerLockCount &gt; 0">{m_state.m_value.m_value.m_readerLockCount} Readers</DisplayString>
         <DisplayString Condition="m_state.m_value.m_value.m_readerLockCount &lt; 0">Locked For Write</DisplayString>
@@ -188,4 +192,7 @@
         <DisplayString>{m_operationType} {m_continuation}</DisplayString>
     </Type>
 
+    <Type Name="std::atomic&lt;Phantom::Coroutines::double_wide_value&lt;*&gt;&gt;">
+        <DisplayString>{m_value}</DisplayString>
+    </Type>
 </AutoVisualizer>
