@@ -77,11 +77,15 @@ template<
 class derived_promise_identity_await_transform
 {
 public:
-    decltype(auto) await_transform(
-        auto&& awaitable
+    template<
+        typename Value
+    >
+    [[msvc::intrinsic]]
+    Value&& await_transform(
+        Value&& awaitable
     ) noexcept
     {
-        return std::forward<decltype(awaitable)>(awaitable);
+        return static_cast<Value&&>(awaitable);
     }
 };
 
