@@ -485,3 +485,28 @@ ASYNC_TEST(reusable_task_test, DISABLED_can_elide_allocations)
     EXPECT_EQ(innerAllocation, outerAllocation);
 #endif
 }
+
+
+ASYNC_TEST(reusable_task_test, destroys_coroutine_when_awaited_as_rvalue)
+{
+    memory_tracker tracker;
+    std::pmr::polymorphic_allocator<> allocator(&tracker);
+
+    size_t outerAllocation1;
+    size_t outerAllocation2;
+
+    auto inner = [&](std::pmr::polymorphic_allocator<> allocator) -> pmr_reusable_task<>
+    {
+        co_return;
+    };
+
+    auto outer = [&](std::pmr::polymorphic_allocator<> allocator) -> pmr_reusable_task<>
+    {
+        outerAllocation1 = tracker.allocated_memory();
+        co_await inner(allocator);
+        outerAllocation2 = tracker.allocated_memory();
+    };
+
+    co_await outer(allocator);
+    EXPECT_EQ(outerAllocation1, outerAllocation2);
+}
