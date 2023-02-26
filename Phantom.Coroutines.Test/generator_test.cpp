@@ -3,8 +3,11 @@
 #include <string>
 #include <vector>
 #include "Phantom.Coroutines/generator.h"
+#include "lifetime_tracker.h"
 
-using namespace Phantom::Coroutines;
+namespace Phantom::Coroutines
+{
+using detail::lifetime_statistics;
 
 static_assert(!std::is_copy_constructible_v<generator<int>>);
 static_assert(!std::is_copy_assignable_v<generator<int>>);
@@ -24,10 +27,34 @@ TEST(generator_test, Can_enumerate_empty_generator)
     ASSERT_EQ(0, count);
 }
 
+TEST(generator_test, Destroys_promise_when_partially_iterated)
+{
+    lifetime_statistics statistics;
+
+    auto myGeneratorLambda = [&]()->generator<int>
+    {
+        auto tracker = statistics.tracker();
+        co_yield 1;
+    };
+    
+    {
+        auto myGenerator = myGeneratorLambda();
+        ASSERT_EQ(1, statistics.instance_count);
+    }
+    ASSERT_EQ(0, statistics.instance_count);
+
+    {
+        auto myGenerator = myGeneratorLambda();
+        ASSERT_EQ(1, statistics.instance_count);
+        myGenerator = {};
+        ASSERT_EQ(0, statistics.instance_count);
+    }
+}
+
 TEST(generator_test, Can_enumerate_non_empty_iterator)
 {
-    auto myGenerator = []()->generator<int> 
-    { 
+    auto myGenerator = []()->generator<int>
+    {
         co_yield 1;
         co_yield 2;
         co_yield 3;
@@ -181,4 +208,5 @@ TEST(generator_test, Moving_constructing_generator_keeps_iterators_intact)
     ASSERT_EQ(2, *iterator);
     ASSERT_EQ(3, *++iterator);
     ASSERT_EQ(myGenerator2.end(), ++iterator);
+}
 }
