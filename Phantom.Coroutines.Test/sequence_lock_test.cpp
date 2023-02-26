@@ -43,12 +43,14 @@ TEST(sequence_lock_test, reads_and_writes_are_consistent)
             value valueToWrite;
             for (auto& data : valueToWrite.m_data)
             {
-                data = index;
+                data = index + 1;
             }
 
             for (size_t iterationCounter = 0; iterationCounter < iterationCount; iterationCounter++)
             {
-                EXPECT_TRUE(sequenceLock.read().consistent());
+                typename sequence_lock<value>::sequence_number expectedSequenceNumber;
+                auto readResult = sequenceLock.read(expectedSequenceNumber);
+                EXPECT_TRUE(readResult.consistent());
                 if (iterationCounter % hardwareConcurrency * 10 == 0)
                 {
                     sequenceLock.write(valueToWrite);

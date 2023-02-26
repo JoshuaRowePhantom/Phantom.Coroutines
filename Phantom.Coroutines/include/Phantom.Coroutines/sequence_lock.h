@@ -43,16 +43,27 @@ public:
         sequence_number& expectedSequenceNumber
     ) const noexcept
     {
+        sequence_number localExpectedSequenceNumber;
+        sequence_number localActualSequenceNumber;
+
         Value result;
         do
         {
-            while ((expectedSequenceNumber = m_sequenceNumber.load(std::memory_order_acquire)) & 0x3)
+            while ((localExpectedSequenceNumber = m_sequenceNumber.load(std::memory_order_acquire)) & 0x3)
             {
-                wait(expectedSequenceNumber);
+                wait(localExpectedSequenceNumber);
             }
 
             result = m_value;
-        } while (expectedSequenceNumber != m_sequenceNumber.load(std::memory_order_acquire));
+
+            std::atomic_thread_fence(
+                std::memory_order_release);
+
+            localActualSequenceNumber = m_sequenceNumber.load(std::memory_order_acquire);
+        } while (localActualSequenceNumber != localExpectedSequenceNumber);
+
+        expectedSequenceNumber = localActualSequenceNumber;
+
         return result;
     }
 
@@ -72,7 +83,7 @@ public:
         assert((expectedSequenceNumber & 0x3) == 0);
         if (!m_sequenceNumber.compare_exchange_weak(
             expectedSequenceNumber,
-            expectedSequenceNumber + 1,
+            expectedSequenceNumber | 0x1,
             std::memory_order_acquire
         ))
         {
@@ -80,7 +91,7 @@ public:
         }
 
         sequence_number nextSequenceNumber = expectedSequenceNumber + 4;
-        expectedSequenceNumber += 1;
+        expectedSequenceNumber |= 0x1;
         m_value = value;
 
         // This cmpxchg will fail if some thread performed a wait() operation.
