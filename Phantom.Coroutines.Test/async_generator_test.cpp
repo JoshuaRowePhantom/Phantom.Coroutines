@@ -210,5 +210,38 @@ ASYNC_TEST(async_generator_test, Destroys_coroutine_when_iterated_partially)
     }
 
     EXPECT_EQ(0, statistics.instance_count);
+
+    {
+        auto myGenerator = lambda();
+        EXPECT_EQ(0, statistics.instance_count);
+        auto iterator = co_await myGenerator.begin();
+        EXPECT_EQ(1, statistics.instance_count);
+        EXPECT_EQ("hello world", *iterator);
+        myGenerator = {};
+        EXPECT_EQ(0, statistics.instance_count);
+    }
+
     co_return;
+}
+
+ASYNC_TEST(async_generator_test, Destroys_coroutine_when_iterated_completely)
+{
+    detail::lifetime_statistics statistics;
+
+    auto lambda = [&]()->async_generator<std::string>
+    {
+        auto tracker = statistics.tracker();
+        co_yield "goodbye world";
+    };
+
+    {
+        auto myGenerator = lambda();
+        EXPECT_EQ(0, statistics.instance_count);
+        auto iterator = co_await myGenerator.begin();
+        EXPECT_EQ(1, statistics.instance_count);
+        EXPECT_EQ("goodbye world", *iterator);
+        co_await ++iterator;
+        EXPECT_EQ(0, statistics.instance_count);
+        EXPECT_EQ(iterator, myGenerator.end());
+    }
 }

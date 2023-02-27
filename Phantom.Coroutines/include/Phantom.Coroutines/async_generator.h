@@ -235,11 +235,6 @@ public:
             );
         }
 
-        scope_guard clearGenerator = [&]
-        {
-            self.m_generator.handle() = nullptr;
-        };
-
         return self.awaiter().await_resume_value(
             [] { return async_generator_iterator<Generator>{}; }
         );
