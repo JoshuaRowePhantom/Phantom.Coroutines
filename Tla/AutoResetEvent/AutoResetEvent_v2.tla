@@ -432,9 +432,24 @@ OnlyOneThreadInResumeAtATime ==
         }
         ) <= 1)
 
+AlwaysAtLeastOneThreadResumingIfNonZeroWaitersAndSetCount ==
+    [](
+        (SetCount > 0 /\ WaiterCount > 0) 
+        =>
+        (Cardinality(
+            { thread \in AllThreads : 
+                pc[thread] \in { 
+                    "Resume_FetchListenersToService",
+                    "Resume_DecrementCounts_and_AdjustLists"
+                }
+            }
+            ) > 0)
+    )
+
 Property == 
     /\  AbstractEvent!Property
     /\  Spec
     /\  OnlyOneThreadInResumeAtATime
+    /\  AlwaysAtLeastOneThreadResumingIfNonZeroWaitersAndSetCount
 
 ====
