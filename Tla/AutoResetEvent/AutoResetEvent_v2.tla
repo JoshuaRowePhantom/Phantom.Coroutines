@@ -1,5 +1,5 @@
 ---- MODULE AutoResetEvent_v2 ----
-EXTENDS Sequences, Integers, TLC
+EXTENDS Sequences, Integers, TLC, FiniteSets
 
 CONSTANT 
     ListeningThreads,
@@ -140,11 +140,8 @@ Resume_DecrementCounts_and_AdjustLists:
         \* simultaneously.
         SetCount := SetCount - FetchingCount;
         WaiterCount := WaiterCount - FetchingCount;
-        if SetCount > 0 /\ WaiterCount > 0 then
-            FetchingCount := Min({ SetCount, WaiterCount });
-        else
-            FetchingCount := 0;
-        end if;
+        
+        FetchingCount := Min({ SetCount, WaiterCount });
     end while;
     
 Resume_SignalListeners:
@@ -428,8 +425,18 @@ Alias ==
         ListenersToService |-> ListenersToService
     ]
 
+OnlyOneThreadInResumeAtATime ==
+    [](Cardinality(
+        { thread \in AllThreads : 
+            pc[thread] \in { 
+                "Resume_DecrementCounts_and_AdjustLists" 
+            }
+        }
+        ) <= 1)
+
 Property == 
     /\  AbstractEvent!Property
     /\  Spec
+    /\  OnlyOneThreadInResumeAtATime
 
 ====
