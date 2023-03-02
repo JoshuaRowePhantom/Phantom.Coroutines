@@ -173,7 +173,7 @@ Listen_IncrementWaiterCount:
         WaiterCount := WaiterCount + 1;
         if SetCount > 0 /\ WaiterCount = 1 then
             call ResumeAwaiters(
-                Min({ SetCount, WaiterCount }));
+                1);
         end if;
 
 Listen_Wait:
@@ -186,25 +186,20 @@ fair process SignallingThread \in SignallingThreads
 begin
 Set:-
     while ~Destroyed do
-        if SetCount < WaiterCount + 1 then
-            \* Set is a noop when SetCount >= WaiterCount + 1
-            \* This action requires an atomic read modify write of SetCount + WaiterCount
-            \* simultaneously.
-            SetCount := Min({SetCount + 1, WaiterCount + 1});
-            if SetCount = 1 /\ WaiterCount > 0 then
-                call ResumeAwaiters(
-                    Min({ SetCount, WaiterCount }));
-                goto Set;
-            end if;
-        else
-            SetCount := SetCount - 1;
+        \* Set is a noop when SetCount >= WaiterCount + 1
+        \* This action requires an atomic read modify write of SetCount + WaiterCount
+        \* simultaneously.
+        SetCount := Min({SetCount + 1, WaiterCount + 1});
+        if SetCount = 1 /\ WaiterCount > 0 then
+            call ResumeAwaiters(
+                1);
             goto Set;
         end if;
     end while;
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "f7b8bedc" /\ chksum(tla) = "368371eb")
+\* BEGIN TRANSLATION (chksum(pcal) = "f56826e5" /\ chksum(tla) = "dfc34e89")
 VARIABLES SetCount, WaiterCount, EnqueuedListeners, UnservicedListeners, 
           ListenerStates, pc, stack, FetchingCount, ListenersToService, 
           FetchedListeners
@@ -314,7 +309,7 @@ Listen_EnqueueWaiter(self) == /\ pc[self] = "Listen_EnqueueWaiter"
 Listen_IncrementWaiterCount(self) == /\ pc[self] = "Listen_IncrementWaiterCount"
                                      /\ WaiterCount' = WaiterCount + 1
                                      /\ IF SetCount > 0 /\ WaiterCount' = 1
-                                           THEN /\ /\ FetchingCount' = [FetchingCount EXCEPT ![self] = Min({ SetCount, WaiterCount' })]
+                                           THEN /\ /\ FetchingCount' = [FetchingCount EXCEPT ![self] = 1]
                                                    /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeAwaiters",
                                                                                             pc        |->  "Listen_Wait",
                                                                                             ListenersToService |->  ListenersToService[self],
@@ -348,26 +343,19 @@ ListeningThread(self) == Listen(self) \/ Listen_EnqueueWaiter(self)
 
 Set(self) == /\ pc[self] = "Set"
              /\ IF ~Destroyed
-                   THEN /\ IF SetCount < WaiterCount + 1
-                              THEN /\ SetCount' = Min({SetCount + 1, WaiterCount + 1})
-                                   /\ IF SetCount' = 1 /\ WaiterCount > 0
-                                         THEN /\ /\ FetchingCount' = [FetchingCount EXCEPT ![self] = Min({ SetCount', WaiterCount })]
-                                                 /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeAwaiters",
-                                                                                          pc        |->  "Set",
-                                                                                          ListenersToService |->  ListenersToService[self],
-                                                                                          FetchedListeners |->  FetchedListeners[self],
-                                                                                          FetchingCount |->  FetchingCount[self] ] >>
-                                                                                      \o stack[self]]
-                                              /\ ListenersToService' = [ListenersToService EXCEPT ![self] = << >>]
-                                              /\ FetchedListeners' = [FetchedListeners EXCEPT ![self] = << >>]
-                                              /\ pc' = [pc EXCEPT ![self] = "Resume_FetchListenersToService"]
-                                         ELSE /\ pc' = [pc EXCEPT ![self] = "Set"]
-                                              /\ UNCHANGED << stack, 
-                                                              FetchingCount, 
-                                                              ListenersToService, 
-                                                              FetchedListeners >>
-                              ELSE /\ SetCount' = SetCount - 1
-                                   /\ pc' = [pc EXCEPT ![self] = "Set"]
+                   THEN /\ SetCount' = Min({SetCount + 1, WaiterCount + 1})
+                        /\ IF SetCount' = 1 /\ WaiterCount > 0
+                              THEN /\ /\ FetchingCount' = [FetchingCount EXCEPT ![self] = 1]
+                                      /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeAwaiters",
+                                                                               pc        |->  "Set",
+                                                                               ListenersToService |->  ListenersToService[self],
+                                                                               FetchedListeners |->  FetchedListeners[self],
+                                                                               FetchingCount |->  FetchingCount[self] ] >>
+                                                                           \o stack[self]]
+                                   /\ ListenersToService' = [ListenersToService EXCEPT ![self] = << >>]
+                                   /\ FetchedListeners' = [FetchedListeners EXCEPT ![self] = << >>]
+                                   /\ pc' = [pc EXCEPT ![self] = "Resume_FetchListenersToService"]
+                              ELSE /\ pc' = [pc EXCEPT ![self] = "Set"]
                                    /\ UNCHANGED << stack, FetchingCount, 
                                                    ListenersToService, 
                                                    FetchedListeners >>
