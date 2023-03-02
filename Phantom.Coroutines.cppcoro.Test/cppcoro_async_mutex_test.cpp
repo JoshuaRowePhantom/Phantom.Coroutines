@@ -1,4 +1,4 @@
-#include "../Phantom.Coroutines.Test/async_test.h"
+#include "async_test.h"
 #include "cppcoro/async_auto_reset_event.hpp"
 #include "cppcoro/async_scope.hpp"
 #include "cppcoro/async_mutex.hpp"

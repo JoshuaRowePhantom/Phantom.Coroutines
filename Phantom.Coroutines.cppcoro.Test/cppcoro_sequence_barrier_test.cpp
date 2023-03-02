@@ -1,4 +1,4 @@
-#include "../Phantom.Coroutines.Test/async_test.h"
+#include "async_test.h"
 #include "../Phantom.Coroutines.Test/manual_scheduler.h"
 #include "cppcoro/async_scope.hpp"
 #include "cppcoro/sequence_barrier.hpp"

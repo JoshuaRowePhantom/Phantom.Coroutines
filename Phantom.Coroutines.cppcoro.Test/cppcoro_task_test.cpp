@@ -1,4 +1,4 @@
-#include "../Phantom.Coroutines.Test/async_test.h"
+#include "async_test.h"
 #include <concepts>
 #include "cppcoro/task.hpp"
 

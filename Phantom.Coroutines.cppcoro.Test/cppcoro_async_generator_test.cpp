@@ -1,4 +1,4 @@
-#include "../Phantom.Coroutines.Test/async_test.h"
+#include "async_test.h"
 #include "../Phantom.Coroutines.Test/lifetime_tracker.h"
 #include "cppcoro/async_generator.hpp"
 
