@@ -190,26 +190,25 @@ fair process SignallingThread \in SignallingThreads
 begin
 Set:-
     while ~Destroyed do
-        either
+        if SetCount < WaiterCount + 1 then
             \* Set is a noop when SetCount >= WaiterCount + 1
             \* This action requires an atomic read modify write of SetCount + WaiterCount
             \* simultaneously.
-            await SetCount < WaiterCount + 1;
             SetCount := Min({SetCount + 1, WaiterCount + 1});
             if SetCount = 1 /\ WaiterCount > 0 then
                 call ResumeAwaiters(
                     Min({ SetCount, WaiterCount }));
                 goto Set;
             end if;
-        or
-            await SetCount > WaiterCount;
+        else
             SetCount := SetCount - 1;
             goto Set;
+        end if;
     end while;
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "2a5865a9" /\ chksum(tla) = "78205c21")
+\* BEGIN TRANSLATION (chksum(pcal) = "923ec62b" /\ chksum(tla) = "5e0ddc87")
 VARIABLES SetCount, WaiterCount, EnqueuedListeners, UnservicedListeners, 
           ListenerStates, pc, stack, FetchingCount, ListenersToService, 
           FetchedListeners
@@ -239,7 +238,7 @@ Init == (* Global variables *)
 Resume_FetchListenersToService(self) == /\ pc[self] = "Resume_FetchListenersToService"
                                         /\ IF FetchingCount[self] # 0
                                               THEN /\ Assert(~Destroyed, 
-                                                             "Failure of assertion at line 119, column 9.")
+                                                             "Failure of assertion at line 118, column 9.")
                                                    /\ FetchedListeners' = [FetchedListeners EXCEPT ![self] = EnqueuedListeners]
                                                    /\ EnqueuedListeners' = << >>
                                                    /\ pc' = [pc EXCEPT ![self] = "Resume_DecrementCounts_and_AdjustLists"]
@@ -254,7 +253,7 @@ Resume_FetchListenersToService(self) == /\ pc[self] = "Resume_FetchListenersToSe
 
 Resume_DecrementCounts_and_AdjustLists(self) == /\ pc[self] = "Resume_DecrementCounts_and_AdjustLists"
                                                 /\ Assert(~Destroyed, 
-                                                          "Failure of assertion at line 126, column 9.")
+                                                          "Failure of assertion at line 125, column 9.")
                                                 /\ /\ ListenersToService' = [ListenersToService EXCEPT ![self] =                   ListenersToService[self] \o
                                                                                                                  SubSeq(
                                                                                                                      UnservicedListeners \o FetchedListeners[self],
@@ -267,9 +266,7 @@ Resume_DecrementCounts_and_AdjustLists(self) == /\ pc[self] = "Resume_DecrementC
                                                 /\ FetchedListeners' = [FetchedListeners EXCEPT ![self] = << >>]
                                                 /\ SetCount' = SetCount - FetchingCount[self]
                                                 /\ WaiterCount' = WaiterCount - FetchingCount[self]
-                                                /\ IF SetCount' > 0 /\ WaiterCount' > 0
-                                                      THEN /\ FetchingCount' = [FetchingCount EXCEPT ![self] = Min({ SetCount', WaiterCount' })]
-                                                      ELSE /\ FetchingCount' = [FetchingCount EXCEPT ![self] = 0]
+                                                /\ FetchingCount' = [FetchingCount EXCEPT ![self] = Min({ SetCount', WaiterCount' })]
                                                 /\ pc' = [pc EXCEPT ![self] = "Resume_FetchListenersToService"]
                                                 /\ UNCHANGED << EnqueuedListeners, 
                                                                 ListenerStates, 
@@ -356,20 +353,26 @@ ListeningThread(self) == Listen(self) \/ Listen_EnqueueWaiter(self)
 
 Set(self) == /\ pc[self] = "Set"
              /\ IF ~Destroyed
-                   THEN /\ SetCount < WaiterCount + 1
-                        /\ SetCount' = Min({SetCount + 1, WaiterCount + 1})
-                        /\ IF SetCount' = 1 /\ WaiterCount > 0
-                              THEN /\ /\ FetchingCount' = [FetchingCount EXCEPT ![self] = Min({ SetCount', WaiterCount })]
-                                      /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeAwaiters",
-                                                                               pc        |->  "Set",
-                                                                               ListenersToService |->  ListenersToService[self],
-                                                                               FetchedListeners |->  FetchedListeners[self],
-                                                                               FetchingCount |->  FetchingCount[self] ] >>
-                                                                           \o stack[self]]
-                                   /\ ListenersToService' = [ListenersToService EXCEPT ![self] = << >>]
-                                   /\ FetchedListeners' = [FetchedListeners EXCEPT ![self] = << >>]
-                                   /\ pc' = [pc EXCEPT ![self] = "Resume_FetchListenersToService"]
-                              ELSE /\ pc' = [pc EXCEPT ![self] = "Set"]
+                   THEN /\ IF SetCount < WaiterCount + 1
+                              THEN /\ SetCount' = Min({SetCount + 1, WaiterCount + 1})
+                                   /\ IF SetCount' = 1 /\ WaiterCount > 0
+                                         THEN /\ /\ FetchingCount' = [FetchingCount EXCEPT ![self] = Min({ SetCount', WaiterCount })]
+                                                 /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "ResumeAwaiters",
+                                                                                          pc        |->  "Set",
+                                                                                          ListenersToService |->  ListenersToService[self],
+                                                                                          FetchedListeners |->  FetchedListeners[self],
+                                                                                          FetchingCount |->  FetchingCount[self] ] >>
+                                                                                      \o stack[self]]
+                                              /\ ListenersToService' = [ListenersToService EXCEPT ![self] = << >>]
+                                              /\ FetchedListeners' = [FetchedListeners EXCEPT ![self] = << >>]
+                                              /\ pc' = [pc EXCEPT ![self] = "Resume_FetchListenersToService"]
+                                         ELSE /\ pc' = [pc EXCEPT ![self] = "Set"]
+                                              /\ UNCHANGED << stack, 
+                                                              FetchingCount, 
+                                                              ListenersToService, 
+                                                              FetchedListeners >>
+                              ELSE /\ SetCount' = SetCount - 1
+                                   /\ pc' = [pc EXCEPT ![self] = "Set"]
                                    /\ UNCHANGED << stack, FetchingCount, 
                                                    ListenersToService, 
                                                    FetchedListeners >>
