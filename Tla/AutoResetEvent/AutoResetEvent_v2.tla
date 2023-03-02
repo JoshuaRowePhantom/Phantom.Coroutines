@@ -163,10 +163,6 @@ Listen:-
         SetCount := SetCount - 1;
         ListenerStates[self] := "Complete";
     or
-        \* This requires an atomic read of SetCount + WaiterCount
-        \* simultaneously.
-        await SetCount <= WaiterCount;
-
 Listen_EnqueueWaiter:
         EnqueuedListeners := EnqueuedListeners \o << self >>;
         ListenerStates[self] := "Waiting";
@@ -208,7 +204,7 @@ Set:-
 end process;
 
 end algorithm; *)
-\* BEGIN TRANSLATION (chksum(pcal) = "923ec62b" /\ chksum(tla) = "5e0ddc87")
+\* BEGIN TRANSLATION (chksum(pcal) = "f7b8bedc" /\ chksum(tla) = "368371eb")
 VARIABLES SetCount, WaiterCount, EnqueuedListeners, UnservicedListeners, 
           ListenerStates, pc, stack, FetchingCount, ListenersToService, 
           FetchedListeners
@@ -299,8 +295,7 @@ Listen(self) == /\ pc[self] = "Listen"
                       /\ SetCount' = SetCount - 1
                       /\ ListenerStates' = [ListenerStates EXCEPT ![self] = "Complete"]
                       /\ pc' = [pc EXCEPT ![self] = "Done"]
-                   \/ /\ SetCount <= WaiterCount
-                      /\ pc' = [pc EXCEPT ![self] = "Listen_EnqueueWaiter"]
+                   \/ /\ pc' = [pc EXCEPT ![self] = "Listen_EnqueueWaiter"]
                       /\ UNCHANGED <<SetCount, ListenerStates>>
                 /\ UNCHANGED << WaiterCount, EnqueuedListeners, 
                                 UnservicedListeners, stack, FetchingCount, 
