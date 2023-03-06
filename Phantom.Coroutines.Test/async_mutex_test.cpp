@@ -2,6 +2,8 @@
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_mutex.h"
 #include "Phantom.Coroutines/async_scope.h"
+#include "Phantom.Coroutines/sync_wait.h"
+#include "Phantom.Coroutines/task.h"
 #include "async_test.h"
 #include <chrono>
 

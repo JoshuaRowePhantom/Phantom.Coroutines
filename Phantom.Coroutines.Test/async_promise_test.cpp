@@ -1,6 +1,8 @@
 #include "async_test.h"
 #include "Phantom.Coroutines/async_promise.h"
 #include "Phantom.Coroutines/suspend_result.h"
+#include "Phantom.Coroutines/task.h"
+#include "Phantom.Coroutines/sync_wait.h"
 #include "lifetime_tracker.h"
 #include <string>
 

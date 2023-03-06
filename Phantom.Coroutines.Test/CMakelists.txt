@@ -11,6 +11,7 @@ add_executable(
     "async_reader_writer_lock_test.cpp" 
     "async_scope_test.cpp"
     "async_sequence_barrier_test.cpp"
+    "async_test.cpp"
     "async_test.h"
     "atomic_state_test.cpp"
     "awaiter_list_test.cpp" 

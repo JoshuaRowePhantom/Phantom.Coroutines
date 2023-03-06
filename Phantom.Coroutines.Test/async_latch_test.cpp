@@ -1,6 +1,7 @@
 #include "async_test.h"
 #include "Phantom.Coroutines/async_latch.h"
 #include "Phantom.Coroutines/async_scope.h"
+#include "Phantom.Coroutines/task.h"
 
 namespace Phantom::Coroutines
 {

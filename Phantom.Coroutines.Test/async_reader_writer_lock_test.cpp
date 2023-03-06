@@ -4,6 +4,8 @@
 #include "Phantom.Coroutines/async_reader_writer_lock.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
+#include "Phantom.Coroutines/sync_wait.h"
+#include "Phantom.Coroutines/task.h"
 
 namespace Phantom::Coroutines
 {
