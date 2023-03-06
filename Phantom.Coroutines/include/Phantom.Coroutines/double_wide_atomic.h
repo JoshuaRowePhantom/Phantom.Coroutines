@@ -87,7 +87,10 @@ public:
     value_type load_inconsistent(
     ) const
     {
-        return m_value;
+        auto result = m_value;
+        std::atomic_thread_fence(
+            std::memory_order_acq_rel);
+        return result;
     }
 
     value_type load(
