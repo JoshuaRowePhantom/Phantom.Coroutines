@@ -3,6 +3,7 @@
 #include "lifetime_tracker.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
+#include "Phantom.Coroutines/task.h"
 
 namespace Phantom::Coroutines
 {

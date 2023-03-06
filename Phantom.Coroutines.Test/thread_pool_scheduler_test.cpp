@@ -4,6 +4,7 @@
 #include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/thread_pool_scheduler.h"
+#include "Phantom.Coroutines/sync_wait.h"
 #include <barrier>
 #include <thread>
 
