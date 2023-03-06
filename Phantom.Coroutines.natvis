@@ -196,6 +196,13 @@
         <DisplayString>{m_value}</DisplayString>
     </Type>
 
+    <Type Name="Phantom::Coroutines::detail::basic_thread_pool_scheduler&lt;*&gt;">
+        <Expand>
+            <ExpandedItem>
+                m_threadStatesSection.m_currentValue.m_softReference._Storage._Value->m_value.m_threadStates
+            </ExpandedItem>
+        </Expand>
+    </Type>
     <Type Name="Phantom::Coroutines::detail::basic_thread_pool_scheduler&lt;*&gt;::thread_state">
         <DisplayString>{m_head._Storage._Value - m_tail._Storage._Value} items. [{m_tail._Storage._Value} .. {m_head._Storage._Value}]</DisplayString>
         <Expand>
