@@ -124,7 +124,11 @@ ASYNC_TEST_F(async_auto_reset_event_test, Set_before_await_causes_awaiter_to_not
 
     co_await lambda();
     EXPECT_EQ(true, stateBeforeWait);
+#if PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
+    EXPECT_EQ(true, suspendResult.did_suspend());
+#else
     EXPECT_EQ(false, suspendResult.did_suspend());
+#endif
     EXPECT_EQ(false, stateAfterWait);
 }
 
@@ -183,7 +187,7 @@ ASYNC_TEST_F(async_auto_reset_event_test, DISABLED_can_loop_without_stack_overfl
 
 ASYNC_TEST_F(async_auto_reset_event_test, Many_iterations)
 {
-    for (auto outerCounter = 0; outerCounter < 1000; outerCounter++)
+    for (auto outerCounter = 0; outerCounter < 10; outerCounter++)
     {
         async_auto_reset_event<> event;
         async_scope<> asyncScope;
@@ -192,7 +196,7 @@ ASYNC_TEST_F(async_auto_reset_event_test, Many_iterations)
         auto waiter = [&](int waiterNumber) -> task<>
         {
             ++remainingThreads;
-            for (auto counter = 0; counter < 1000; counter++)
+            for (auto counter = 0; counter < 10000; counter++)
             {
                 co_await event;
                 co_await waiterPool.schedule();

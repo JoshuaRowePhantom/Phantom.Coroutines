@@ -3,6 +3,7 @@
 #include <atomic>
 #include "double_wide_atomic.h"
 #include "detail/coroutine.h"
+#include "detail/config.h"
 #include "policies.h"
 
 namespace Phantom::Coroutines
@@ -57,8 +58,8 @@ template<
 
     // Awaiters that have been pulled from the m_state variable
     // and that should be resumed before those in the m_state variable.
-    std::atomic<awaiter*> m_pendingAwaiters = nullptr;
     std::atomic<double_wide_value<state_type>> m_state;
+    std::atomic<awaiter*> m_pendingAwaiters = nullptr;
     awaiter* m_unservicedAwaiters = nullptr;
     awaiter** m_unservicedAwaitersTail = &m_unservicedAwaiters;
 
@@ -66,10 +67,9 @@ template<
         double_wide_value<state_type> previousState
     )
     {
-        auto fetchCount = std::min(
-            previousState->m_setCount, 
-            previousState->m_waitingCount);
+        auto fetchCount = 1;
         awaiter* waitersToService = nullptr;
+        awaiter** waitersToServiceTail = &waitersToService;
 
         /*
 
@@ -106,36 +106,47 @@ Resume_DecrementCounts_and_AdjustLists:
         FetchedListeners := << >>;
         */
 
-        // fetchedWaiters is in reverse order of delivery,
-        // so reverse it and append to m_unservicedAwaiters
-            awaiter* unservicedAwaiters = nullptr;
-            auto newTail = &fetchedWaiters->m_nextAwaiter;
-            while (fetchedWaiters)
+            // It's possible that fetchedWaiters is null
+            // if a waiter added itself to m_pendingAwaiters
+            // but hadn't yet increased the count,
+            // the waiter is fetched by a previous instance of the loop,
+            // and then the waiter increments the count and this loop
+            // reaches here again.
+            if (fetchedWaiters)
             {
-                auto next = fetchedWaiters->m_nextAwaiter;
-                fetchedWaiters->m_nextAwaiter = unservicedAwaiters;
-                unservicedAwaiters = fetchedWaiters;
-                *m_unservicedAwaitersTail = fetchedWaiters;
-                fetchedWaiters = next;
+                // fetchedWaiters is in reverse order of delivery,
+                // so reverse it and append to m_unservicedAwaiters
+                awaiter* unservicedAwaiters = nullptr;
+                // The first item in fetchedAwaiters will end up being the last in
+                // concatenated list, so record its next pointer as the new tail.
+                auto newTail = &fetchedWaiters->m_nextAwaiter;
+                while (fetchedWaiters)
+                {
+                    auto next = fetchedWaiters->m_nextAwaiter;
+                    fetchedWaiters->m_nextAwaiter = unservicedAwaiters;
+                    unservicedAwaiters = fetchedWaiters;
+                    *m_unservicedAwaitersTail = fetchedWaiters;
+                    fetchedWaiters = next;
+                }
+                m_unservicedAwaitersTail = newTail;
             }
-            m_unservicedAwaitersTail = newTail;
 
             // Now iterate forward through m_unservicedAwaiters
             // to move fetchCount items to our local set to service.
-            // Note that this changes the order, but this is within contract
-            // as the multiple overlapping set / wait operations
-            // can be delivered in any order.
+
+            // This concatenates the lists.
+            *waitersToServiceTail = m_unservicedAwaiters;
+
             for (size_t counter = 0; counter < fetchCount; ++counter)
             {
-                auto next = m_unservicedAwaiters->m_nextAwaiter;
-                m_unservicedAwaiters->m_nextAwaiter = waitersToService;
-                waitersToService = m_unservicedAwaiters;
-                m_unservicedAwaiters = next;
+                waitersToServiceTail = &m_unservicedAwaiters->m_nextAwaiter;
+                m_unservicedAwaiters = m_unservicedAwaiters->m_nextAwaiter;
                 if (m_unservicedAwaiters == nullptr)
                 {
                     m_unservicedAwaitersTail = &m_unservicedAwaiters;
                 }
             }
+            *waitersToServiceTail = nullptr;
 
             /*
         */
@@ -144,11 +155,7 @@ Resume_DecrementCounts_and_AdjustLists:
         \* simultaneously.
         SetCount := SetCount - FetchingCount;
         WaiterCount := WaiterCount - FetchingCount;
-        if SetCount > 0 /\ WaiterCount > 0 then
-            FetchingCount := Min({ SetCount, WaiterCount });
-        else
-            FetchingCount := 0;
-        end if;
+        FetchingCount := Min({ SetCount, WaiterCount });
         */
             double_wide_value<state_type> nextState;
             do
@@ -181,10 +188,14 @@ end procedure;
         while (waitersToService)
         {
             auto next = waitersToService->m_nextAwaiter;
+#if !PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
             if (waitersToService->m_referenceCount.fetch_sub(1, std::memory_order_acquire) == 1)
             {
                 waitersToService->m_continuation.resume();
             }
+#else
+            waitersToService->m_continuation.resume();
+#endif
             waitersToService = next;
         }
     }
@@ -201,7 +212,9 @@ end procedure;
         };
 
         Continuation m_continuation;
+#if !PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
         std::atomic<char> m_referenceCount = 2;
+#endif
 
         awaiter(
             basic_async_auto_reset_event* event
@@ -215,7 +228,12 @@ end procedure;
             return false;
         }
 
-        coroutine_handle<> await_suspend(
+#if PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
+        void
+#else
+        coroutine_handle<> 
+#endif
+            await_suspend(
             Continuation continuation
         ) noexcept
         {
@@ -231,9 +249,11 @@ end procedure;
             auto event = m_event;
 
             double_wide_value previousState = event->m_state.load_inconsistent();
-            
+
             // Try once to resume with a single compare-exchange.
             auto nextState = previousState;
+
+#if !PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
             if (nextState->m_setCount > nextState->m_waitingCount)
             {
                 nextState->m_setCount--;
@@ -244,6 +264,10 @@ end procedure;
                     return continuation;
                 }
             }
+#endif
+
+            // If that didn't work, add ourselves to the pending awaiters
+            // list and then try resuming pending awaiters.
 
             /*
 
@@ -252,7 +276,8 @@ Listen_EnqueueWaiter:
         ListenerStates[self] := "Waiting";
 */
             m_continuation = continuation;
-            m_nextAwaiter = event->m_pendingAwaiters;
+            m_nextAwaiter = event->m_pendingAwaiters.load(
+                std::memory_order_relaxed);
             while (!event->m_pendingAwaiters.compare_exchange_weak(
                 m_nextAwaiter,
                 this,
@@ -273,25 +298,29 @@ Listen_IncrementWaiterCount:
             */
             do
             {
-                nextState = previousState;
-                nextState->m_waitingCount++;
+                nextState->m_setCount = previousState->m_setCount;
+                nextState->m_waitingCount = previousState->m_waitingCount + 1;
             } while (!event->m_state.compare_exchange_weak(
                 previousState,
                 nextState));
 
-            if (nextState->m_setCount > 0
+            if (nextState->m_setCount != 0
                 && nextState->m_waitingCount == 1)
             {
                 event->resume_awaiters(
                     nextState);
             }
 
+#if PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
+            return;
+#else
             if (m_referenceCount.fetch_sub(1, std::memory_order_acquire) == 1)
             {
                 return continuation;
             }
 
             return noop_coroutine();
+#endif
         }
 
         void await_resume(
@@ -348,7 +377,7 @@ public:
             nextState));
 
         if (nextState->m_setCount == 1
-            && nextState->m_waitingCount > 0)
+            && nextState->m_waitingCount != 0)
         {
             resume_awaiters(
                 nextState);
