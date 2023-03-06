@@ -195,4 +195,27 @@
     <Type Name="std::atomic&lt;Phantom::Coroutines::double_wide_value&lt;*&gt;&gt;">
         <DisplayString>{m_value}</DisplayString>
     </Type>
+
+    <Type Name="Phantom::Coroutines::detail::basic_thread_pool_scheduler&lt;*&gt;::thread_state">
+        <DisplayString>{m_head._Storage._Value - m_tail._Storage._Value} items. [{m_tail._Storage._Value} .. {m_head._Storage._Value}]</DisplayString>
+        <Expand>
+            <!-- Array items if masked head less than masked tail -->
+            <ArrayItems Condition="(m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask &amp; m_head._Storage._Value) &gt; (m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask &amp; m_tail._Storage._Value)">
+                <Size>m_head._Storage._Value - m_tail._Storage._Value</Size>
+                <ValuePointer>m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_continuations._Mypair._Myval2._Myfirst + (m_tail._Storage._Value &amp; m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask)</ValuePointer>
+            </ArrayItems>
+            <!-- Array items if masked head greater than masked tail -->
+            <!-- Start with tail up to end of vector. -->
+            <ArrayItems Condition="(m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask &amp; m_head._Storage._Value) &lt; (m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask &amp; m_tail._Storage._Value)">
+                <Size>m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask + 1 - m_tail._Storage._Value</Size>
+                <ValuePointer>m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_continuations._Mypair._Myval2._Myfirst + (m_tail._Storage._Value &amp; m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask)</ValuePointer>
+            </ArrayItems>
+            <!-- Start with beginning of vector up to head. -->
+            <ArrayItems Condition="(m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask &amp; m_head._Storage._Value) &lt; (m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask &amp; m_tail._Storage._Value)">
+                <Size>m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_mask &amp; m_head._Storage._Value</Size>
+                <ValuePointer>m_queueReadCopyUpdateSection.m_currentValue.m_softReference._Storage._Value->m_value.m_continuations._Mypair._Myval2._Myfirst</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
 </AutoVisualizer>
