@@ -225,6 +225,27 @@ end procedure;
     public:
         bool await_ready() const noexcept
         {
+
+            /*
+        \* This requires an atomic read modify write of SetCount + WaiterCount
+        \* simultaneously.
+        await SetCount > WaiterCount;
+        SetCount := SetCount - 1;
+        ListenerStates[self] := "Complete";
+            */
+            double_wide_value previousState = m_event->m_state.load_inconsistent();
+
+            // Try once to resume with a single compare-exchange.
+            auto nextState = previousState;
+
+            if (nextState->m_setCount > nextState->m_waitingCount)
+            {
+                nextState->m_setCount--;
+                return m_event->m_state.compare_exchange_weak(
+                    previousState,
+                    nextState);
+            }
+
             return false;
         }
 
@@ -237,34 +258,12 @@ end procedure;
             Continuation continuation
         ) noexcept
         {
-            /*
-        \* This requires an atomic read modify write of SetCount + WaiterCount
-        \* simultaneously.
-        await SetCount > WaiterCount;
-        SetCount := SetCount - 1;
-        ListenerStates[self] := "Complete";
-            */
             // We replace m_event with an awaiter pointer in this method,
             // so hold onto event locally.
             auto event = m_event;
 
-            double_wide_value previousState = event->m_state.load_inconsistent();
 
             // Try once to resume with a single compare-exchange.
-            auto nextState = previousState;
-
-#if !PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
-            if (nextState->m_setCount > nextState->m_waitingCount)
-            {
-                nextState->m_setCount--;
-                if (event->m_state.compare_exchange_weak(
-                    previousState,
-                    nextState))
-                {
-                    return continuation;
-                }
-            }
-#endif
 
             // If that didn't work, add ourselves to the pending awaiters
             // list and then try resuming pending awaiters.
@@ -296,6 +295,8 @@ Listen_IncrementWaiterCount:
                 Min({ SetCount, WaiterCount }));
         end if;
             */
+            double_wide_value previousState = event->m_state.load_inconsistent();
+            double_wide_value nextState = previousState;
             do
             {
                 nextState->m_setCount = previousState->m_setCount;

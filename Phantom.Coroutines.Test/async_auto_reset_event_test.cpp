@@ -124,11 +124,7 @@ ASYNC_TEST_F(async_auto_reset_event_test, Set_before_await_causes_awaiter_to_not
 
     co_await lambda();
     EXPECT_EQ(true, stateBeforeWait);
-#if PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
-    EXPECT_EQ(true, suspendResult.did_suspend());
-#else
     EXPECT_EQ(false, suspendResult.did_suspend());
-#endif
     EXPECT_EQ(false, stateAfterWait);
 }
 
