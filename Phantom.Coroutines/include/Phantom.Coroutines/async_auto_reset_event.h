@@ -405,9 +405,9 @@ public:
             nextState));
     }
 
-    awaiter operator co_await()
+    awaiter operator co_await() const noexcept
     {
-        return awaiter{ this };
+        return awaiter{ const_cast<basic_async_auto_reset_event*>(this) };
     }
 };
 

@@ -9,6 +9,8 @@
 
 namespace Phantom::Coroutines
 {
+static_assert(is_awaitable<async_auto_reset_event<>>);
+static_assert(is_awaitable<async_auto_reset_event<>&>);
 
 class async_auto_reset_event_test : public ::testing::Test
 {

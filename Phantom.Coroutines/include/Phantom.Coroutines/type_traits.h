@@ -234,37 +234,19 @@ template<
     typename Tuple
 > constexpr size_t tuple_element_index_v = tuple_element_index<Type, Tuple>::value;
 
-struct has_await_suspend_conflicted_name
-{
-    int await_suspend;
-};
-
 template<
     typename T
 > concept class_concept = std::is_class_v<T>;
 
-template<
-    class_concept Promise
-> struct has_await_suspend_conflict_detector
-    :
-    public Promise,
-    public has_await_suspend_conflicted_name
+
+template<typename T>
+concept has_await_suspend = requires
 {
+    // The methodology fails to fail on MSVC.
+    // We accept this for now because awaiter types that don't have await_suspend
+    // seem like a crazy thing to write.
+    { [](auto&&...args) { std::declval<T>().await_suspend(std::declval<decltype(args)>()...); } };
 };
-
-template<
-    typename Promise,
-    typename = void
-> constexpr bool has_await_suspend_v = true;
-
-template<
-    typename Promise
-> constexpr bool has_await_suspend_v<Promise, std::void_t<decltype(has_await_suspend_conflict_detector<Promise>::await_suspend)>> = false;
-
-template<
-    typename Promise
-> concept has_await_suspend = has_await_suspend_v<Promise>;
-
 
 template<
     typename Promise
@@ -357,7 +339,7 @@ template<
     has_co_await_non_member CoAwaitNonMember
 >
 decltype(auto) get_awaiter(
-    CoAwaitNonMember awaitable
+    CoAwaitNonMember&& awaitable
 )
 {
     return operator co_await(std::forward<CoAwaitNonMember>(awaitable));
@@ -443,33 +425,12 @@ template<
     { promise.await_transform(std::declval<Awaiter>()...) };
 };
 
-struct has_return_void_conflicted_name
+template<
+    typename Promise
+> concept has_return_void = requires (Promise promise)
 {
-    int return_void;
+    promise.return_void();
 };
-
-template<
-    typename Promise
-> struct has_return_void_conflict_detector
-    :
-    public Promise,
-    public has_return_void_conflicted_name
-{
-    int return_void;
-};
-
-template<
-    typename Promise,
-    typename = void
-> constexpr bool has_return_void_v = true;
-
-template<
-    typename Promise
-> constexpr bool has_return_void_v<Promise, std::void_t<decltype(has_return_void_conflict_detector<Promise>::return_void)>> = false;
-
-template<
-    typename Promise
-> concept has_return_void = has_return_void_v<Promise>;
 
 template<
     typename Promise,
