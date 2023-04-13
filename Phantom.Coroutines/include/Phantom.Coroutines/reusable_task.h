@@ -38,6 +38,28 @@ template<
     is_reusable_task_policy... Policies
 > using reusable_task = basic_reusable_task<reusable_task_promise<Result, Policies...>>;
 
+// Make a reusable_task from a value. The resulting
+// task will already be completed, and can be used and reused
+// as many times as desired, including by multiple threads.
+template<
+    typename Result,
+    typename Task = reusable_task<Result>
+> Task make_reusable_task_from_value(
+    Result&& result
+)
+{
+    auto lambda = [&]() -> Task
+    {
+        co_return std::forward<Result>(result);
+    };
+    auto task = lambda();
+    auto awaiter = task.when_ready();
+    awaiter.await_ready();
+    awaiter.await_suspend(std::noop_coroutine()).resume();
+
+    return std::move(task);
+}
+
 }
 
 namespace Phantom::Coroutines
@@ -45,5 +67,6 @@ namespace Phantom::Coroutines
 using detail::basic_reusable_task;
 using detail::reusable_task_promise;
 using detail::reusable_task;
+using detail::make_reusable_task_from_value;
 
 }

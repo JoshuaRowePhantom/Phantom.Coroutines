@@ -4,8 +4,9 @@
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
-#include "Phantom.Coroutines/type_traits.h"
 #include "Phantom.Coroutines/reusable_task.h"
+#include "Phantom.Coroutines/suspend_result.h"
+#include "Phantom.Coroutines/type_traits.h"
 #include "lifetime_tracker.h"
 #include "async_test.h"
 #include "pmr_task.h"
@@ -406,7 +407,7 @@ ASYNC_TEST(reusable_task_test, Can_be_awaited_twice)
     auto& tracker2 = co_await task;
 }
 
-ASYNC_TEST(reusable_task_test, Can_await_twice)
+ASYNC_TEST(reusable_task_test, Can_await_twice_within_promise)
 {
     lifetime_statistics statistics;
     async_auto_reset_event<> event;
@@ -509,4 +510,28 @@ ASYNC_TEST(reusable_task_test, destroys_coroutine_when_awaited_as_rvalue)
 
     co_await outer(allocator);
     EXPECT_EQ(outerAllocation1, outerAllocation2);
+}
+
+ASYNC_TEST(reusable_task_test, second_await_on_task_does_not_suspend)
+{
+    auto lambda = [&]() -> reusable_task<std::string>
+    {
+        co_return "hello world";
+    };
+    auto task = lambda();
+
+    suspend_result suspendResult;
+    auto result1 = co_await(suspendResult << task);
+    EXPECT_EQ(true, suspendResult.did_suspend());
+    auto result2 = co_await(suspendResult << task);
+    EXPECT_EQ(false, suspendResult.did_suspend());
+}
+
+ASYNC_TEST(reusable_task_test, make_reusable_task_from_value_is_completed)
+{
+    auto task = make_reusable_task_from_value(std::string("hello world"));
+    suspend_result suspendResult;
+    auto result = co_await(suspendResult << task);
+    EXPECT_EQ(false, suspendResult.did_suspend());
+    EXPECT_EQ(std::string("hello world"), result);
 }
