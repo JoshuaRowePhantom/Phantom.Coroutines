@@ -60,9 +60,11 @@ public:
         }
         else if constexpr (has_bool_await_suspend<awaiter_type, Continuation>)
         {
-            return m_suspendResult.m_didSuspend = this->awaiter().await_suspend(
+            auto result = this->awaiter().await_suspend(
                 continuation
             );
+            m_suspendResult.m_didSuspend |= result;
+            return result;
         }
         else
         {
@@ -72,7 +74,7 @@ public:
                 continuation
             );
 
-            m_suspendResult.m_didSuspend = transferToCoroutine != continuation;
+            m_suspendResult.m_didSuspend |= transferToCoroutine != continuation;
 
             return transferToCoroutine;
         }
@@ -111,6 +113,11 @@ public:
             *this,
             std::forward<Awaitable>(awaitable)
             );
+    }
+
+    void reset()
+    {
+        m_didSuspend = false;
     }
 };
 

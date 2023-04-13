@@ -14,7 +14,6 @@ static_assert(is_awaiter<decltype(std::declval<async_sequence_barrier<>&>().wait
 
 ASYNC_TEST(async_sequence_barrier_test, Awaiting_at_nothing_published_with_default_constructor_does_suspend)
 {
-    suspend_result suspendResult;
     async_sequence_barrier<> sequenceBarrier;
     bool isCompleted = false;
 
@@ -34,7 +33,6 @@ ASYNC_TEST(async_sequence_barrier_test, Awaiting_at_nothing_published_with_defau
 
 ASYNC_TEST(async_sequence_barrier_test, last_published_returns_last_published_value)
 {
-    suspend_result suspendResult;
     async_sequence_barrier<> sequenceBarrier;
     sequenceBarrier.publish(0);
     EXPECT_EQ(0, sequenceBarrier.last_published());
@@ -45,7 +43,6 @@ ASYNC_TEST(async_sequence_barrier_test, last_published_returns_last_published_va
 
 ASYNC_TEST(async_sequence_barrier_test, can_start_at_nonzero_value)
 {
-    suspend_result suspendResult;
     async_sequence_barrier<> sequenceBarrier(5);
     EXPECT_EQ(5, sequenceBarrier.last_published());
     co_return;

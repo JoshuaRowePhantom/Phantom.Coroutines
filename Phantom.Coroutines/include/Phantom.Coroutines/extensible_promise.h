@@ -372,7 +372,7 @@ template<
     > friend class extended_promise_handle;
 
 public:
-    using promise_type = typename PromiseHandle::promise_type;
+    using promise_type = typename std::decay_t<PromiseHandle>::promise_type;
 
 protected:
     using promise_handle_type = PromiseHandle;
