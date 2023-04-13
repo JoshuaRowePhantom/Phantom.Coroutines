@@ -523,6 +523,7 @@ ASYNC_TEST(reusable_task_test, second_await_on_task_does_not_suspend)
     suspend_result suspendResult;
     auto result1 = co_await(suspendResult << task);
     EXPECT_EQ(true, suspendResult.did_suspend());
+    suspendResult.reset();
     auto result2 = co_await(suspendResult << task);
     EXPECT_EQ(false, suspendResult.did_suspend());
 }
