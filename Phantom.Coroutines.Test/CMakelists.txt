@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.17)
 
 add_executable(
     Phantom.Coroutines.Test
+    "async_atomic_test.cpp"
     "async_auto_reset_event_test.cpp"
     "async_generator_test.cpp"
     "async_latch_test.cpp" 
@@ -41,7 +42,7 @@ add_executable(
     "thread_local_contextual_promise_test.cpp"
     "thread_pool_scheduler_test.cpp"
     "type_traits_test.cpp"
-)
+ )
 
 target_link_libraries(
     Phantom.Coroutines.Test

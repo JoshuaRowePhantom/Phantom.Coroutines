@@ -40,7 +40,7 @@ public:
     {}
 
     operator Value() const { return m_value; }
-    auto operator->(this auto& self) { return &self.m_value; }
+    auto operator->(this auto&& self) { return &self.m_value; }
 };
 
 }
@@ -56,7 +56,9 @@ public:
     value_type m_value;
 
 public:
-    atomic(T value = { })
+    atomic(
+        T value = { }
+    ) noexcept
         : m_value{ value }
     {}
 
@@ -64,7 +66,8 @@ public:
         value_type& expected,
         value_type desired,
         std::memory_order = std::memory_order_seq_cst,
-        std::memory_order = std::memory_order_seq_cst)
+        std::memory_order = std::memory_order_seq_cst
+    ) noexcept
     {
         return compare_exchange_strong(
             expected,
@@ -75,7 +78,8 @@ public:
         value_type& expected,
         value_type desired,
         std::memory_order = std::memory_order_seq_cst,
-        std::memory_order = std::memory_order_seq_cst)
+        std::memory_order = std::memory_order_seq_cst
+    ) noexcept
     {
         return ::_InterlockedCompareExchange128(
             m_value.rawValue,
@@ -84,18 +88,36 @@ public:
             expected.rawValue);
     }
 
+    value_type exchange(
+        value_type desired,
+        std::memory_order = std::memory_order_seq_cst
+    ) noexcept
+    {
+        auto expected = load_inconsistent();
+        while (!compare_exchange_weak(
+            expected,
+            desired
+        ));
+        return expected;
+    }
+
     value_type load_inconsistent(
-    ) const
+        std::memory_order order = std::memory_order_seq_cst
+    ) const noexcept
     {
         auto result = m_value;
+        if (order < std::memory_order_acq_rel)
+        {
+            order = std::memory_order_acq_rel;
+        }
         std::atomic_thread_fence(
-            std::memory_order_acq_rel);
+            order);
         return result;
     }
 
     value_type load(
         std::memory_order memoryOrder = std::memory_order_seq_cst
-    ) const
+    ) const noexcept
     {
         auto value = load_inconsistent();
         while (!const_cast<atomic*>(this)->compare_exchange_weak(
@@ -107,13 +129,10 @@ public:
 
     void store(
         value_type value,
-        std::memory_order = std::memory_order_seq_cst)
+        std::memory_order = std::memory_order_seq_cst
+    ) noexcept
     {
-        auto oldValue = load_inconsistent();
-        while (!compare_exchange_weak(
-            oldValue,
-            value
-        ));
+        exchange(value);
     }
 };
 
