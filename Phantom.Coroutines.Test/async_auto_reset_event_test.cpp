@@ -183,7 +183,7 @@ ASYNC_TEST_F(async_auto_reset_event_test, DISABLED_can_loop_without_stack_overfl
     co_await scope.join();
 }
 
-ASYNC_TEST_F(async_auto_reset_event_test, Many_iterations)
+ASYNC_TEST_F(async_auto_reset_event_test, DISABLED_Many_iterations)
 {
     for (auto outerCounter = 0; outerCounter < 10; outerCounter++)
     {

@@ -308,7 +308,7 @@ public:
     bool await_ready(
     ) const noexcept
     {
-        return this->handle() && this->handle().done();
+        return !this->handle() || this->handle().done();
     }
 
     auto await_suspend(
@@ -327,7 +327,6 @@ public:
     {
         return std::forward<decltype(expression)>(expression)();
     }
-
 };
 
 template<
