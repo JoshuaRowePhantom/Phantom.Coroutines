@@ -212,6 +212,10 @@ public:
         std::invocable<> auto&& function
     )
     {
+#ifndef  NDEBUG
+        assert(!m_isJoined.test());
+#endif
+
         m_outstandingTasks.fetch_add(
             1,
             std::memory_order_relaxed);
