@@ -56,6 +56,10 @@ class basic_async_scope
     coroutine_handle<> m_continuation;
     coroutine_handle<> m_coroutineToDestroy;
 
+#ifndef NDEBUG
+    std::atomic_flag m_isJoined;
+#endif
+
     class join_awaiter
     {
         friend class basic_async_scope;
@@ -78,6 +82,10 @@ class basic_async_scope
             coroutine_handle<> continuation
         ) noexcept
         {
+#ifndef NDEBUG
+            assert(!m_asyncScope.m_isJoined.test_and_set());
+#endif
+
             m_asyncScope.m_continuation = continuation;
             if (m_asyncScope.m_outstandingTasks.fetch_sub(1, std::memory_order_acquire) == 1)
             {
@@ -175,6 +183,9 @@ class basic_async_scope
         co_await std::invoke(movedFunction);
         if (m_outstandingTasks.fetch_sub(1, std::memory_order_acq_rel) == 1)
         {
+#ifndef NDEBUG
+            assert(m_isJoined.test());
+#endif
             co_await join_resumer{ *this };
         }
     }
