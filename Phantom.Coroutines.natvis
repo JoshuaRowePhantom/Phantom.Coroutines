@@ -10,12 +10,6 @@
         <DisplayString>{reinterpret_cast&lt;void*&gt;(reinterpret_cast&lt;uintptr_t&gt;(m_value) &amp; ~c_StateSetIndexPointerMask)}</DisplayString>
     </Type>
 
-    <Type Name="Phantom::Coroutines::detail::single_consumer_event&lt;*&gt;">
-        <DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_event_states::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled</DisplayString>
-        <DisplayString Condition="m_atomicState.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::single_consumer_event_states::NotSignalledState&gt;::g_objectWithUniqueAddressValue">Not Signalled</DisplayString>
-        <DisplayString>Waiting Coroutine: {reinterpret_cast&lt;std::coroutine_handle&lt;void&gt;*&gt;(&amp;m_atomicState.m_atomicRepresentation._Storage._Value)}</DisplayString>
-    </Type>
-
     <!--<Type Name="Phantom::Coroutines::detail::async_mutex::async_mutex_lock_operation">
         <DisplayString>Lock waiter {m_continuation}</DisplayString>
     </Type>-->
@@ -70,6 +64,19 @@
                 <ValueNode>this</ValueNode>
             </TreeItems>
 
+        </Expand>
+    </Type>
+
+    <Type Name="Phantom::Coroutines::detail::basic_async_manual_reset_event&lt;*,*,*,*&gt;::awaiter">
+        <DisplayString>{m_continuation}</DisplayString>
+    </Type>
+
+    <Type Name="Phantom::Coroutines::detail::basic_async_manual_reset_event&lt;*,*,*,*&gt;">
+        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == nullptr">Not Signalled</DisplayString>
+        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::detail::basic_async_manual_reset_event&lt;$T1,$T2,$T3,$T4&gt;::SignalledState&gt;::g_objectWithUniqueAddressValue">Signalled</DisplayString>
+        <DisplayString>Not Signalled - Has Awaiters</DisplayString>
+        <Expand>
+            <Item Name="Waiters">"hi"</Item>
         </Expand>
     </Type>
 
