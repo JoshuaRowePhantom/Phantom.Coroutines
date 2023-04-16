@@ -67,6 +67,23 @@
         </Expand>
     </Type>
 
+    <Type Name="Phantom::Coroutines::shared_task_awaiter&lt;*&gt;::awaiter">
+        <DisplayString>{m_continuation}</DisplayString>
+    </Type>
+
+    <Type Name="Phantom::Coroutines::basic_shared_task_promise&lt;*,*&gt;">
+        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::shared_task_states::Completed&gt;::g_objectWithUniqueAddressValue">Completed</DisplayString>
+        <DisplayString Condition="m_state.m_atomicRepresentation._Storage._Value == nullptr">Not Started</DisplayString>
+        <DisplayString>Started - Has Awaiters</DisplayString>
+        <Expand>
+            <LinkedListItems Condition="m_state.m_atomicRepresentation._Storage._Value != &amp;Phantom::Coroutines::detail::UniqueObject&lt;Phantom::Coroutines::shared_task_states::Completed&gt;::g_objectWithUniqueAddressValue">
+                <HeadPointer>static_cast&lt;awaiter_list_entry*&gt;(m_state.m_atomicRepresentation._Storage._Value)</HeadPointer>
+                <NextPointer>m_nextAwaiter</NextPointer>
+                <ValueNode>this</ValueNode>
+            </LinkedListItems>
+        </Expand>
+    </Type>
+
     <Type Name="Phantom::Coroutines::detail::basic_async_manual_reset_event&lt;*,*,*,*&gt;::awaiter">
         <DisplayString>{m_continuation}</DisplayString>
     </Type>
