@@ -67,7 +67,7 @@
         </Expand>
     </Type>
 
-    <Type Name="Phantom::Coroutines::shared_task_awaiter&lt;*&gt;::awaiter">
+    <Type Name="Phantom::Coroutines::shared_task_awaiter_list_entry&lt;*&gt;">
         <DisplayString>{m_continuation}</DisplayString>
     </Type>
 
