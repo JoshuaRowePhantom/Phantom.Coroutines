@@ -448,9 +448,40 @@ public:
             return read_lock_operation{ m_lock };
         }
 
+        bool try_lock() noexcept
+        {
+            auto expectedState = m_lock.m_state.load_inconsistent();
+            while (expectedState->m_readerLockCount >= 0)
+            {
+                auto desiredStateIsLockedForRead = expectedState;
+                desiredStateIsLockedForRead->m_readerLockCount++;
+
+                if (m_lock.m_state.compare_exchange_strong(
+                    expectedState,
+                    desiredStateIsLockedForRead))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         auto scoped_lock_async() noexcept
         {
             return read_lock_scoped_operation{ m_lock };
+        }
+
+        auto try_scoped_lock() noexcept
+        {
+            if (try_lock())
+            {
+                return read_lock{ *this, std::adopt_lock };
+            }
+            else
+            {
+                return read_lock{};
+            }
         }
     };
 
@@ -477,9 +508,34 @@ public:
             return write_lock_operation{ m_lock };
         }
 
+        bool try_lock() noexcept
+        {
+            auto expectedState = m_lock.m_state.load_inconsistent();
+            auto desiredStateIsLockedForWrite = expectedState;
+            desiredStateIsLockedForWrite->m_readerLockCount = WriteLockAcquiredLockCount;
+
+            return expectedState->m_readerLockCount == 0
+                && m_lock.m_state.compare_exchange_strong(
+                    expectedState,
+                    desiredStateIsLockedForWrite
+                );
+        }
+
         auto scoped_lock_async() noexcept
         {
             return write_lock_scoped_operation{ m_lock };
+        }
+
+        auto try_scoped_lock() noexcept
+        {
+            if (try_lock())
+            {
+                return write_lock{ *this, std::adopt_lock };
+            }
+            else
+            {
+                return write_lock{};
+            }
         }
     };
 
