@@ -29,7 +29,7 @@ export auto invalid_coroutine_handle()
 export template<
     typename Promise
 >
-static auto copy_and_invalidate(
+auto copy_and_invalidate(
     coroutine_handle<Promise>& handle
 )
 {

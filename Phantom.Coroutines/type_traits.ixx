@@ -22,7 +22,7 @@ template<
     Template
     > = true;
 
-template<
+export template<
     typename T,
     template <typename ...> typename Template
 > concept is_template_instantiation = is_template_instantiation_v<T, Template>;
