@@ -60,6 +60,25 @@ template<
     return std::move(task);
 }
 
+// Make a completed reusable_task that returns void. The resulting
+// task will already be completed, and can be used and reused
+// as many times as desired, including by multiple threads.
+template<
+    typename Task = reusable_task<>
+> Task make_reusable_task_from_void()
+{
+    auto lambda = [&]() -> Task
+    {
+        co_return;
+    };
+    auto task = lambda();
+    auto awaiter = task.when_ready();
+    awaiter.await_ready();
+    awaiter.await_suspend(std::noop_coroutine()).resume();
+
+    return std::move(task);
+}
+
 }
 
 namespace Phantom::Coroutines

@@ -536,3 +536,11 @@ ASYNC_TEST(reusable_task_test, make_reusable_task_from_value_is_completed)
     EXPECT_EQ(false, suspendResult.did_suspend());
     EXPECT_EQ(std::string("hello world"), result);
 }
+
+ASYNC_TEST(reusable_task_test, make_reusable_task_from_void_is_completed)
+{
+    auto task = make_reusable_task_from_void();
+    suspend_result suspendResult;
+    co_await(suspendResult << task);
+    EXPECT_EQ(false, suspendResult.did_suspend());
+}
