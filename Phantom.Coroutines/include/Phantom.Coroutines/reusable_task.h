@@ -87,5 +87,6 @@ using detail::basic_reusable_task;
 using detail::reusable_task_promise;
 using detail::reusable_task;
 using detail::make_reusable_task_from_value;
+using detail::make_reusable_task_from_void;
 
 }
