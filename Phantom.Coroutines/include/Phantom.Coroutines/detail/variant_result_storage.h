@@ -56,17 +56,6 @@ template<
         );
     }
 
-    // Allow {} syntax to return default-constructed objects of type T.
-    void return_value(
-        this auto& self,
-        std::monostate
-    ) requires
-        std::default_initializable<T>
-    {
-        return self.return_variant_result(
-            T{}
-        );
-    }
 };
 
 template<

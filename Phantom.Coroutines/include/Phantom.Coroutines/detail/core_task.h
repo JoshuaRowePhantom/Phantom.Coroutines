@@ -32,9 +32,41 @@ template<
 template<
     typename Result
 >
+class core_task_variant_return_result
+{
+public:
+
+    void return_variant_result(
+        this auto& self,
+        Result value
+    ) requires !std::same_as<void, Result>
+    {
+        self.m_result.emplace<self.result_index>(std::move(value));
+    }
+
+    void return_variant_result(
+        this auto& self,
+        const Result& value
+    )
+    {
+        self.m_result.emplace<self.result_index>(value);
+    }
+};
+
+template<
+>
+class core_task_variant_return_result<void>
+{
+public:
+};
+
+template<
+    typename Result
+>
 class core_task_variant_result
     :
-    public variant_result_storage<Result>
+    public variant_result_storage<Result>,
+    public core_task_variant_return_result<Result>
 {
 public:
     using result_variant_type = std::variant<
