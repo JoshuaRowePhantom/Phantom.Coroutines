@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.17)
 
 add_executable(
     Phantom.Coroutines.Test
+    "aligned_array_test.cpp"
     "async_atomic_test.cpp"
     "async_auto_reset_event_test.cpp"
     "async_generator_test.cpp"
@@ -12,6 +13,7 @@ add_executable(
     "async_reader_writer_lock_test.cpp" 
     "async_scope_test.cpp"
     "async_sequence_barrier_test.cpp"
+    "async_sharded_reader_writer_lock_test.cpp"
     "async_test.cpp"
     "async_test.h"
     "atomic_state_test.cpp"
@@ -41,8 +43,8 @@ add_executable(
     "task_test.cpp"
     "thread_local_contextual_promise_test.cpp"
     "thread_pool_scheduler_test.cpp"
-    "type_traits_test.cpp"
- )
+    "type_traits_test.cpp" 
+)
 
 target_link_libraries(
     Phantom.Coroutines.Test

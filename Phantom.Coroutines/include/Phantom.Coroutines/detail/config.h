@@ -23,3 +23,8 @@
 #endif
 
 #endif
+
+namespace Phantom::Coroutines
+{
+static constexpr size_t cache_line_size = 64;
+}
