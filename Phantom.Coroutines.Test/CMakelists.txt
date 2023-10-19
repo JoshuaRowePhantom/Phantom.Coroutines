@@ -37,6 +37,7 @@ add_executable(
     "reusable_consecutive_global_id_test.cpp"
     "reusable_task_test.cpp" 
     "sequence_lock_test.cpp" 
+    "sharding_test.cpp"
     "shared_task_test.cpp"
     "suspend_result_test.cpp" 
     "sync_wait_test.cpp"
