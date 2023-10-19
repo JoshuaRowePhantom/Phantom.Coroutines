@@ -452,9 +452,6 @@ std::constructible_from<Continuation>
 && requires (Continuation c)
 {
     { c.resume() };
-    { static_cast<bool>(c) };
-    { static_cast<coroutine_handle<>>(c) };
-    { c.destroy() };
 };
 
 template<

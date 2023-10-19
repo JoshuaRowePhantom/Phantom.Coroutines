@@ -45,7 +45,7 @@ add_executable(
     "task_test.cpp"
     "thread_local_contextual_promise_test.cpp"
     "thread_pool_scheduler_test.cpp"
-    "type_traits_test.cpp" 
+    "type_traits_test.cpp"
 )
 
 target_link_libraries(
