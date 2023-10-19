@@ -24,6 +24,7 @@ add_executable(
     "detail/fibonacci_heap_test.cpp"
     "detail/scope_guard_test.cpp"
     "detail/variant_result_storage_test.cpp"
+    "direct_initialized_optional_test.cpp"
     "double_wide_atomic_test.cpp" 
     "early_termination_task_test.cpp"
     "generator_test.cpp"
