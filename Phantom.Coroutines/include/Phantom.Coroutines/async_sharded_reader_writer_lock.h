@@ -21,14 +21,6 @@ template<
 class basic_async_sharded_reader_writer_lock;
 
 template<
-    typename ... Policy
-> using underlying_sharded_reader_writer_lock =
-async_reader_writer_lock<
-    continuation_type<detail::basic_async_sharded_reader_writer_lock_continuation>,
-    Policy...
->;
-
-template<
     typename T
 > concept is_basic_async_sharded_reader_writer_lock_policy =
 is_await_cancellation_policy<T>
@@ -37,6 +29,14 @@ is_await_cancellation_policy<T>
 // Cardinality policies aren't useful for reader / writer locks
 // || is_awaiter_cardinality_policy<T>
 || is_continuation_type_policy<T>;
+
+template<
+    is_basic_async_sharded_reader_writer_lock_policy ... Policy
+> using underlying_sharded_reader_writer_lock =
+async_reader_writer_lock<
+    continuation_type<detail::basic_async_sharded_reader_writer_lock_continuation>,
+    Policy...
+>;
 
 template<
     is_basic_async_sharded_reader_writer_lock_policy ... Policy
@@ -116,9 +116,9 @@ class basic_async_sharded_reader_writer_lock
         }
 
         scoped_read_lock_operation(
-            basic_async_sharded_reader_writer_lock& lock
+            async_reader_writer_lock_type& lock
         ) :
-            m_operation{ lock.m_locks.get_current_shard().reader().scoped_lock_async() }
+            m_operation{ lock.reader().scoped_lock_async() }
         {}
 
     public:
@@ -332,14 +332,34 @@ public:
         {}
 
     public:
-        auto try_scoped_lock() noexcept
+        auto try_scoped_lock(
+        ) noexcept
         {
-            return get_current_shard(m_lock.m_locks).reader().try_scoped_lock();
+            return try_scoped_lock(
+                get_current_shard(m_lock.m_locks)
+            );
         }
 
-        auto scoped_lock_async() noexcept
+        auto try_scoped_lock(
+            async_reader_writer_lock_type& shard
+        ) noexcept
         {
-            return scoped_read_lock_operation{ m_lock };
+            return shard.reader().try_scoped_lock();
+        }
+
+        auto scoped_lock_async(
+        ) noexcept
+        {
+            return scoped_lock_async(
+                get_current_shard(m_lock.m_locks)
+            );
+        }
+
+        auto scoped_lock_async(
+            async_reader_writer_lock_type& shard
+        ) noexcept
+        {
+            return scoped_read_lock_operation{ shard };
         }
     };
     
