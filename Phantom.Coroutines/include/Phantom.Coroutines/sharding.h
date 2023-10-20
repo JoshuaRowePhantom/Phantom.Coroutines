@@ -166,7 +166,7 @@ struct static_thread_id_shard_numbering
     using static_shard_numbering<Shards>::create_shards;
     using static_shard_numbering<Shards>::create_cache_aligned_shards;
 
-    static inline size_t next_thread_index = 0;
+    static inline std::atomic<size_t> next_thread_index = 0;
     static inline thread_local size_t current_thread_index = ++next_thread_index % Shards;
 
     static size_t get_current_shard_number()
