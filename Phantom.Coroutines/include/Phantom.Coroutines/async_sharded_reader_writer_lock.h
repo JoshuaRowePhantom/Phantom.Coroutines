@@ -200,7 +200,9 @@ class basic_async_sharded_reader_writer_lock
         write_lock_operation_acquired_locks(
             is_sharded auto& locks
         )
-        {}
+        {
+            std::ignore = locks;
+        }
 
         static auto acquire_lock_operation(
             is_sharded auto& locks,
@@ -212,7 +214,7 @@ class basic_async_sharded_reader_writer_lock
         using operation_type = decltype(acquire_lock_operation(std::declval<ReaderWriterLockShards&>(), 0));
 
         static void resume_acquire_lock_operation(
-            size_t shardIndex,
+            size_t /* shardIndex */,
             auto& operation
         )
         {

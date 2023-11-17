@@ -246,6 +246,8 @@ struct assert_forward_owned_expected_result
         Owner owner = static_cast<Owner>(ownerVariable);
         Value value = static_cast<Value>(valueVariable);
 
+        std::ignore = owner;
+
         static_assert(std::same_as<decltype(forward_owned<Owner, Value>(std::declval<Value>())), ExpectedResult>);
         auto&& result = forward_owned<Owner, Value>(std::forward<Value>(value));
         EXPECT_EQ(&value, &result);

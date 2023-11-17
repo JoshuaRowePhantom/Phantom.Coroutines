@@ -25,7 +25,7 @@ template<
 >
 class alignas(16) double_wide_value
 {
-    friend class ::std::atomic<::Phantom::Coroutines::double_wide_value<Value>>;
+    friend struct ::std::atomic<::Phantom::Coroutines::double_wide_value<Value>>;
 
     union
     {
@@ -49,7 +49,7 @@ namespace std
 {
 template<
     ::Phantom::Coroutines::detail::is_double_wide_value T
-> class atomic<::Phantom::Coroutines::double_wide_value<T>>
+> struct atomic<::Phantom::Coroutines::double_wide_value<T>>
 {
 public:
     using value_type = ::Phantom::Coroutines::double_wide_value<T>;
@@ -116,7 +116,7 @@ public:
     }
 
     value_type load(
-        std::memory_order memoryOrder = std::memory_order_seq_cst
+        std::memory_order = std::memory_order_seq_cst
     ) const noexcept
     {
         auto value = load_inconsistent();

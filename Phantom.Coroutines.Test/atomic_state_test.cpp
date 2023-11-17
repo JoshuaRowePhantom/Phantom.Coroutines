@@ -8,8 +8,12 @@ namespace
 struct Label1 {};
 struct Label2 {};
 
+// Disable warning that structure padded due to alignment specifier
+__pragma(warning(suppress:4324))
 struct alignas(2) PointedToValue {};
+__pragma(warning(suppress:4324))
 struct alignas(2) PointedToValue1 {};
+__pragma(warning(suppress:4324))
 struct alignas(2) PointedToValue2 {};
 
 typedef atomic_state<

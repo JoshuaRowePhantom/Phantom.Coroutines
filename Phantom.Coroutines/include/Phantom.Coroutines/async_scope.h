@@ -120,7 +120,9 @@ class basic_async_scope
             auto& awaiter
         ) :
             m_asyncScope{ asyncScope }
-        {}
+        {
+            std::ignore = awaiter;
+        }
 
         ~promise()
         {

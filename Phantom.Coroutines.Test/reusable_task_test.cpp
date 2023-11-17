@@ -116,7 +116,7 @@ ASYNC_TEST(reusable_task_test, Returned_object_is_by_rvalue_reference_to_caller_
     lifetime_statistics statistics;
     std::optional<lifetime_statistics> intermediateStatistics;
 
-    auto myLambda = [&](lifetime_tracker&& tracker)
+    auto myLambda = [&](lifetime_tracker&&)
     {};
 
     auto myInnerreusable_task = [&]() -> reusable_task<lifetime_tracker>
@@ -405,6 +405,8 @@ ASYNC_TEST(reusable_task_test, Can_be_awaited_twice)
 
     auto& tracker1 = co_await task;
     auto& tracker2 = co_await task;
+    EXPECT_EQ(&tracker1, &tracker2);
+    EXPECT_EQ(tracker1, statistics);
 }
 
 ASYNC_TEST(reusable_task_test, Can_await_twice_within_promise)

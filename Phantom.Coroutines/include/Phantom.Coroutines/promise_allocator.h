@@ -100,7 +100,7 @@ private:
 
     static void* allocate(
         size_t size,
-        auto& arg,
+        auto&,
         auto&... args
     )
         requires requires
@@ -114,7 +114,7 @@ private:
     static void* allocate(
         size_t size,
         Allocator& arg,
-        auto&... args
+        auto&...
     )
     {
         return allocate(size, arg);

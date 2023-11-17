@@ -115,7 +115,7 @@ public:
         const Value& value
     ) noexcept
     {
-        size_t expectedSequenceNumber, nextSequenceNumber;
+        size_t expectedSequenceNumber;
 
         expectedSequenceNumber = m_sequenceNumber.load(std::memory_order_relaxed);
         while ((expectedSequenceNumber & 0x3)

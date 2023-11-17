@@ -22,7 +22,6 @@ ASYNC_TEST(async_generator_test, Can_enumerate_async_generator_returning_no_elem
     {
         co_return;
     }();
-    auto count = 0;
 
     for (auto iterator = co_await myGenerator.begin();
         iterator != myGenerator.end();
@@ -35,7 +34,6 @@ ASYNC_TEST(async_generator_test, Can_enumerate_async_generator_returning_no_elem
 ASYNC_TEST(async_generator_test, Can_enumerate_default_constructed_async_generator)
 {
     async_generator<int> myGenerator;
-    auto count = 0;
 
     for (auto iterator = co_await myGenerator.begin();
         iterator != myGenerator.end();

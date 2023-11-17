@@ -12,9 +12,13 @@ enum TaggedPointerTag
     Seven = 7,
 };
 
+// Disable warning that structure padded due to alignment specifier
+#pragma warning(push)
+#pragma warning(disable:4324)
 struct alignas(8) TaggedPointerStruct
 {
 };
+#pragma warning(pop)
 
 }
 

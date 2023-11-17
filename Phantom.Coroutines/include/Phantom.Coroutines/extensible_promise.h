@@ -119,7 +119,7 @@ public:
     template<
         typename ... Args
     > derived_promise_base(
-        Args&&... args
+        Args&&...
     ) requires
         !std::constructible_from<Base, Args&&...>
         && std::constructible_from<Base>

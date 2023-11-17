@@ -14,17 +14,17 @@ class throwing_memory_resource :
     public std::pmr::memory_resource
 {
     // Inherited via memory_resource
-    virtual void* do_allocate(size_t _Bytes, size_t _Align) override
+    virtual void* do_allocate(size_t, size_t) override
     {
         throw std::bad_alloc();
     }
 
-    virtual void do_deallocate(void* _Ptr, size_t _Bytes, size_t _Align) override
+    virtual void do_deallocate(void*, size_t, size_t) override
     {
         EXPECT_TRUE(false);
     }
 
-    virtual bool do_is_equal(const memory_resource& _That) const noexcept override
+    virtual bool do_is_equal(const memory_resource&) const noexcept override
     {
         return false;
     }
@@ -34,17 +34,17 @@ class null_returning_memory_resource :
     public std::pmr::memory_resource
 {
     // Inherited via memory_resource
-    virtual void* do_allocate(size_t _Bytes, size_t _Align) override
+    virtual void* do_allocate(size_t, size_t) override
     {
         return nullptr;
     }
 
-    virtual void do_deallocate(void* _Ptr, size_t _Bytes, size_t _Align) override
+    virtual void do_deallocate(void*, size_t, size_t) override
     {
         EXPECT_TRUE(false);
     }
 
-    virtual bool do_is_equal(const memory_resource& _That) const noexcept override
+    virtual bool do_is_equal(const memory_resource&) const noexcept override
     {
         return false;
     }

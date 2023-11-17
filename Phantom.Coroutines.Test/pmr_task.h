@@ -23,16 +23,16 @@ class memory_tracker :
     virtual void* do_allocate(size_t _Bytes, size_t _Align) override
     {
         m_trackerData->m_allocatedMemory += _Bytes;
-        return new char[_Bytes];
+        return std::pmr::get_default_resource()->allocate(_Bytes, _Align);
     }
 
     virtual void do_deallocate(void* _Ptr, size_t _Bytes, size_t _Align) override
     {
         m_trackerData->m_allocatedMemory -= _Bytes;
-        delete _Ptr;
+        return std::pmr::get_default_resource()->deallocate(_Ptr, _Bytes, _Align);
     }
 
-    virtual bool do_is_equal(const memory_resource& _That) const noexcept override
+    virtual bool do_is_equal(const memory_resource&) const noexcept override
     {
         return false;
     }

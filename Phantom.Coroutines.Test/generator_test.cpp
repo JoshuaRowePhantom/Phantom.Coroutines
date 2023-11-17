@@ -21,6 +21,7 @@ TEST(generator_test, Can_enumerate_empty_generator)
 
     for (auto& i : myGenerator)
     {
+        std::ignore = i;
         ++count;
     }
 

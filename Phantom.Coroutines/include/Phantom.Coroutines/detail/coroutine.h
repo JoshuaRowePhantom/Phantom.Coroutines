@@ -48,6 +48,7 @@ static bool is_valid(
     return coroutine && coroutine != invalid_coroutine_handle();
 }
 
+__pragma(warning(suppress:4505))
 static void assert_is_valid(
     coroutine_handle<> coroutine
 )

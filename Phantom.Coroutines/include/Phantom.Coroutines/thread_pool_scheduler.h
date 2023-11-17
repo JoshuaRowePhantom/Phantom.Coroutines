@@ -43,6 +43,8 @@ template<
 >
 class basic_thread_pool_scheduler
 {
+    // Disable warning that structure padded due to alignment specifier
+    __pragma(warning(suppress:4324))
     class thread_state
     {
         class queue

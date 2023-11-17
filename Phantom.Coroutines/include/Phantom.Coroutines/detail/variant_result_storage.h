@@ -124,7 +124,7 @@ template<
         size_t Index,
         typename Variant
     > static void get_result(
-        Variant& variant
+        Variant&
     )
     {
         return;
@@ -134,7 +134,7 @@ template<
         size_t Index,
         typename Variant
     > static void resume_variant_result(
-        Variant&& variant
+        Variant&&
     )
     {
         return;

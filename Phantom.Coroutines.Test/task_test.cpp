@@ -112,7 +112,9 @@ ASYNC_TEST(task_test, Returned_object_is_by_rvalue_reference_to_caller_in_rvalue
     std::optional<lifetime_statistics> intermediateStatistics;
 
     auto myLambda = [&](lifetime_tracker&& tracker)
-    {};
+    {
+        std::ignore = tracker;
+    };
 
     auto myInnerTask = [&]() -> task<lifetime_tracker>
     {

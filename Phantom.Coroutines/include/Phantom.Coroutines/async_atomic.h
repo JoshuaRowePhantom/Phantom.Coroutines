@@ -142,12 +142,12 @@ public:
         std::memory_order order = std::memory_order_seq_cst
     ) noexcept
     {
-        exchange(value);
+        exchange(value, order);
     }
     
     auto exchange(
         Value desired,
-        std::memory_order order = std::memory_order_seq_cst
+        std::memory_order = std::memory_order_seq_cst
     ) noexcept
     {
         Value expected = m_doubleWideAtomic.load_inconsistent(std::memory_order_relaxed)->m_value;
@@ -205,6 +205,8 @@ public:
         return true;
     }
 
+    // Disable warning that we assign in a conditional expression
+#pragma warning(suppress: 4706)
     bool compare_exchange_strong(
         Value& expected,
         Value desired,
@@ -214,6 +216,7 @@ public:
     {
         Value weakExpected = expected;
         bool result;
+        
         while (
             !(result = compare_exchange_weak(
                 weakExpected,

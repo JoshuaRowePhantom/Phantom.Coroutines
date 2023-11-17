@@ -206,7 +206,7 @@ template<
 
     template<
         typename Promise
-    > friend class shared_task_promise_final_suspend_awaiter;
+    > friend struct shared_task_promise_final_suspend_awaiter;
 
     using typename shared_task_awaiter::extensible_promise_handle::coroutine_handle_type;
     using continuation_type = typename Promise::continuation_type;
@@ -260,8 +260,7 @@ template<
     using extensible_promise_handle<Promise>::extensible_promise_handle;
 
     bool await_ready(
-        this const auto& self
-    ) noexcept
+    ) const noexcept
     {
         return false;
     }
@@ -307,8 +306,7 @@ template<
 
     [[noreturn]]
     void await_resume(
-        this auto& self
-    ) noexcept
+    ) const noexcept
     {
         // This should never be called.
         assert(false);
@@ -335,7 +333,7 @@ template<
 
     template<
         typename Promise
-    > friend class shared_task_promise_final_suspend_awaiter;
+    > friend struct shared_task_promise_final_suspend_awaiter;
     
 public:
     typedef Continuation continuation_type;
@@ -401,6 +399,7 @@ private:
         auto& awaiter
     ) noexcept
     {
+        std::ignore = awaiter;
         // If the task is complete, we need to make sure we can
         // read all the results of the task.
         // final_suspend_awaiter -released- m_state,
@@ -456,7 +455,7 @@ private:
 
     decltype(auto) await_resume(
         this auto& self,
-        auto& awaiter)
+        auto& /* awaiter */)
     {
         if (self.m_resultVariant.index() == ExceptionIndex)
         {
@@ -487,8 +486,7 @@ public:
     }
 
     auto initial_suspend(
-        this auto& self
-    ) noexcept
+    ) const noexcept
     {
         return suspend_always{};
     }

@@ -16,7 +16,7 @@ class async_auto_reset_event_test : public ::testing::Test
 {
 protected:
     static_thread_pool<> waiterPool;
-    static_thread_pool<> setterPool = static_thread_pool<>(std::max(2U, waiterPool.thread_count() / 2));
+    static_thread_pool<> setterPool = static_thread_pool<>(std::max<size_t>(2U, waiterPool.thread_count() / 2));
 };
 
 ASYNC_TEST_F(async_auto_reset_event_test, Can_default_initialize)

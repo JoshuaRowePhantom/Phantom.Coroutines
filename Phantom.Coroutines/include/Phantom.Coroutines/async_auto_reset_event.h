@@ -67,7 +67,7 @@ template<
         double_wide_value<state_type> previousState
     )
     {
-        auto fetchCount = 1;
+        size_t fetchCount = 1;
         awaiter* waitersToService = nullptr;
         awaiter** waitersToServiceTail = &waitersToService;
 

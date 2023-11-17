@@ -26,6 +26,8 @@ struct aligned_array
 
     // This is public to support aggregate initialization.
     // Do not use directly.
+    // Disable warning that structure padded due to alignment specifier
+    __pragma(warning(suppress:4324))
     struct alignas(Alignment) aligned_value
     {
         T _value;

@@ -332,9 +332,10 @@ TEST(shared_task_test, Destroys_returned_value_when_co_awaited_as_lvalue)
             {
                 auto task = taskWithReturnValueLambda();
                 auto& tracker = co_await task;
+                std::ignore = tracker;
                 instanceCountBeforeDestruction = statistics.instance_count;
             }
-    instanceCountAfterDestruction = statistics.instance_count;
+            instanceCountAfterDestruction = statistics.instance_count;
         }());
 
     ASSERT_EQ(1, instanceCountBeforeDestruction);
