@@ -243,3 +243,19 @@ ASYNC_TEST(async_generator_test, Destroys_coroutine_when_iterated_completely)
         EXPECT_EQ(iterator, myGenerator.end());
     }
 }
+
+ASYNC_TEST(async_generator_test, original_iterator_compares_equal_to_end_when_copy_incremented)
+{
+    auto lambda = [&]()->async_generator<std::string>
+        {
+            co_yield "hello";
+        };
+
+    auto generator = lambda();
+    auto originalIterator = co_await generator.begin();
+    auto copy = originalIterator;
+    co_await ++copy;
+    EXPECT_EQ(originalIterator, generator.end());
+    EXPECT_EQ(copy, generator.end());
+    EXPECT_EQ(originalIterator, copy);
+}
