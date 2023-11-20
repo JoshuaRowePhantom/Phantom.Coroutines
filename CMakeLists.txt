@@ -9,10 +9,10 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/W4>)
 
 if (MSVC)
     # Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
-    add_compile_options("/DPHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE=1")
+    add_compile_definitions(PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE=1)
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
         # This is to make Intellisense work.
-        add_compile_options("/D_M_AMD64=100")
+        add_compile_definitions(_M_AMD64=100)
     endif()
 endif()
 
