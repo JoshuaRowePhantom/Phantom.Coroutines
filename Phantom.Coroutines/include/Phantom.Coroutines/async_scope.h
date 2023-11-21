@@ -60,7 +60,7 @@ class basic_async_scope
     std::atomic_flag m_isJoined;
 #endif
 
-    class join_awaiter
+    class [[nodiscard]] join_awaiter
     {
         friend class basic_async_scope;
 
