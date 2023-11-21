@@ -47,7 +47,9 @@ template<
     :
     private immovable_object
 {
+public:
     using value_type = Value;
+private:
     using atomic_value_type = std::atomic<value_type>;
 
     class awaiter;
@@ -333,24 +335,36 @@ public:
         }
     {}
 
-    void publish(
+    bool publish(
         this auto& self,
         value_type value
     ) noexcept
     {
-        auto lowestUnpublishedValue = value + 1;
+        auto nextLowestUnpublishedValue = value + 1;
         
-        self.basic_async_sequence_barrier::m_lowestUnpublishedValue.store(
-            lowestUnpublishedValue,
+        auto currentLowestUnpublishedValue = self.m_lowestUnpublishedValue.load(
+            std::memory_order_relaxed);
+
+        do
+        {
+            if (nextLowestUnpublishedValue <= currentLowestUnpublishedValue)
+            {
+                return false;
+            }
+        } while (!self.m_lowestUnpublishedValue.compare_exchange_strong(
+            currentLowestUnpublishedValue,
+            nextLowestUnpublishedValue,
             std::memory_order_release
-        );
+        ));
 
         bool resumeSpecialAwaiter;
         self.basic_async_sequence_barrier::resume_awaiters(
-            lowestUnpublishedValue,
+            nextLowestUnpublishedValue,
             nullptr,
             resumeSpecialAwaiter
         );
+
+        return true;
     }
 
     awaiter wait_until_published(

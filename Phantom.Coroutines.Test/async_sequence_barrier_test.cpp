@@ -157,3 +157,25 @@ ASYNC_TEST(async_sequence_barrier_test, Publish_steps_through_published_items)
 
     co_await scope.join();
 }
+
+ASYNC_TEST(async_sequence_barrier_test, publish_returns_value_indicating_whether_already_published)
+{
+    async_sequence_barrier<> sequenceBarrier;
+
+    EXPECT_EQ(true, sequenceBarrier.publish(0));
+    EXPECT_EQ(0, sequenceBarrier.last_published());
+    EXPECT_EQ(false, sequenceBarrier.publish(0));
+    EXPECT_EQ(0, sequenceBarrier.last_published());
+    EXPECT_EQ(true, sequenceBarrier.publish(2));
+    EXPECT_EQ(2, sequenceBarrier.last_published());
+    EXPECT_EQ(false, sequenceBarrier.publish(2));
+    EXPECT_EQ(2, sequenceBarrier.last_published());
+    EXPECT_EQ(true, sequenceBarrier.publish(3));
+    EXPECT_EQ(3, sequenceBarrier.last_published());
+    EXPECT_EQ(false, sequenceBarrier.publish(2));
+    EXPECT_EQ(3, sequenceBarrier.last_published());
+    co_return;
+}
+
+static_assert(std::same_as<size_t, async_sequence_barrier<>::value_type>);
+static_assert(std::same_as<int, async_sequence_barrier<int>::value_type>);
