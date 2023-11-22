@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
-#include "Phantom.Coroutines/read_copy_update.h"
 #include "lifetime_tracker.h"
+#include "Phantom.Coroutines/async_scope.h"
+#include "Phantom.Coroutines/read_copy_update.h"
+#include "Phantom.Coroutines/static_thread_pool.h"
+#include "Phantom.Coroutines/sync_wait.h"
 #include <optional>
 
 using namespace Phantom::Coroutines;
@@ -176,6 +179,37 @@ TEST(read_copy_update_test, object_released_after_section_destruction)
     }
 
     ASSERT_EQ(0, statistics1.instance_count);
+}
+
+TEST(read_copy_update_test, many_parallel_uses)
+{
+    async_scope<> asyncScope;
+    static_thread_pool<> threadPool;
+    read_copy_update_section<std::string, struct many_parallel_uses_tag> section;
+    std::atomic<size_t> threadCounter = 1;
+
+    std::function<task<>()> threadLambda;
+    auto threadLambdaDefinition = [&]() -> task<>
+        {
+            co_await threadPool.schedule();
+            section.emplace("hello world");
+            threadCounter--;
+            if ((threadCounter += 2) < 1000)
+            {
+                asyncScope.spawn(threadLambda());
+                asyncScope.spawn(threadLambda());
+            }
+            else
+            {
+                threadCounter -= 2;
+            }
+        };
+    threadLambda = threadLambdaDefinition;
+
+    asyncScope.spawn(threadLambda());
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    threadCounter += 2000;
+    sync_wait(asyncScope.join());
 }
 
 typedef read_copy_update_section<std::string> rcu_string;
