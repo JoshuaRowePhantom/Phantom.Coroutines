@@ -207,83 +207,12 @@ TEST(fibonacci_heap_test, test_heap_equality_comparisons)
 namespace
 {
 
-bool IsCanonicalFibonacciHeapHead(
-    const TestFibonacciHeapTraits::heap_type& heap
-)
-{
-    // A canonical fibonacci heap head should have 1 child of each degree smaller than itself.
-    std::set<size_t> degreesPresent;
-
-    for (TestFibonacciHeapTraits::heap_type child = heap->Child;
-        child;
-        child = child->Sibling)
-    {
-        if (!IsCanonicalFibonacciHeapHead(child))
-        {
-            return false;
-        }
-
-        if (degreesPresent.contains(child->Degree))
-        {
-            return false;
-        }
-
-        if (child->Degree >= heap->Degree)
-        {
-            return false;
-        }
-
-        if (child->Key < heap->Key)
-        {
-            return false;
-        }
-
-        degreesPresent.insert(child->Degree);
-    }
-
-    for (auto degree = 0; degree < heap->Degree; degree++)
-    {
-        if (!degreesPresent.contains(degree))
-        {
-            return false;
-        }
-        degreesPresent.erase(degree);
-    }
-
-    if (!degreesPresent.empty())
-    {
-        return false;
-    }
-
-    return true;
-}
-
 bool IsCanonicalFibonacciHeap(
     const TestFibonacciHeapTraits::heap_type& heap
 )
 {
-    // There should be no duplicate roots of the same degree,
-    // each root should be a canonical heap.
-    std::set<size_t> degreesPresent;
-
-    for (TestFibonacciHeapTraits::heap_type root = heap;
-        root;
-        root = root->Sibling)
-    {
-        if (!IsCanonicalFibonacciHeapHead(root))
-        {
-            return false;
-        }
-
-        if (degreesPresent.contains(root->Degree))
-        {
-            return false;
-        }
-
-        degreesPresent.insert(root->Degree);
-    }
-
-    return true;
+    TestFibonacciHeapTraits heapBuilder;
+    return heapBuilder.is_canonical(heap);
 }
 
 bool IsFibonacciHeapWithNoChildren(

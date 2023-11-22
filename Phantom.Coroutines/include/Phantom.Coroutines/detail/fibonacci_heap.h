@@ -169,6 +169,80 @@ public:
         };
     }
 
+    bool is_canonical_head(
+        this auto& self,
+        const heap_type& heap
+    )
+    {
+        // A canonical fibonacci heap head should have 1 child of each degree smaller than itself.
+        // Start with all degrees present >= than the degree of the heap.
+        size_t degreesPresent = std::numeric_limits<size_t>::max() & ~((1 << (self.degree(heap))) - 1);
+
+        for (heap_type child = *self.child(heap);
+            child;
+            child = *self.sibling(child))
+        {
+            if (!self.is_canonical_head(child))
+            {
+                return false;
+            }
+
+            size_t childDegreeMask = 1ULL << self.degree(child);
+            if (degreesPresent & childDegreeMask)
+            {
+                return false;
+            }
+
+            if (self.degree(child) >= self.degree(heap))
+            {
+                return false;
+            }
+
+            if (self.precedes(child, heap))
+            {
+                return false;
+            }
+
+            degreesPresent |= childDegreeMask;
+        }
+
+        if (degreesPresent != std::numeric_limits<size_t>::max())
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    bool is_canonical(
+        this auto& self,
+        const heap_type& heap
+    )
+    {
+        size_t degreesPresent = 0;
+        // There should be no duplicate roots of the same degree,
+        // each root should be a canonical heap.
+        for (heap_type root = heap;
+            root;
+            root = *self.sibling(root))
+        {
+            if (!self.is_canonical_head(root))
+            {
+                return false;
+            }
+
+            size_t degreeMask = 1ULL << self.degree(root);
+            if (degreesPresent & degreeMask)
+            {
+                return false;
+            }
+
+            degreesPresent |= degreeMask;
+        }
+
+        return true;
+    }
+
 };
 
 }
