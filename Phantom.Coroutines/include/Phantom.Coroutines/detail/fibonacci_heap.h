@@ -159,7 +159,9 @@ public:
         {
             if (predicate(node))
             {
+                self.degree(node) = 0;
                 *self.sibling(node) = *matchingItems;
+                *self.child(node) = nullptr;
                 *matchingItems = node;
                 return true;
             }
