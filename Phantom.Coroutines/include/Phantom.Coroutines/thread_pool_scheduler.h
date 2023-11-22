@@ -445,7 +445,7 @@ class basic_thread_pool_scheduler
             for (auto& threadState : threadStatesReadOperation->m_threadStates)
             {
                 auto remoteItem = try_steal(
-                    *threadState.second,
+                    **threadState.second,
                     steal_mode::Approximate
                 );
                 if (remoteItem)
@@ -458,7 +458,7 @@ class basic_thread_pool_scheduler
             for (auto& threadState : threadStatesReadOperation->m_threadStates)
             {
                 auto remoteItem = try_steal(
-                    *threadState.second,
+                    **threadState.second,
                     steal_mode::Precise
                 );
                 if (remoteItem)
@@ -562,6 +562,7 @@ class basic_thread_pool_scheduler
             ++m_scheduler.m_processingThreadCount;
 #if PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING
             bool isFirstTimeSleeping = true;
+            Continuation lastContinuation;
 #endif
             std::stop_callback stopCallback
             {
@@ -612,6 +613,9 @@ class basic_thread_pool_scheduler
                 if (coroutineToResume)
                 {
                     coroutineToResume.resume();
+#if PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING
+                    lastContinuation = coroutineToResume;
+#endif
                 }
             }
 
@@ -622,9 +626,14 @@ class basic_thread_pool_scheduler
 
     struct thread_state_list
     {
-        std::unordered_map<std::thread::id, std::shared_ptr<thread_state>> m_threadStates;
+        std::unordered_map<
+            std::thread::id, 
+            std::shared_ptr<std::shared_ptr<thread_state>>
+        > m_threadStates;
     };
 
+    static inline std::atomic<size_t> m_nextThreadPoolSchedulerId = 1;
+    size_t m_threadPoolSchedulerId = m_nextThreadPoolSchedulerId.fetch_add(1, std::memory_order_relaxed);
     std::atomic<size_t> m_sleepingThreadCount;
     std::atomic<size_t> m_processingThreadCount;
     read_copy_update_section<thread_state_list> m_threadStatesSection;
@@ -635,31 +644,51 @@ class basic_thread_pool_scheduler
         thread_states_update_operation_type& threadStatesOperation
     )
     {
+        // It's likely we're using a single scheduler,
+        // so cache the previous result of looking for thread state for this thread.
+        static thread_local size_t lastThreadPoolSchedulerId = 0;
+        static thread_local std::shared_ptr<thread_state>* lastThreadState = nullptr;
+
+        if (m_threadPoolSchedulerId == lastThreadPoolSchedulerId)
+        {
+            return *lastThreadState;
+        }
+
         auto iterator = threadStatesOperation->m_threadStates.find(
             std::this_thread::get_id());
         if (iterator != threadStatesOperation->m_threadStates.end())
         {
-            return iterator->second;
+            lastThreadPoolSchedulerId = m_threadPoolSchedulerId;
+            lastThreadState = &*iterator->second;
+            return *iterator->second;
         }
 
         auto threadState = std::make_shared<thread_state>(*this);
+        auto threadStatePointer = std::make_shared<std::shared_ptr<thread_state>>(threadState);
+
         do
         {
             threadStatesOperation.emplace(
                 *threadStatesOperation
             );
-            threadStatesOperation.replacement().m_threadStates[std::this_thread::get_id()] = threadState;
+            threadStatesOperation.replacement().m_threadStates[std::this_thread::get_id()] = threadStatePointer;
         } while (!threadStatesOperation.compare_exchange_strong());
 
-        return threadStatesOperation->m_threadStates.find(
+        auto& result = threadStatesOperation->m_threadStates.find(
             std::this_thread::get_id()
         )->second;
+
+        lastThreadPoolSchedulerId = m_threadPoolSchedulerId;
+        lastThreadState = &*result;
+
+        return *result;
     }
 
-    std::shared_ptr<thread_state> get_current_thread_state()
+    std::shared_ptr<thread_state>& get_current_thread_state()
     {
         auto threadStatesOperation = m_threadStatesSection.update();
-        auto threadState = get_current_thread_state(threadStatesOperation);
+        auto& threadState = get_current_thread_state(threadStatesOperation);
+
         return threadState;
     }
 
@@ -667,6 +696,12 @@ class basic_thread_pool_scheduler
         Continuation continuation
     )
     {
+        if constexpr (is_coroutine_handle<Continuation>)
+        {
+            assert(continuation);
+            assert(!continuation.done());
+        }
+
         auto threadStatesOperation = m_threadStatesSection.update();
         auto& threadState = get_current_thread_state(threadStatesOperation);
         threadState->enqueue(continuation);
@@ -702,7 +737,7 @@ class basic_thread_pool_scheduler
         {
             for (auto& threadState : threadStatesOperation.value().m_threadStates)
             {
-                if (threadState.second->try_wake())
+                if ((*threadState.second)->try_wake())
                 {
                     return;
                 }
