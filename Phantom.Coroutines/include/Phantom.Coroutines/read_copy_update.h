@@ -173,7 +173,7 @@ private immovable_object
         // The mutex is global, because it controls access to all thread data
         std::mutex m_mutex;
         // The set of all existing thread hard references.
-        std::unordered_set<reference*> m_threadReferences;
+        std::unordered_set<std::shared_ptr<reference>> m_threadReferences;
     };
 
     static inline std::shared_ptr<global_state> m_globalState = std::make_shared<global_state>();
@@ -193,7 +193,7 @@ private immovable_object
             thread_hard_reference_tracker()
             {
                 std::unique_lock lock { m_threadLocalGlobalState->m_mutex };
-                m_threadLocalGlobalState->m_threadReferences.insert(&m_threadLocalReference);
+                m_threadLocalGlobalState->m_threadReferences.insert(m_threadLocalReference);
             }
 
             void assertTracked()
@@ -202,11 +202,9 @@ private immovable_object
             ~thread_hard_reference_tracker()
             {
                 std::unique_lock lock { m_threadLocalGlobalState->m_mutex };
-                m_threadLocalGlobalState->m_threadReferences.erase(&m_threadLocalReference);
+                m_threadLocalGlobalState->m_threadReferences.erase(m_threadLocalReference);
             }
         };
-
-        static inline thread_local thread_hard_reference_tracker m_threadReferenceTracker;
 
         operation* m_nextOperation = nullptr;
         operation* m_previousOperation = nullptr;
@@ -242,7 +240,12 @@ private immovable_object
     protected:
         read_copy_update_section& m_section;
         reference m_reference;
-        static inline thread_local reference m_threadLocalReference;
+        static inline thread_local std::shared_ptr<reference> m_threadLocalReference
+            = std::make_shared<reference>();
+    private:
+        // This appears after m_threadLocalReference so that it is initialized after m_threadLocalReference.
+        static inline thread_local thread_hard_reference_tracker m_threadReferenceTracker;
+    protected:
 
         operation(
             read_copy_update_section& section
@@ -264,7 +267,7 @@ private immovable_object
             std::unique_lock<std::mutex>& lock,
             reference& valueToRelease)
         {
-            if (m_section.m_currentValue == m_threadLocalReference)
+            if (m_section.m_currentValue == *m_threadLocalReference)
             { 
                 return false;
             }
@@ -274,10 +277,10 @@ private immovable_object
             // pointing at the same value holder get a hard reference.
             for (auto updatedOperation = m_operationsHead; updatedOperation; updatedOperation = updatedOperation->m_nextOperation)
             {
-                if (updatedOperation->m_reference == m_threadLocalReference)
+                if (updatedOperation->m_reference == *m_threadLocalReference)
                 {
                     updatedOperation->m_reference.convert_to_hard_reference(
-                        m_threadLocalReference);
+                        *m_threadLocalReference);
                 }
             }
 
@@ -287,9 +290,9 @@ private immovable_object
             }
 
             valueToRelease.swap(
-                m_threadLocalReference);
+                *m_threadLocalReference);
 
-            m_threadLocalReference.make_hard_reference_to(
+            m_threadLocalReference->make_hard_reference_to(
                 m_section.m_currentValue);
 
             return true;
@@ -310,10 +313,10 @@ private immovable_object
             // and that the thread local reference won't be destroyed because this thread
             // is not destroying it, and the section won't be destroying it because the
             // section itself is not being destroyed.
-            if (m_reference != m_threadLocalReference)
+            if (m_reference != *m_threadLocalReference)
             {
                 m_reference.make_soft_reference_to(
-                    m_threadLocalReference);
+                    *m_threadLocalReference);
                 return true;
             }
 
@@ -403,7 +406,7 @@ public:
             // section cannot be destroyed while there is an operation outstanding,
             // therefore nothing will try to destroy the thread local reference.
             this->m_reference.make_soft_reference_to(
-                this->m_threadLocalReference
+                *this->m_threadLocalReference
             );
 
             // This removes the reference to the old value that -was- in the section
