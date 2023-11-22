@@ -492,7 +492,7 @@ TEST(fibonacci_heap_test, big_tree_test)
 
     int maxValue = 100;
     int treeItems = 100000;
-    int treeItemsPerBatch = 10;
+    int treeItemsPerBatch = 100;
     int itemsToCreatePerRemoval = 10;
 
     std::ranlux48 random;
@@ -562,6 +562,8 @@ TEST(fibonacci_heap_test, big_tree_test)
 
         auto batch1 = createBatch();
         auto batch2 = createBatch();
+        auto batch3 = createBatch();
+        auto batch4 = createBatch();
 
         TestFibonacciHeapTraits::heap_type collectedHeap;
         topLevelHeap = heapBuilder.extract(
@@ -569,8 +571,10 @@ TEST(fibonacci_heap_test, big_tree_test)
             std::array
             {
                 std::move(batch1),
+                std::move(batch2),
                 std::move(topLevelHeap),
-                std::move(batch2)
+                std::move(batch3),
+                std::move(batch4)
             }
         );
 
