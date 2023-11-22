@@ -109,7 +109,7 @@ TEST(thread_pool_scheduler_test, do_many_work_items_1_thread)
 TEST(thread_pool_scheduler_test, do_many_work_items_concurrent_threads)
 {
     thread_pool_scheduler_test_do_many_work_items_test(
-#ifdef NDEBUG
+#if NDEBUG
         1000000,
 #else
         100000,
