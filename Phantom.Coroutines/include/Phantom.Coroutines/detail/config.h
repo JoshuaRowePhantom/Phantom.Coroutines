@@ -24,6 +24,12 @@
 
 #endif
 
+#if !NDEBUG
+#ifndef PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING
+#define PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING 1
+#endif
+#endif
+
 namespace Phantom::Coroutines
 {
 static constexpr size_t cache_line_size = 64;

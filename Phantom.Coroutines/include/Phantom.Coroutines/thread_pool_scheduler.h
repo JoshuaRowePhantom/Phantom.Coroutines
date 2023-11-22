@@ -1,5 +1,6 @@
 #pragma once
 
+#include "detail/config.h"
 #include "detail/coroutine.h"
 #include "read_copy_update.h"
 #include "policies.h"
@@ -558,6 +559,10 @@ class basic_thread_pool_scheduler
             std::stop_token stopToken
         )
         {
+            ++m_scheduler.m_processingThreadCount;
+#if PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING
+            bool isFirstTimeSleeping = true;
+#endif
             std::stop_callback stopCallback
             {
                 stopToken,
@@ -584,8 +589,24 @@ class basic_thread_pool_scheduler
                     }
                     else
                     {
+
+#if PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING
+                        // This allows users to set a breakpoint when all threads are sleeping.
+                        if (m_scheduler.m_sleepingThreadCount.load() == m_scheduler.m_processingThreadCount.load()
+                            && !isFirstTimeSleeping)
+                        {
+                            static std::atomic<bool> isAllThreadsSleeping;
+
+                            // Set a breakpoint here to detect when all threads are sleeping.
+                            isAllThreadsSleeping.store(true);
+                        }
+#endif
                         sleep(
                             stopToken);
+
+#if PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING
+                        isFirstTimeSleeping = false;
+#endif
                     }
                 }
                 if (coroutineToResume)
@@ -595,6 +616,7 @@ class basic_thread_pool_scheduler
             }
 
             mark_as_stopped();
+            --m_scheduler.m_processingThreadCount;
         }
     };
 
@@ -604,6 +626,7 @@ class basic_thread_pool_scheduler
     };
 
     std::atomic<size_t> m_sleepingThreadCount;
+    std::atomic<size_t> m_processingThreadCount;
     read_copy_update_section<thread_state_list> m_threadStatesSection;
     typedef read_copy_update_section<thread_state_list>::read_operation thread_states_read_operation_type;
     typedef read_copy_update_section<thread_state_list>::update_operation thread_states_update_operation_type;
