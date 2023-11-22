@@ -28,7 +28,8 @@ is_concrete_policy<T, await_is_not_cancellable>
 || is_concrete_policy<T, fail_on_destroy_with_awaiters>
 || is_concrete_policy<T, single_awaiter>
 || is_continuation_type_policy<T>
-|| is_concrete_policy<T, fail_on_use_after_join>;
+|| is_concrete_policy<T, fail_on_use_after_join>
+;
 
 template<
     is_async_scope_policy ... Policy
@@ -83,9 +84,8 @@ class basic_async_scope
         ) noexcept
         {
 #ifndef NDEBUG
-            assert(!m_asyncScope.m_isJoined.test_and_set());
+            assert(!m_asyncScope.m_isJoined.test());
 #endif
-
             m_asyncScope.m_continuation = continuation;
             if (m_asyncScope.m_outstandingTasks.fetch_sub(1, std::memory_order_acquire) == 1)
             {
@@ -96,6 +96,9 @@ class basic_async_scope
 
         void await_resume()
         {
+#ifndef NDEBUG
+            assert(!m_asyncScope.m_isJoined.test_and_set());
+#endif
             if (m_asyncScope.m_coroutineToDestroy)
             {
                 m_asyncScope.m_coroutineToDestroy.resume();
@@ -185,9 +188,6 @@ class basic_async_scope
         co_await std::invoke(movedFunction);
         if (m_outstandingTasks.fetch_sub(1, std::memory_order_acq_rel) == 1)
         {
-#ifndef NDEBUG
-            assert(m_isJoined.test());
-#endif
             co_await join_resumer{ *this };
         }
     }
