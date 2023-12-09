@@ -360,7 +360,7 @@ public:
         auto nextLowestUnpublishedValue = value + 1;
         
         auto currentLowestUnpublishedValue = self.m_lowestUnpublishedValue.load(
-            std::memory_order_relaxed);
+            std::memory_order_acquire);
 
         do
         {
@@ -371,7 +371,8 @@ public:
         } while (!self.m_lowestUnpublishedValue.compare_exchange_strong(
             currentLowestUnpublishedValue,
             nextLowestUnpublishedValue,
-            std::memory_order_release
+            std::memory_order_acq_rel,
+            std::memory_order_acquire
         ));
 
         self.basic_async_sequence_barrier::resume_awaiters(
