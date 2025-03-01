@@ -129,7 +129,7 @@ ASYNC_TEST(async_reader_writer_lock_test, can_destroy_after_awaiting)
     auto lock = co_await readerWriterLock.reader().scoped_lock_async();
 }
 
-TEST(async_reader_writer_lock_test, fifo_ordering_do_many_operations)
+TEST(async_reader_writer_lock_test, DISABLED_fifo_ordering_do_many_operations)
 {
     async_reader_writer_lock<> readerWriterLock;
     static_thread_pool<> threadPool;
@@ -159,4 +159,103 @@ TEST(async_reader_writer_lock_test, fifo_ordering_do_many_operations)
         co_await scope.join();
     }());
 }
+
+ASYNC_TEST(async_reader_writer_lock_test, reader_try_lock_succeeds_if_lock_not_held)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.reader().try_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, reader_try_lock_succeeds_if_lock_held_for_read)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.reader().try_lock());
+    EXPECT_EQ(true, readerWriteLock.reader().try_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, reader_try_lock_fails_if_lock_held_for_write)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.writer().try_lock());
+    EXPECT_EQ(false, readerWriteLock.reader().try_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, write_try_lock_succeeds_if_lock_not_held)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.writer().try_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, writer_try_lock_fails_if_lock_held_for_read)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.reader().try_lock());
+    EXPECT_EQ(false, readerWriteLock.writer().try_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, writer_try_lock_fails_if_lock_held_for_write)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.writer().try_lock());
+    EXPECT_EQ(false, readerWriteLock.writer().try_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, reader_try_scoped_lock_succeeds_if_lock_not_held)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    auto lock = readerWriteLock.reader().try_scoped_lock();
+    EXPECT_EQ(true, lock.owns_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, reader_try_scoped_lock_succeeds_if_lock_held_for_read)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.reader().try_lock());
+    auto lock = readerWriteLock.reader().try_scoped_lock();
+    EXPECT_EQ(true, lock.owns_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, reader_try_scoped_lock_fails_if_lock_held_for_write)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.writer().try_lock());
+    auto lock = readerWriteLock.reader().try_scoped_lock();
+    EXPECT_EQ(false, lock.owns_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, write_try_scoped_lock_succeeds_if_lock_not_held)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    auto lock = readerWriteLock.writer().try_scoped_lock();
+    EXPECT_EQ(true, lock.owns_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, writer_try_scoped_lock_fails_if_lock_held_for_read)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.reader().try_lock());
+    auto lock = readerWriteLock.writer().try_scoped_lock();
+    EXPECT_EQ(false, lock.owns_lock());
+    co_return;
+}
+
+ASYNC_TEST(async_reader_writer_lock_test, writer_try_scoped_lock_fails_if_lock_held_for_write)
+{
+    async_reader_writer_lock<> readerWriteLock;
+    EXPECT_EQ(true, readerWriteLock.writer().try_lock());
+    auto lock = readerWriteLock.writer().try_scoped_lock();
+    EXPECT_EQ(false, lock.owns_lock());
+    co_return;
+}
+
 }

@@ -39,8 +39,8 @@ public derived_promise<BasePromise>
 
     public:
         contextual_promise_awaiter(
-            Enter enter,
-            Leave leave,
+            Enter,
+            Leave,
             Promise& promise,
             std::invocable auto&& awaitableFunc
         ) : 
@@ -82,9 +82,12 @@ public derived_promise<BasePromise>
                 && (std::same_as<DoNotEnterOnResume, Enter> || noexcept(this->promise().enter())
         )) */
         {
-            if (std::same_as<DoEnterOnResume, Enter> && self.m_bSuspended)
+            if constexpr (std::same_as<DoEnterOnResume, Enter>)
             {
-                self.extensible_promise_handle<Promise>::promise().enter();
+                if (self.m_bSuspended)
+                {
+                    self.extensible_promise_handle<Promise>::promise().enter();
+                }
             }
             return self.awaiter().await_resume(std::forward<decltype(args)>(args)...);
         }

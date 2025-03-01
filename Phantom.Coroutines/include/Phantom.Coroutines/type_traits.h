@@ -349,7 +349,7 @@ template<
     has_co_await_non_member CoAwaitNonMember
 >
 decltype(auto) get_awaiter(
-    CoAwaitNonMember awaitable
+    CoAwaitNonMember&& awaitable
 )
 {
     return operator co_await(std::forward<CoAwaitNonMember>(awaitable));
@@ -424,33 +424,12 @@ template<
     { promise.await_transform(std::declval<Awaiter>()...) };
 };
 
-struct has_return_void_conflicted_name
+template<
+    typename Promise
+> concept has_return_void = requires (Promise promise)
 {
-    int return_void;
+    promise.return_void();
 };
-
-template<
-    typename Promise
-> struct has_return_void_conflict_detector
-    :
-    public Promise,
-    public has_return_void_conflicted_name
-{
-    int return_void;
-};
-
-template<
-    typename Promise,
-    typename = void
-> constexpr bool has_return_void_v = true;
-
-template<
-    typename Promise
-> constexpr bool has_return_void_v<Promise, std::void_t<decltype(has_return_void_conflict_detector<Promise>::return_void)>> = false;
-
-template<
-    typename Promise
-> concept has_return_void = has_return_void_v<Promise>;
 
 template<
     typename Promise,
@@ -472,9 +451,6 @@ std::constructible_from<Continuation>
 && requires (Continuation c)
 {
     { c.resume() };
-    { static_cast<bool>(c) };
-    { static_cast<coroutine_handle<>>(c) };
-    { c.destroy() };
 };
 
 template<

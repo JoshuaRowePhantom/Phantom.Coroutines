@@ -127,3 +127,35 @@ ASYNC_TEST(async_scope_test, Can_await_non_copyable_task_by_value)
     EXPECT_EQ(true, completeTask2);
     co_await scope.join();
 }
+
+ASYNC_TEST(async_scope_test, Can_spawn_during_join)
+{
+    async_scope<> scopeToTest;
+    async_scope<> scope2;
+    async_manual_reset_event<> continueEvent;
+    bool completedLambda1 = false;
+
+    auto lambda1 = [&]() -> task<>
+        {
+            completedLambda1 = true;
+            co_return;
+        };
+
+    auto lambda2 = [&]() -> task<>
+        {
+            co_await continueEvent;
+            scopeToTest.spawn(lambda1());
+            co_return;
+        };
+
+    scopeToTest.spawn(
+        lambda2());
+
+    scope2.spawn(
+        scopeToTest.join());
+
+    continueEvent.set();
+
+    co_await scope2.join();
+    EXPECT_EQ(completedLambda1, true);
+}

@@ -35,6 +35,7 @@ public:
     > thread_local_contextual_promise(
         Args&&... args
     ) :
+        thread_local_contextual_promise::derived_promise{ std::forward<Args>(args)... },
         m_value
     {
         ThreadLocalContext::current()

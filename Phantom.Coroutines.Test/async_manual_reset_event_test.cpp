@@ -8,6 +8,14 @@
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
 
+static_assert(is_awaitable<async_manual_reset_event<>>);
+static_assert(is_awaitable<async_manual_reset_event<>&>);
+static_assert(is_awaitable<async_manual_reset_event<>&&>);
+static_assert(has_co_await_member<async_manual_reset_event<>>);
+static_assert(has_co_await_member<async_manual_reset_event<>&>);
+static_assert(has_co_await_member<async_manual_reset_event<>&&>);
+static_assert(has_await_suspend<decltype(std::declval<async_manual_reset_event<>>().operator co_await())>);
+
 TEST(manual_reset_event_test, Can_default_initialize)
 {
     async_manual_reset_event<> event;

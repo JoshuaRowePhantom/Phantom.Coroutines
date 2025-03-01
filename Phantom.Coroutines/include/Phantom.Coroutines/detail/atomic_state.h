@@ -21,7 +21,7 @@ public:
     static constexpr bool is_singleton = true;
 
     SingletonState(
-        TLabel label = TLabel()
+        TLabel = TLabel()
     ) {}
 };
 
@@ -207,7 +207,7 @@ template<
 >
 {
     static const uintptr_t c_StateSetIndex = StateSetIndex;
-    static const uintptr_t c_StateSetIndexPointerMask = (1 << std::bit_width(StateSetSize) - 1) - 1;
+    static const uintptr_t c_StateSetIndexPointerMask = (1 << (std::bit_width(StateSetSize) - 1)) - 1;
     typedef TStateSetTraits<TStateSetType, void*> state_set_traits;
 
     static_assert(

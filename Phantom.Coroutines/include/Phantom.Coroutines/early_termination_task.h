@@ -237,7 +237,8 @@ protected:
 
         auto ready = finalSuspendAwaiter->await_ready();
         assert(!ready);
-        
+        std::ignore = ready;
+
         if constexpr (std::same_as<void, decltype(finalSuspendAwaiter->await_suspend(continuation))>)
         {
             finalSuspendAwaiter->await_suspend(continuation);

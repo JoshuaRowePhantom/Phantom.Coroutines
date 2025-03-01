@@ -12,4 +12,25 @@
 #define PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME 1
 #endif
 
+// Bug https://developercommunity.visualstudio.com/t/Incorrect-code-generation-for-symmetric/1659260?q=%22symmetric+transfer%22
+#ifndef PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
+#define PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME 1
 #endif
+
+// Bug https://developercommunity.visualstudio.com/t/MSVC-accepts-lambda-expression-referring/10306965
+#ifndef PHANTOM_COROUTINES_NO_REJECT_LAMBDA_WITH_INVALID_MEMBER
+#define PHANTOM_COROUTINES_NO_REJECT_LAMBDA_WITH_INVALID_MEMBER 1
+#endif
+
+#endif
+
+#if !NDEBUG
+#ifndef PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING
+#define PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING 1
+#endif
+#endif
+
+namespace Phantom::Coroutines
+{
+static constexpr size_t cache_line_size = 64;
+}

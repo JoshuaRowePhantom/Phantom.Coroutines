@@ -52,9 +52,8 @@ private:
         {
             while (heap)
             {
-                auto next = self.sibling(heap);
                 auto child = *self.child(heap);
-                auto nextHeap = *next;
+                auto nextHeap = *self.sibling(heap);
 
                 if (predicate(heap))
                 {
@@ -92,7 +91,7 @@ private:
                         {
                             std::swap(otherHeap, heap);
                         }
-
+                        
                         self.degree(heap) = degree + 1;
                         *self.sibling(otherHeap) = *self.child(heap);
                         *self.child(heap) = otherHeap;
@@ -104,6 +103,68 @@ private:
                 heap = nextHeap;
             }
         }
+    }
+
+    bool is_canonical_head(
+        this auto& self,
+        const heap_type& heap
+    )
+    {
+        // A canonical fibonacci heap head should have 1 child of each degree smaller than itself.
+        // Start with all degrees present >= than the degree of the heap.
+        size_t degreesPresent = std::numeric_limits<size_t>::max() & ~((1 << (self.degree(heap))) - 1);
+
+        // We iterate through the list using two pointers, one that moves at twice the speed of the other,
+        // in order to detect cycles in the list.
+        heap_type slowerChild = *self.child(heap);
+        bool incrementSlowerChild = false;
+
+        heap_type child = *self.child(heap);
+        while (child)
+        {
+            if (self.degree(child) >= self.degree(heap))
+            {
+                return false;
+            }
+
+            size_t childDegreeMask = 1ULL << self.degree(child);
+            if (degreesPresent & childDegreeMask)
+            {
+                return false;
+            }
+
+            if (self.precedes(child, heap))
+            {
+                return false;
+            }
+
+            if (!self.is_canonical_head(child))
+            {
+                return false;
+            }
+
+            degreesPresent |= childDegreeMask;
+
+            child = *self.sibling(child);
+            if (incrementSlowerChild)
+            {
+                slowerChild = *self.sibling(slowerChild);
+            }
+            incrementSlowerChild = !incrementSlowerChild;
+
+            if (slowerChild == child)
+            {
+                // There is a cycle.
+                return false;
+            }
+        }
+
+        if (degreesPresent != std::numeric_limits<size_t>::max())
+        {
+            return false;
+        }
+
+        return true;
     }
 
 public:
@@ -159,12 +220,45 @@ public:
         {
             if (predicate(node))
             {
+                self.degree(node) = 0;
                 *self.sibling(node) = *matchingItems;
+                *self.child(node) = nullptr;
                 *matchingItems = node;
                 return true;
             }
             return false;
         };
+    }
+
+    bool is_canonical(
+        this auto& self,
+        const heap_type& heap
+    )
+    {
+        size_t degreesPresent = 0;
+        // There should be no duplicate roots of the same degree,
+        // each root should be a canonical heap.
+        // Checking for duplicate nodes of a given degree implicitly
+        // does cycle checking in the list.
+        for (heap_type root = heap;
+            root;
+            root = *self.sibling(root))
+        {
+            if (!self.is_canonical_head(root))
+            {
+                return false;
+            }
+
+            size_t degreeMask = 1ULL << self.degree(root);
+            if (degreesPresent & degreeMask)
+            {
+                return false;
+            }
+
+            degreesPresent |= degreeMask;
+        }
+
+        return true;
     }
 
 };

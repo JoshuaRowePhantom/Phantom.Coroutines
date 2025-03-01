@@ -63,7 +63,7 @@ TEST(sequence_lock_test, reads_and_writes_are_consistent)
 
         async_scope<> scope;
 
-        for (auto counter = 0; counter < hardwareConcurrency * 4; counter++)
+        for (size_t counter = 0; counter < hardwareConcurrency * 4; counter++)
         {
             scope.spawn(readerWriterLambda(counter));
         }

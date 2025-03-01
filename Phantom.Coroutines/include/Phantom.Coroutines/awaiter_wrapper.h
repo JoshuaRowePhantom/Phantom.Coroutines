@@ -49,35 +49,41 @@ template<
 > class awaiter_wrapper_methods
 {
 public:
-    
+    // Default implementations of await_ready,
+    // await_suspend, and await_resume that forward
+    // all arguments.
     decltype(auto) await_ready(
-        this auto& self,
-        auto&&... args
-    ) noexcept(noexcept(self.Scope::awaiter().await_ready(std::forward<decltype(args)>(args)...)))
+        this auto&& self,
+        auto&&... args)
+        noexcept(noexcept(
+            std::forward<decltype(self)>(self).Scope::awaiter().await_ready(
+                std::forward<decltype(args)>(args)...)))
+        
     {
-        return self.Scope::awaiter().await_ready(
-            std::forward<decltype(args)>(args)...
-        );
+        return std::forward<decltype(self)>(self).Scope::awaiter().await_ready(
+            std::forward<decltype(args)>(args)...);
     }
 
     decltype(auto) await_suspend(
-        this auto& self,
-        auto&&... args
-    ) noexcept(
-        noexcept(self.Scope::awaiter().await_suspend(std::forward<decltype(args)>(args)...))
-        )
+        this auto&& self,
+        auto&&... args)
+        noexcept(noexcept(
+            std::forward<decltype(self)>(self).Scope::awaiter().await_suspend(
+                std::forward<decltype(args)>(args)...)))
     {
-        return self.Scope::awaiter().await_suspend(std::forward<decltype(args)>(args)...);
+        return std::forward<decltype(self)>(self).Scope::awaiter().await_suspend(
+            std::forward<decltype(args)>(args)...);
     }
 
     decltype(auto) await_resume(
-        this auto& self,
-        auto&&... args
-    ) noexcept(
-        noexcept(self.Scope::awaiter().await_resume(std::forward<decltype(args)>(args)...))
-        )
+        this auto&& self,
+        auto&&... args)
+        noexcept(noexcept(
+            std::forward<decltype(self)>(self).Scope::awaiter().await_resume(
+                std::forward<decltype(args)>(args)...)))
     {
-        return self.Scope::awaiter().await_resume(std::forward<decltype(args)>(args)...);
+        return std::forward<decltype(self)>(self).Scope::awaiter().await_resume(
+            std::forward<decltype(args)>(args)...);
     }
 };
 

@@ -47,7 +47,9 @@ template<
     :
     private immovable_object
 {
+public:
     using value_type = Value;
+private:
     using atomic_value_type = std::atomic<value_type>;
 
     class awaiter;
@@ -88,6 +90,10 @@ template<
         degree_type m_degree = 0;
         Continuation m_continuation;
 
+        // We atomically decrement this to resume the awaiter.
+        // When the value reaches zero, we should be resumed.
+        std::atomic<int> m_resumeCount = 2;
+
         awaiter(
             basic_async_sequence_barrier* sequenceBarrier,
             value_type lowestUnpublishedValue
@@ -120,6 +126,8 @@ template<
         {
             m_continuation = continuation;
 
+            auto requestedLowestUnpublishedValue = m_lowestUnpublishedValue;
+
             // Enqueue this awaiter into the linked list of awaiters.
             auto nextQueuedAwaiter = m_sequenceBarrier->basic_async_sequence_barrier::m_queuedAwaiters.load(
                 std::memory_order_relaxed
@@ -131,33 +139,33 @@ template<
             } while (!m_sequenceBarrier->basic_async_sequence_barrier::m_queuedAwaiters.compare_exchange_weak(
                 nextQueuedAwaiter,
                 this,
-                std::memory_order_release,
+                std::memory_order_acq_rel,
                 std::memory_order_relaxed
             ));
 
-            // Double check to see if the value has been published.
-            auto lowestUnpublishedValue = m_sequenceBarrier->basic_async_sequence_barrier::m_lowestUnpublishedValue.load(
+            // It's possible that some thread has now published a value that would cause us to resume.
+            auto actualLowestUnpublishedValue = m_sequenceBarrier->m_lowestUnpublishedValue.load(
                 std::memory_order_acquire
             );
 
             if (m_sequenceBarrier->is_published(
-                lowestUnpublishedValue,
-                m_lowestUnpublishedValue))
+                actualLowestUnpublishedValue,
+                requestedLowestUnpublishedValue))
             {
-                m_lowestUnpublishedValue = lowestUnpublishedValue;
-
-                // Try to resume awaiters,
-                // and if we in particular desire to resume this object,
-                // do not suspend.
-                bool resumeThisAwaiter = false;
-
-                m_sequenceBarrier->basic_async_sequence_barrier::resume_awaiters(
-                    lowestUnpublishedValue,
-                    this,
-                    resumeThisAwaiter
+                m_sequenceBarrier->resume_awaiters(
+                    actualLowestUnpublishedValue
                 );
+            }
 
-                return resumeThisAwaiter;
+            // When we reach here, we might need to resume if we're the last one to decrement
+            // m_resumeCount.
+            if (m_resumeCount.fetch_sub(
+                    1,
+                    std::memory_order_acquire
+                ) == 1)
+            {
+                // We're the last one to decrement m_resumeCount, so we should resume.
+                return false;
             }
 
             return true;
@@ -217,12 +225,9 @@ template<
 
     void resume_awaiters(
         this auto& self,
-        value_type& lowestUnpublishedValue,
-        awaiter* specialAwaiter,
-        bool& resumeSpecialAwaiter
+        value_type& lowestUnpublishedValue
     )
     {
-        resumeSpecialAwaiter = false;
         awaiter* awaitersToResume = nullptr;
 
         // Take ownership of the enqueued awaiters.
@@ -243,6 +248,9 @@ template<
                 std::memory_order_acquire
             );
 
+            assert(self.basic_async_sequence_barrier::m_heapBuilder.is_canonical(
+                oldAwaitersHeap));
+
             auto predicate = self.basic_async_sequence_barrier::m_heapBuilder.collect_predicate(
                 &awaitersToResume,
                 [&](awaiter* heap)
@@ -262,6 +270,9 @@ template<
                 std::move(predicate),
                 std::move(heapsToExtract));
 
+            assert(self.basic_async_sequence_barrier::m_heapBuilder.is_canonical(
+                newAwaitersHeap));
+
             // Put back the heap if we can
             oldAwaitersHeap = nullptr;
             if (newAwaitersHeap != nullptr
@@ -269,8 +280,10 @@ template<
                 !self.basic_async_sequence_barrier::m_awaitersHeap.compare_exchange_strong(
                     oldAwaitersHeap,
                     newAwaitersHeap,
-                    std::memory_order_release,
-                    std::memory_order_relaxed))
+                    // We need acquire so that if we read any awaiters, we read any published value.
+                    // We need release so that if we write the awaiters back, all threads can see the updated heap structure
+                    std::memory_order_acq_rel,
+                    std::memory_order_acquire))
             {
                 // If we couldn't put the heap back,
                 // then there's another heap that we might
@@ -278,6 +291,11 @@ template<
                 // We'll pull it and ask it.
                 continue;
             }
+
+            // We've put back the new awaiter heap,
+            // any future awaiters we service should come
+            // from only the oldAwaitersHeap.
+            newAwaitersHeap = nullptr;
 
             // Since we put back the heap, the current published value
             // may have changed while we had sole ownership of the heap.
@@ -298,13 +316,14 @@ template<
             // we've put back onto the heap while we resume this list.
             while (awaitersToResume)
             {
+                // resuming the awaiter might destroy it, so we collect the sibling pointer first.
                 auto nextAwaiter = awaitersToResume->m_siblingPointer;
-                if (awaitersToResume == specialAwaiter)
+                if (awaitersToResume->m_resumeCount.fetch_sub(
+                        1,
+                        std::memory_order_acquire
+                    ) == 1)
                 {
-                    resumeSpecialAwaiter = true;
-                }
-                else
-                {
+                    // We're the last one to decrement m_resumeCount, so we should resume it.
                     awaitersToResume->m_continuation.resume();
                 }
                 awaitersToResume = nextAwaiter;
@@ -333,24 +352,34 @@ public:
         }
     {}
 
-    void publish(
+    size_t publish(
         this auto& self,
         value_type value
     ) noexcept
     {
-        auto lowestUnpublishedValue = value + 1;
+        auto nextLowestUnpublishedValue = value + 1;
         
-        self.basic_async_sequence_barrier::m_lowestUnpublishedValue.store(
-            lowestUnpublishedValue,
-            std::memory_order_release
+        auto currentLowestUnpublishedValue = self.m_lowestUnpublishedValue.load(
+            std::memory_order_acquire);
+
+        do
+        {
+            if (nextLowestUnpublishedValue <= currentLowestUnpublishedValue)
+            {
+                return currentLowestUnpublishedValue - 1;
+            }
+        } while (!self.m_lowestUnpublishedValue.compare_exchange_strong(
+            currentLowestUnpublishedValue,
+            nextLowestUnpublishedValue,
+            std::memory_order_acq_rel,
+            std::memory_order_acquire
+        ));
+
+        self.basic_async_sequence_barrier::resume_awaiters(
+            nextLowestUnpublishedValue
         );
 
-        bool resumeSpecialAwaiter;
-        self.basic_async_sequence_barrier::resume_awaiters(
-            lowestUnpublishedValue,
-            nullptr,
-            resumeSpecialAwaiter
-        );
+        return nextLowestUnpublishedValue - 1;
     }
 
     awaiter wait_until_published(

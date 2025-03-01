@@ -157,13 +157,18 @@ template<
 > using select_continuation_type = typename select_continuation_type_policy<Policies...>::type;
 
 struct use_after_join_policy {};
-struct throw_on_use_after_join : use_after_join_policy, concrete_policy {};
-struct fail_on_use_after_join : use_after_join_policy, concrete_policy {};
 
 template<
     typename T
 > concept is_use_after_join_policy =
 is_concrete_policy<T, use_after_join_policy>;
+
+// throw_on_use_after_join causes exceptions to be thrown at runtime
+// if a primitive is used after its join() method is called.
+struct throw_on_use_after_join : use_after_join_policy, concrete_policy {};
+// fail_on_use_after_join causes assertion failures in debug builds
+// if a primitive is used after its join() method is called.
+struct fail_on_use_after_join : use_after_join_policy, concrete_policy {};
 
 template<
     typename ... Policies

@@ -24,6 +24,22 @@ static_assert(true == is_template_instantiation<std::tuple<>&&, std::tuple>);
 static_assert(true == is_template_instantiation<const std::tuple<>&&, std::tuple>);
 static_assert(false == is_template_instantiation<int, std::tuple>);
 
+static_assert(!has_return_void<std::tuple<>>);
+#if PHANTOM_COROUTINES_NO_REJECT_LAMBDA_WITH_INVALID_MEMBER
+static_assert(!has_await_suspend<std::tuple<>>);
+static_assert(!has_await_suspend<std::tuple<>&>);
+static_assert(!has_await_suspend<std::tuple<>&&>);
+#endif
+
+struct has_tested_members
+{
+    void await_suspend();
+    void return_void();
+};
+
+static_assert(has_return_void<has_tested_members>);
+static_assert(has_await_suspend<has_tested_members>);
+
 // Verify that filter_tuple_types works
 template<
     typename T
@@ -229,6 +245,8 @@ struct assert_forward_owned_expected_result
         
         Owner owner = static_cast<Owner>(ownerVariable);
         Value value = static_cast<Value>(valueVariable);
+
+        std::ignore = owner;
 
         static_assert(std::same_as<decltype(forward_owned<Owner, Value>(std::declval<Value>())), ExpectedResult>);
         auto&& result = forward_owned<Owner, Value>(std::forward<Value>(value));

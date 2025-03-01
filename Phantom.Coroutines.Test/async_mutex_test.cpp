@@ -23,6 +23,7 @@ TEST(async_mutex_test, try_lock_returns_false_for_locked_mutex)
 {
     async_mutex<> mutex;
     auto result1 = mutex.try_lock();
+    ASSERT_EQ(true, result1);
     auto result2 = mutex.try_lock();
     ASSERT_EQ(false, result2);
 }

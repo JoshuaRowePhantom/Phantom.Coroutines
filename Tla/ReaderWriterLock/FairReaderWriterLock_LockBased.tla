@@ -196,10 +196,7 @@ procedure Lock(
 begin
 AcquireOrEnqueue:
     assert ~Destroyed;
-    if  /\  ~Resuming 
-        /\  ~HasPending 
-        /\  Queue = << >> 
-        /\  ReaderLockCount >= 0 
+    if  /\  ReaderLockCount >= 0 
         /\  lockToAcquire = ReadLock(self) 
         then
         \* Become a reader fast.
@@ -207,9 +204,6 @@ AcquireOrEnqueue:
         AddLock(lockToAcquire);
         goto Unlock_Read;
     elsif   
-        /\  ~Resuming 
-        /\  ~HasPending 
-        /\  Queue = << >> 
         /\  ReaderLockCount = 0 
         /\  lockToAcquire = WriteLock(self) 
         then

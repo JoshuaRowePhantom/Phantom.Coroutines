@@ -2,6 +2,8 @@ cmake_minimum_required (VERSION 3.30)
 
 add_executable(
     Phantom.Coroutines.Test
+    "aligned_array_test.cpp"
+    "async_atomic_test.cpp"
     "async_auto_reset_event_test.cpp"
     "async_generator_test.cpp"
     "async_latch_test.cpp" 
@@ -11,6 +13,7 @@ add_executable(
     "async_reader_writer_lock_test.cpp" 
     "async_scope_test.cpp"
     "async_sequence_barrier_test.cpp"
+    "async_sharded_reader_writer_lock_test.cpp"
     "async_test.cpp"
     "async_test.h"
     "atomic_state_test.cpp"
@@ -21,6 +24,7 @@ add_executable(
     "detail/fibonacci_heap_test.cpp"
     "detail/scope_guard_test.cpp"
     "detail/variant_result_storage_test.cpp"
+    "direct_initialized_optional_test.cpp"
     "double_wide_atomic_test.cpp" 
     "early_termination_task_test.cpp"
     "generator_test.cpp"
@@ -33,6 +37,7 @@ add_executable(
     "reusable_consecutive_global_id_test.cpp"
     "reusable_task_test.cpp" 
     "sequence_lock_test.cpp" 
+    "sharding_test.cpp"
     "shared_task_test.cpp"
     "suspend_result_test.cpp" 
     "sync_wait_test.cpp"

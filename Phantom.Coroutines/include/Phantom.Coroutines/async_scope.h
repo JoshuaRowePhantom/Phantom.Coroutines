@@ -28,7 +28,8 @@ is_concrete_policy<T, await_is_not_cancellable>
 || is_concrete_policy<T, fail_on_destroy_with_awaiters>
 || is_concrete_policy<T, single_awaiter>
 || is_continuation_type_policy<T>
-|| is_concrete_policy<T, fail_on_use_after_join>;
+|| is_concrete_policy<T, fail_on_use_after_join>
+;
 
 template<
     is_async_scope_policy ... Policy
@@ -56,7 +57,11 @@ class basic_async_scope
     coroutine_handle<> m_continuation;
     coroutine_handle<> m_coroutineToDestroy;
 
-    class join_awaiter
+#ifndef NDEBUG
+    std::atomic_flag m_isJoined;
+#endif
+
+    class [[nodiscard]] join_awaiter
     {
         friend class basic_async_scope;
 
@@ -78,6 +83,9 @@ class basic_async_scope
             coroutine_handle<> continuation
         ) noexcept
         {
+#ifndef NDEBUG
+            assert(!m_asyncScope.m_isJoined.test());
+#endif
             m_asyncScope.m_continuation = continuation;
             if (m_asyncScope.m_outstandingTasks.fetch_sub(1, std::memory_order_acquire) == 1)
             {
@@ -88,6 +96,9 @@ class basic_async_scope
 
         void await_resume()
         {
+#ifndef NDEBUG
+            assert(!m_asyncScope.m_isJoined.test_and_set());
+#endif
             if (m_asyncScope.m_coroutineToDestroy)
             {
                 m_asyncScope.m_coroutineToDestroy.resume();
@@ -112,7 +123,9 @@ class basic_async_scope
             auto& awaiter
         ) :
             m_asyncScope{ asyncScope }
-        {}
+        {
+            std::ignore = awaiter;
+        }
 
         ~promise()
         {
@@ -201,6 +214,10 @@ public:
         std::invocable<> auto&& function
     )
     {
+#ifndef  NDEBUG
+        assert(!m_isJoined.test());
+#endif
+
         m_outstandingTasks.fetch_add(
             1,
             std::memory_order_relaxed);

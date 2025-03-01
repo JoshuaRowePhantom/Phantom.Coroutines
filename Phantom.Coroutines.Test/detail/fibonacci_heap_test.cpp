@@ -1,18 +1,53 @@
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/detail/fibonacci_heap.h"
 #include <memory>
+#include <random>
 #include <sstream>
 
 using namespace Phantom::Coroutines::detail;
 
-namespace {
+namespace Phantom::Coroutines
+{
+namespace
+{
+
+thread_local int nestedDestructorCount = 0;
+
+struct NestedDestructorCountDecrementer
+{
+    ~NestedDestructorCountDecrementer()
+    {
+        --nestedDestructorCount;
+    }
+};
 
 struct TestFibonacciHeapNode
 {
+    NestedDestructorCountDecrementer m_nestedDestructorCountDecrementer;
     int Key;
     size_t Degree;
     std::shared_ptr<TestFibonacciHeapNode> Child;
     std::shared_ptr<TestFibonacciHeapNode> Sibling;
+
+    TestFibonacciHeapNode(
+        int key,
+        size_t degree,
+        std::shared_ptr<TestFibonacciHeapNode> child = nullptr,
+        std::shared_ptr<TestFibonacciHeapNode> sibling = nullptr
+    )
+        :
+        Key(key),
+        Degree(degree),
+        Child(child),
+        Sibling(sibling)
+    {
+    }
+
+    ~TestFibonacciHeapNode()
+    {
+        ++nestedDestructorCount;
+        assert(nestedDestructorCount < 50);
+    }
 };
 
 struct TestFibonacciHeapTraits
@@ -109,17 +144,12 @@ TestFibonacciHeapTraits::heap_type MakeTestHeap(
     TestFibonacciHeapTraits::heap_type next = nullptr
 )
 {
-return std::make_shared<TestFibonacciHeapNode>(
-    TestFibonacciHeapNode
-    {
+    return std::make_shared<TestFibonacciHeapNode>(
         key,
         degree,
         child,
         next
-    }
-);
-}
-
+    );
 }
 
 static_assert(is_fibonacci_heap_builder<TestFibonacciHeapTraits>);
@@ -177,83 +207,12 @@ TEST(fibonacci_heap_test, test_heap_equality_comparisons)
 namespace
 {
 
-bool IsCanonicalFibonacciHeapHead(
-    const TestFibonacciHeapTraits::heap_type& heap
-)
-{
-    // A canonical fibonacci heap head should have 1 child of each degree smaller than itself.
-    std::set<size_t> degreesPresent;
-
-    for (TestFibonacciHeapTraits::heap_type child = heap->Child;
-        child;
-        child = child->Sibling)
-    {
-        if (!IsCanonicalFibonacciHeapHead(child))
-        {
-            return false;
-        }
-
-        if (degreesPresent.contains(child->Degree))
-        {
-            return false;
-        }
-
-        if (child->Degree >= heap->Degree)
-        {
-            return false;
-        }
-
-        if (child->Key < heap->Key)
-        {
-            return false;
-        }
-
-        degreesPresent.insert(child->Degree);
-    }
-
-    for (auto degree = 0; degree < heap->Degree; degree++)
-    {
-        if (!degreesPresent.contains(degree))
-        {
-            return false;
-        }
-        degreesPresent.erase(degree);
-    }
-
-    if (!degreesPresent.empty())
-    {
-        return false;
-    }
-
-    return true;
-}
-
 bool IsCanonicalFibonacciHeap(
     const TestFibonacciHeapTraits::heap_type& heap
 )
 {
-    // There should be no duplicate roots of the same degree,
-    // each root should be a canonical heap.
-    std::set<size_t> degreesPresent;
-
-    for (TestFibonacciHeapTraits::heap_type root = heap;
-        root;
-        root = root->Sibling)
-    {
-        if (!IsCanonicalFibonacciHeapHead(root))
-        {
-            return false;
-        }
-
-        if (degreesPresent.contains(root->Degree))
-        {
-            return false;
-        }
-
-        degreesPresent.insert(root->Degree);
-    }
-
-    return true;
+    TestFibonacciHeapTraits heapBuilder;
+    return heapBuilder.is_canonical(heap);
 }
 
 bool IsFibonacciHeapWithNoChildren(
@@ -286,7 +245,7 @@ void DoFibonacciHeapTest(
     auto resultHeap = heapBuilder.extract(
         heapBuilder.collect_predicate(&collectedHeap, predicate),
         heaps
-        );
+    );
 
     ASSERT_EQ(to_string(resultHeap), expectedResultHeap);
     ASSERT_EQ(to_string(collectedHeap), expectedCollectedHeap);
@@ -496,7 +455,7 @@ TEST(fibonacci_heap_test, fibonacci_heap_extract_builds_canonical_heap_from_sepa
             MakeTestHeap(19, 0),
             MakeTestHeap(20, 0),
         }
-    ); 
+    );
 
     DoFibonacciHeapTest(
         "[(1,2,[(3,1,[(4,0,[])]),(2,0,[])])]",
@@ -524,5 +483,116 @@ TEST(fibonacci_heap_test, fibonacci_heap_extract_builds_canonical_heap_from_sepa
             MakeTestHeap(19, 0),
             MakeTestHeap(20, 0),
         }
-    ); 
+    );
+}
+
+TEST(fibonacci_heap_test, big_tree_test)
+{
+    TestFibonacciHeapTraits heapBuilder;
+
+    int maxValue = 100;
+    int treeItems = 100000;
+    int treeItemsPerBatch = 100;
+    int itemsToCreatePerRemoval = 10;
+
+    std::ranlux48 random;
+    std::uniform_int_distribution<int> treeItemBatchDistribution(1, treeItemsPerBatch);
+    std::uniform_int_distribution<int> valueDistribution(1, maxValue);
+    std::uniform_int_distribution<int> removalBatchDistribution(0, itemsToCreatePerRemoval);
+
+    std::vector<TestFibonacciHeapTraits::heap_type> topLevelHeaps;
+
+    int treeItemsCreated = 0;
+    
+    auto createBatch = [&]()
+        {
+            std::vector<TestFibonacciHeapTraits::heap_type> batchHeaps;
+            auto treeItemsToCreate = treeItemBatchDistribution(random);
+            treeItemsCreated += treeItemsToCreate;
+            for (
+                ;
+                treeItemsToCreate > 0;
+                --treeItemsToCreate)
+            {
+                batchHeaps.push_back(MakeTestHeap(
+                    valueDistribution(random),
+                    0));
+            }
+
+            auto batchHeap = heapBuilder.extract(
+                &AlwaysFalse,
+                batchHeaps
+            );
+
+            EXPECT_EQ(true, IsCanonicalFibonacciHeap(batchHeap));
+
+            return batchHeap;
+        };
+
+    while (treeItemsCreated < treeItems)
+    {
+        topLevelHeaps.push_back(
+            createBatch());
+    }
+
+    TestFibonacciHeapTraits::heap_type topLevelHeap = heapBuilder.extract(
+        &AlwaysFalse,
+        topLevelHeaps
+    );
+
+    topLevelHeaps.clear();
+
+    EXPECT_EQ(true, IsCanonicalFibonacciHeap(topLevelHeap));
+
+    int removedItems = 0;
+
+    for (auto removalBaseValue = 0; removalBaseValue <= maxValue; removalBaseValue++)
+    {
+        auto removalValue = std::uniform_int_distribution{ removalBaseValue, maxValue }(random);
+
+        for (int removalBatchCounter = removalBatchDistribution(random);
+            removalBatchCounter > 0; 
+            --removalBatchCounter)
+        {
+            auto item = MakeTestHeap(valueDistribution(random), 0);
+            item->Sibling = topLevelHeap;
+            topLevelHeap = item;
+            ++treeItemsCreated;
+        }
+
+        auto batch1 = createBatch();
+        auto batch2 = createBatch();
+        auto batch3 = createBatch();
+        auto batch4 = createBatch();
+
+        TestFibonacciHeapTraits::heap_type collectedHeap;
+        topLevelHeap = heapBuilder.extract(
+            heapBuilder.collect_predicate(&collectedHeap, [&](const auto& heap) -> bool { return heap->Key <= removalValue; }),
+            std::array
+            {
+                std::move(batch1),
+                std::move(batch2),
+                std::move(topLevelHeap),
+                std::move(batch3),
+                std::move(batch4)
+            }
+        );
+
+        // Verify and destroy the collected heap
+        for (;
+            collectedHeap;
+            collectedHeap = collectedHeap->Sibling)
+        {
+            ++removedItems;
+            EXPECT_LE(collectedHeap->Key, removalValue);
+        }
+
+        EXPECT_EQ(true, IsCanonicalFibonacciHeap(topLevelHeap));
+    }
+    EXPECT_EQ(true, IsCanonicalFibonacciHeap(topLevelHeap));
+    EXPECT_EQ(nullptr, topLevelHeap);
+    EXPECT_EQ(removedItems, treeItemsCreated);
+}
+
+}
 }

@@ -67,7 +67,7 @@ template<
         double_wide_value<state_type> previousState
     )
     {
-        auto fetchCount = 1;
+        size_t fetchCount = 1;
         awaiter* waitersToService = nullptr;
         awaiter** waitersToServiceTail = &waitersToService;
 
@@ -188,14 +188,10 @@ end procedure;
         while (waitersToService)
         {
             auto next = waitersToService->m_nextAwaiter;
-#if !PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
             if (waitersToService->m_referenceCount.fetch_sub(1, std::memory_order_acquire) == 1)
             {
                 waitersToService->m_continuation.resume();
             }
-#else
-            waitersToService->m_continuation.resume();
-#endif
             waitersToService = next;
         }
     }
@@ -212,9 +208,7 @@ end procedure;
         };
 
         Continuation m_continuation;
-#if !PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
         std::atomic<char> m_referenceCount = 2;
-#endif
 
         awaiter(
             basic_async_auto_reset_event* event
@@ -248,12 +242,8 @@ end procedure;
 
             return false;
         }
-
-#if PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
-        void
-#else
-        coroutine_handle<> 
-#endif
+        
+        bool
             await_suspend(
             Continuation continuation
         ) noexcept
@@ -312,16 +302,12 @@ Listen_IncrementWaiterCount:
                     nextState);
             }
 
-#if PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
-            return;
-#else
             if (m_referenceCount.fetch_sub(1, std::memory_order_acquire) == 1)
             {
-                return continuation;
+                return false;
             }
 
-            return noop_coroutine();
-#endif
+            return true;
         }
 
         void await_resume(
@@ -406,9 +392,9 @@ public:
             nextState));
     }
 
-    awaiter operator co_await()
+    awaiter operator co_await() const noexcept
     {
-        return awaiter{ this };
+        return awaiter{ const_cast<basic_async_auto_reset_event*>(this) };
     }
 };
 

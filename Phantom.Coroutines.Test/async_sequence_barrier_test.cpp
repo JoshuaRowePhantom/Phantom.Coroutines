@@ -2,6 +2,8 @@
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/async_sequence_barrier.h"
+#include "Phantom.Coroutines/shared_task.h"
+#include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include <random>
@@ -14,7 +16,6 @@ static_assert(is_awaiter<decltype(std::declval<async_sequence_barrier<>&>().wait
 
 ASYNC_TEST(async_sequence_barrier_test, Awaiting_at_nothing_published_with_default_constructor_does_suspend)
 {
-    suspend_result suspendResult;
     async_sequence_barrier<> sequenceBarrier;
     bool isCompleted = false;
 
@@ -27,25 +28,23 @@ ASYNC_TEST(async_sequence_barrier_test, Awaiting_at_nothing_published_with_defau
     scope.spawn(awaiter());
 
     EXPECT_FALSE(isCompleted);
-    sequenceBarrier.publish(0);
+    EXPECT_EQ(0, sequenceBarrier.publish(0));
     EXPECT_TRUE(isCompleted);
     co_await scope.join();
 }
 
 ASYNC_TEST(async_sequence_barrier_test, last_published_returns_last_published_value)
 {
-    suspend_result suspendResult;
     async_sequence_barrier<> sequenceBarrier;
-    sequenceBarrier.publish(0);
+    EXPECT_EQ(0, sequenceBarrier.publish(0));
     EXPECT_EQ(0, sequenceBarrier.last_published());
-    sequenceBarrier.publish(5);
+    EXPECT_EQ(5, sequenceBarrier.publish(5));
     EXPECT_EQ(5, sequenceBarrier.last_published());
     co_return;
 }
 
 ASYNC_TEST(async_sequence_barrier_test, can_start_at_nonzero_value)
 {
-    suspend_result suspendResult;
     async_sequence_barrier<> sequenceBarrier(5);
     EXPECT_EQ(5, sequenceBarrier.last_published());
     co_return;
@@ -65,9 +64,9 @@ TEST(async_sequence_barrier_test, Publish_resumes_an_awaiter_on_the_dot)
     EXPECT_TRUE(suspendResult.did_suspend());
     EXPECT_EQ(std::optional<size_t>{}, result);
 
-    sequenceBarrier.publish(0);
+    EXPECT_EQ(0, sequenceBarrier.publish(0));
     EXPECT_EQ(std::optional<size_t>{}, result);
-    sequenceBarrier.publish(1);
+    EXPECT_EQ(1, sequenceBarrier.publish(1));
 
     EXPECT_EQ(std::optional<size_t>{1}, result);
 }
@@ -78,7 +77,7 @@ TEST(async_sequence_barrier_test, Publish_permits_await_without_suspending_await
     async_sequence_barrier<> sequenceBarrier;
     std::optional<size_t> result;
 
-    sequenceBarrier.publish(1);
+    EXPECT_EQ(1, sequenceBarrier.publish(1));
     
     auto future = as_future([&]() -> task<>
         {
@@ -147,7 +146,7 @@ ASYNC_TEST(async_sequence_barrier_test, Publish_steps_through_published_items)
 
     for (auto sequenceNumber = 0; sequenceNumber <= 103; sequenceNumber += 3)
     {
-        sequenceBarrier.publish(sequenceNumber);
+        EXPECT_EQ(sequenceNumber, sequenceBarrier.publish(sequenceNumber));
 
         for (auto& completedItem : completedItems)
         {
@@ -160,3 +159,109 @@ ASYNC_TEST(async_sequence_barrier_test, Publish_steps_through_published_items)
 
     co_await scope.join();
 }
+
+ASYNC_TEST(async_sequence_barrier_test, publish_returns_value_indicating_whether_already_published)
+{
+    async_sequence_barrier<> sequenceBarrier;
+
+    EXPECT_EQ(0, sequenceBarrier.publish(0));
+    EXPECT_EQ(0, sequenceBarrier.last_published());
+    EXPECT_EQ(0, sequenceBarrier.publish(0));
+    EXPECT_EQ(0, sequenceBarrier.last_published());
+    EXPECT_EQ(2, sequenceBarrier.publish(2));
+    EXPECT_EQ(2, sequenceBarrier.last_published());
+    EXPECT_EQ(2, sequenceBarrier.publish(2));
+    EXPECT_EQ(2, sequenceBarrier.last_published());
+    EXPECT_EQ(3, sequenceBarrier.publish(3));
+    EXPECT_EQ(3, sequenceBarrier.last_published());
+    EXPECT_EQ(3, sequenceBarrier.publish(2));
+    EXPECT_EQ(3, sequenceBarrier.last_published());
+    co_return;
+}
+
+TEST(async_sequence_barrier_test, many_parallel_operations)
+{
+    static_thread_pool<> threadPool;
+    async_scope<> topLevelScope;
+    async_scope<>* currentScope = nullptr;
+    async_sequence_barrier<>* currentBarrier = nullptr;
+    std::atomic<int> runningThreads;
+    std::vector<shared_task<>> tasks;
+
+    auto testLambda = [&]() -> shared_task<>
+        {
+            co_await threadPool.schedule();
+            tasks.clear();
+            for (int testRunCounter = 0; testRunCounter < 1000; ++testRunCounter)
+            {
+                async_scope<> scope;
+                currentScope = &scope;
+#if NDEBUG
+                size_t operationCount = 1000;
+                size_t maxPublishedValue = 10000;
+#else
+                size_t operationCount = 100;
+                size_t maxPublishedValue = 10000;
+#endif
+
+                async_sequence_barrier<> sequenceBarrier;
+                currentBarrier = &sequenceBarrier;
+
+                auto waiter = [&]() -> shared_task<>
+                    {
+                        ++runningThreads;
+                        std::ranlux24 random{ std::random_device{}() };
+                        std::uniform_int_distribution<size_t> distribution{ 0, 1000 };
+
+                        size_t  value = 0;
+                        while (value < maxPublishedValue)
+                        {
+                            EXPECT_LE(value, value = co_await sequenceBarrier.wait_until_published(
+                                std::min<size_t>(value + distribution(random), maxPublishedValue)));
+                            co_await threadPool.schedule();
+                        }
+                        --runningThreads;
+                    };
+
+                auto publisher = [&]() -> shared_task<>
+                    {
+                        ++runningThreads;
+                        std::ranlux24 random{ std::random_device{}() };
+                        std::uniform_int_distribution<size_t> distribution{ 0, 50 };
+
+                        size_t value = 0;
+                        while (value <= maxPublishedValue + 50)
+                        {
+                            value += distribution(random);
+                            EXPECT_LE(value, sequenceBarrier.publish(
+                                value));
+                            co_await threadPool.schedule();
+                        }
+                        --runningThreads;
+                    };
+
+                for (auto waiterCounter = 0; waiterCounter < operationCount; ++waiterCounter)
+                {
+                    auto task = waiter();
+                    tasks.push_back(task);
+                    scope.spawn(task);
+                }
+
+                for (auto publisherCounter = 0; publisherCounter < operationCount; ++publisherCounter)
+                {
+                    auto task = publisher();
+                    tasks.push_back(task);
+                    scope.spawn(task);
+                }
+
+                co_await scope.join();
+            }
+        };
+
+    auto testTask = testLambda();
+    topLevelScope.spawn(testTask);
+    sync_wait(topLevelScope.join());
+}
+
+static_assert(std::same_as<size_t, async_sequence_barrier<>::value_type>);
+static_assert(std::same_as<int, async_sequence_barrier<int>::value_type>);
