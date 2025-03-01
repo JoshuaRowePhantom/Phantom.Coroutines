@@ -4,3 +4,5 @@
 /.vscode
 Tla/ThreadPool_Wakeup.cfg
 Tla/*.old
+vc140.pdb
+/CMakeUserPresets.json

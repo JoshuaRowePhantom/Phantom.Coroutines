@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "phantom-allocator",
+  "version": "0.0.0",
+  "dependencies": [
+    "gtest"
+  ],
+  "builtin-baseline": "dee924de74e81388140a53c32a919ecec57d20ab",
+  "overrides": [
+    {
+      "name": "gtest",
+      "version":  "1.14.0"
+    }
+  ]
+}
