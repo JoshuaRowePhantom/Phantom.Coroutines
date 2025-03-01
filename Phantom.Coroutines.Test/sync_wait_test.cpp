@@ -4,6 +4,7 @@
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 #include "detail/awaiters.h"
+#include <chrono>
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;

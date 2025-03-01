@@ -234,37 +234,29 @@ template<
     typename Tuple
 > constexpr size_t tuple_element_index_v = tuple_element_index<Type, Tuple>::value;
 
+template<
+    typename T,
+    typename Conflict
+>
+    requires std::is_class_v<T>
+struct conflict_detector
+    :
+    public T,
+    public Conflict
+{
+};
+
 struct has_await_suspend_conflicted_name
 {
-    int await_suspend;
+    using await_suspend = int;
 };
 
 template<
-    typename T
-> concept class_concept = std::is_class_v<T>;
-
-template<
-    class_concept Promise
-> struct has_await_suspend_conflict_detector
-    :
-    public Promise,
-    public has_await_suspend_conflicted_name
+    typename Awaiter
+> concept has_await_suspend = !requires
 {
+    typename conflict_detector<Awaiter, has_await_suspend_conflicted_name>::await_suspend;
 };
-
-template<
-    typename Promise,
-    typename = void
-> constexpr bool has_await_suspend_v = true;
-
-template<
-    typename Promise
-> constexpr bool has_await_suspend_v<Promise, std::void_t<decltype(has_await_suspend_conflict_detector<Promise>::await_suspend)>> = false;
-
-template<
-    typename Promise
-> concept has_await_suspend = has_await_suspend_v<Promise>;
-
 
 template<
     typename Promise
@@ -410,26 +402,15 @@ template<
 
 struct has_await_transform_conflicted_name
 {
-    int await_transform;
+    using await_transform = int;
 };
 
 template<
     typename Promise
-> struct has_await_transform_conflict_detector
-    :
-    public Promise,
-    public has_await_transform_conflicted_name
+> concept has_await_transform = !requires
 {
+    typename conflict_detector<Promise, has_await_transform_conflicted_name>::await_transform;
 };
-
-template<
-    typename Promise,
-    typename = void
-> constexpr bool has_await_transform = true;
-
-template<
-    typename Promise
-> constexpr bool has_await_transform<Promise, std::void_t<decltype(has_await_transform_conflict_detector<Promise>::await_transform)>> = false;
 
 template<
     typename T

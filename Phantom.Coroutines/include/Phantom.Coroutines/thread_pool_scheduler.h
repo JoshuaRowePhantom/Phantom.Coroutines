@@ -8,6 +8,7 @@
 #include "task.h"
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <shared_mutex>
 #include <unordered_set>
 #include <unordered_map>

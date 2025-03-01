@@ -641,7 +641,7 @@ public:
     )
     {
         self.basic_early_termination_promise::m_resultSink->return_value(
-            self.get_error_result<result_type>(
+            self.template get_error_result<result_type>(
                 std::forward<decltype(value)>(value)));
         self.basic_early_termination_promise::continuation() = self.basic_early_termination_promise::m_resultSink->propagate_error();
     }
