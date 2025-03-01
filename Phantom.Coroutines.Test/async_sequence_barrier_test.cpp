@@ -128,7 +128,7 @@ ASYNC_TEST(async_sequence_barrier_test, Publish_steps_through_published_items)
     std::multimap<size_t, bool> completedItems;
     async_sequence_barrier<> sequenceBarrier;
     std::mt19937 random;
-    std::uniform_int<size_t> distribution(0, 100);
+    std::uniform_int_distribution<size_t> distribution(0, 100);
 
     async_scope<> scope;
     auto waitLambda = [&](size_t waitFor, bool& isComplete) -> task<>

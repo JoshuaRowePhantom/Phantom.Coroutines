@@ -167,7 +167,7 @@ class basic_async_sharded_reader_writer_lock
             return get_shards(locks)[shardIndex].writer().scoped_lock_async();
         }
 
-        using operation_type = decltype(acquire_lock_operation(basic_async_sharded_reader_writer_lock, 0));
+        using operation_type = decltype(acquire_lock_operation(std::declval<basic_async_sharded_reader_writer_lock>(), 0));
 
         void resume_acquire_lock_operation(
             size_t shardIndex,
