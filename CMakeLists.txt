@@ -14,6 +14,8 @@ if (MSVC)
         # This is to make Intellisense work.
         add_compile_definitions(_M_AMD64=100)
     endif()
+
+    string(REPLACE "/Ob2" "/Ob3" CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 endif()
 
 add_subdirectory(Phantom.Coroutines)

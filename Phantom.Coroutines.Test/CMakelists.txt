@@ -44,6 +44,7 @@ add_executable(
     "tagged_pointer_test.cpp"
     "task_test.cpp"
     "thread_local_contextual_promise_test.cpp"
+    "thread_local_storage_test.cpp"
     "thread_pool_scheduler_test.cpp"
     "type_traits_test.cpp"
 )
