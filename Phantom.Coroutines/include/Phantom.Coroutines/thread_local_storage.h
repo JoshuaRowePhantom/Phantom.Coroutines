@@ -181,12 +181,12 @@ class thread_local_storage
         )
         {
             auto hardVector = m_atomicHardVector.load();
-            if (hardVector->size() > threadLocalStorageId)
+            if (hardVector && hardVector->size() > threadLocalStorageId)
             {
                 (*hardVector)[threadLocalStorageId] = nullptr;
             }
             auto softVector = m_atomicSoftVector.load();
-            if (softVector->size() > threadLocalStorageId)
+            if (softVector && softVector->size() > threadLocalStorageId)
             {
                 (*softVector)[threadLocalStorageId] = nullptr;
             }

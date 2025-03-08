@@ -249,9 +249,6 @@ private immovable_object
         }
 
     protected:
-        thread_local_storage<
-            thread_state
-        > m_threadStateThreadLocalStorage;
 
         operation(
             read_copy_update_section& section

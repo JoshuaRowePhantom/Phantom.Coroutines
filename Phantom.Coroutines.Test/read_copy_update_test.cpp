@@ -183,33 +183,32 @@ TEST(read_copy_update_test, object_released_after_section_destruction)
 
 TEST(read_copy_update_test, many_parallel_uses)
 {
-    async_scope<> asyncScope;
-    static_thread_pool<> threadPool;
     read_copy_update_section<std::string, struct many_parallel_uses_tag> section;
-    std::atomic<size_t> threadCounter = 1;
+    std::atomic_flag finish;
 
-    std::function<task<>()> threadLambda;
-    auto threadLambdaDefinition = [&]() -> task<>
+    auto threadLambda = [&]()
+    {
+        while(!finish.test(std::memory_order_seq_cst))
         {
-            co_await threadPool.schedule();
-            section.emplace("hello world");
-            threadCounter--;
-            if ((threadCounter += 2) < 1000)
+            for (auto counter = 0; counter < 10000; ++counter)
             {
-                asyncScope.spawn(threadLambda());
-                asyncScope.spawn(threadLambda());
+                section.emplace("hello world");
             }
-            else
-            {
-                threadCounter -= 2;
-            }
-        };
-    threadLambda = threadLambdaDefinition;
+        }
+    };
 
-    asyncScope.spawn(threadLambda());
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    threadCounter += 2000;
-    sync_wait(asyncScope.join());
+    std::vector<std::thread> threads;
+    for (unsigned int threadCounter = 0; threadCounter < std::thread::hardware_concurrency(); threadCounter++)
+    {
+        threads.emplace_back(threadLambda);
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    finish.test_and_set();
+    for (auto& thread : threads)
+    {
+        thread.join();
+    }
 }
 
 typedef read_copy_update_section<std::string> rcu_string;
