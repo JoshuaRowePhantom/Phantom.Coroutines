@@ -313,17 +313,21 @@ class basic_thread_pool_scheduler
             );
         }
 
+#ifdef PHANTOM_COROUTINES_DEBUG_INSPECT_STEAL
         static inline thread_local thread_state* steal_other;
         static inline thread_local size_t steal_other_tail;
         static inline thread_local size_t steal_new_other_tail;
         static inline thread_local size_t steal_newOtherHead;
+#endif // PHANTOM_COROUTINES_DEBUG_INSPECT_STEAL
 
         Continuation try_steal(
             thread_state& other,
             steal_mode stealMode
         )
         {
+#ifdef PHANTOM_COROUTINES_DEBUG_INSPECT_STEAL
             steal_other = &other;
+#endif
 
             // We can't steal from ourselves!
             if (&other == this)
@@ -390,8 +394,10 @@ class basic_thread_pool_scheduler
                 sizeToSteal = newSizeToSteal;
             }
 
+#ifdef PHANTOM_COROUTINES_DEBUG_INSPECT_STEAL
             steal_newOtherHead = newOtherHead;
             steal_new_other_tail = newOtherTail;
+#endif
 
             // We no longer need the lock.
             // We've reserved enough space in the queue via m_outstandingCopyOperationCount that
@@ -414,7 +420,9 @@ class basic_thread_pool_scheduler
                 thisQueueOperation
             );
 
+#ifdef PHANTOM_COROUTINES_DEBUG_INSPECT_STEAL
             steal_other_tail = otherTail;
+#endif
 
             for (auto itemCounter = 0; itemCounter < (sizeToSteal - 1); itemCounter++)
             {

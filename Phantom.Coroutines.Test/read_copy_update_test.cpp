@@ -183,7 +183,7 @@ TEST(read_copy_update_test, object_released_after_section_destruction)
 
 TEST(read_copy_update_test, many_parallel_uses)
 {
-    read_copy_update_section<std::string, struct many_parallel_uses_tag> section;
+    read_copy_update_section<std::string> section;
     std::atomic_flag finish;
 
     auto threadLambda = [&]()
@@ -209,6 +209,31 @@ TEST(read_copy_update_test, many_parallel_uses)
     {
         thread.join();
     }
+}
+
+TEST(read_copy_update_test, update_operation_exchange_set_value_to_new_and_sets_replacement_to_old_value)
+{
+    lifetime_statistics statistics1;
+    lifetime_statistics statistics2;
+    read_copy_update_section<lifetime_tracker> section{ statistics1 };
+
+    {
+        auto updateOperation = section.update();
+        updateOperation = statistics2;
+        ASSERT_EQ(statistics1, *section);
+        ASSERT_EQ(statistics1, *updateOperation);
+        ASSERT_EQ(statistics2, updateOperation.replacement());
+        updateOperation.exchange();
+
+        ASSERT_EQ(statistics2, *updateOperation);
+        ASSERT_EQ(statistics1, updateOperation.replacement());
+
+        ASSERT_EQ(statistics2, *section);
+        ASSERT_EQ(1, statistics1.instance_count);
+        ASSERT_EQ(1, statistics2.instance_count);
+    }
+    ASSERT_EQ(0, statistics1.instance_count);
+    ASSERT_EQ(1, statistics2.instance_count);
 }
 
 typedef read_copy_update_section<std::string> rcu_string;

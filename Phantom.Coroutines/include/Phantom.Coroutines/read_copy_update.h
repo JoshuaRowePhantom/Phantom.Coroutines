@@ -18,10 +18,7 @@ namespace detail
 
 template<
     // The type of value to store.
-    typename Value,
-    // A distinguishing label to separate out the thread-local
-    // variables from other instances of read_copy_update_section.
-    typename Label = void
+    typename Value
 >
 class read_copy_update_section
     :
@@ -126,8 +123,8 @@ private immovable_object
         ) noexcept
         {
             assert(is_hard_reference());
-            other.exchange(
-                m_hardReference
+            m_hardReference = other.exchange(
+                std::move(m_hardReference)
             );
             m_softReference = m_hardReference.get();
         }
@@ -139,15 +136,17 @@ private immovable_object
         {
             assert(is_hard_reference());
             assert(desired.is_hard_reference());
+
             bool result = destination.compare_exchange_strong(
                 m_hardReference,
                 desired.m_hardReference
             );
             m_softReference = m_hardReference.get();
-
             if (result)
             {
-                desired = nullptr;
+                swap(
+                    *this,
+                    desired);
             }
 
             return result;
@@ -395,6 +394,7 @@ public:
 
     public:
         using read_operation::refresh;
+        using read_operation::value;
 
     private:
         reference m_replacement;
@@ -434,44 +434,28 @@ public:
         // using the value that was assigned or emplaced.
         // If there was no previous assignment or emplacement, behavior is undefined.
         // The value of the operator-> and operator* will be
-        // updated to the previous value held by the section.
-        void exchange() noexcept
+        // updated to the new value,
+        // and replacement will become the old value.
+        const Value& exchange() noexcept
         {
             operation::check_thread();
 
             assert(m_replacement.is_hard_reference());
-            m_reference = std::move(m_replacement);
-            m_reference.exchange(
-                m_section.m_currentValueHardReference
-            );
-
-            m_section.updateSequenceNumber();
-        }
-
-        // Unconditionally store the value that was assigned or emplaced.
-        // If there was no previous assignment or emplacement, behavior is undefined.
-        // The value of the operator-> and operator* will be
-        // updated to the new value.
-        // replacement() becomes empty.
-        Value& store() noexcept
-        {
             m_reference = m_replacement;
-
             m_replacement.exchange(
                 m_section.m_currentValueHardReference
             );
-            m_replacement = nullptr;
+
             m_section.updateSequenceNumber();
-            
-            return read_operation::value();
+            return value();
         }
 
         // Conditionally perform the exchange.
         // using the value that was assigned or emplaced.
         // If there was no previous assignment or emplacement, behavior is undefined.
         // The value of the operator-> and operator* will be
-        // updated to the value of the read_copy_update_section
-        // before the conditional exchange operation.
+        // updated to the new value of the read_copy_update_section,
+        // and replacement becomes the old copy.
         // If the operation succeeds, replacement() becomes invalid,
         // otherwise replacement() is left alone.
         // Returns true if the exchange was successful, false if the exchange failed.
@@ -518,30 +502,33 @@ public:
 
         using update_operation::value;
 
-        Value& operator=(
+        const Value& operator=(
             auto&& value
             )
+            requires std::constructible_from<Value, decltype(value)...>
         {
             return emplace(
                 std::forward<decltype(value)>(value)
             );
         }
 
-        Value& emplace(
+        const Value& emplace(
             auto&&... args
         )
+            requires std::constructible_from<Value, decltype(args)...>
         {
             update_operation::emplace(
                 std::forward<decltype(args)>(args)...
             );
 
-            return update_operation::store();
+            return update_operation::exchange();
         }
     };
 
     read_copy_update_section(
         auto&&... args
     )
+        requires std::constructible_from<Value, decltype(args)...>
     {
         auto currentValue = std::make_shared<value_holder>(
             std::forward<decltype(args)>(args)...
@@ -628,11 +615,10 @@ public:
     }
 
     // Unconditionally replace the stored value.
-    // If this thread loses any races, the operation
-    // is retried until it succeeds.
     void emplace(
         auto&&... args
     )
+        requires std::constructible_from<Value, decltype(args)...>
     {
         auto operation = write();
         operation.emplace(

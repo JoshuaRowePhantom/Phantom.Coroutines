@@ -21,6 +21,8 @@ public:
     bool used_after_move = false;
 
     inline lifetime_tracker tracker();
+
+    operator lifetime_tracker();
 };
 
 class lifetime_tracker
@@ -118,9 +120,14 @@ public:
     }
 };
 
-lifetime_tracker lifetime_statistics::tracker()
+inline lifetime_tracker lifetime_statistics::tracker()
 {
     return lifetime_tracker(this);
+}
+
+inline lifetime_statistics::operator lifetime_tracker()
+{
+    return tracker();
 }
 
 }
