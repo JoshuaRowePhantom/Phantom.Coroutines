@@ -135,7 +135,7 @@ class thread_local_storage
         using atomic_soft_vector_ptr = atomic_vector<Value*>;
         using soft_vector_ptr = typename atomic_soft_vector_ptr::vector_ptr;
 
-        size_t m_threadId = consecutive_thread_id::current();
+        const size_t m_threadId = consecutive_thread_id::current();
 
         // m_hardVector contains hard references to contained values.
         atomic_hard_vector_ptr m_atomicHardVector;
@@ -174,6 +174,11 @@ class thread_local_storage
         }
 
     public:
+        auto thread_id() const
+        {
+            return m_threadId;
+        }
+
         // Reset a value.
         // This can be called from another thread.
         void reset(
@@ -228,31 +233,44 @@ class thread_local_storage
                 initializer
             );
         }
-
-        thread_state()
-        {
-            m_allThreads.set(
-                m_threadId,
-                this
-            );
-        }
-
-        ~thread_state()
-        {
-            m_allThreads.set(
-                m_threadId,
-                nullptr
-            );
-        }
     };
 
-    static inline atomic_vector<thread_state*> m_allThreads;
+    static inline std::mutex m_allThreadsMutex;
+    static inline std::vector<std::shared_ptr<thread_state>> m_allThreads;
     
     [[msvc::noinline]]
     thread_state& get_thread_state_expensive()
     {
-        static thread_local thread_state threadState;
-        return threadState;
+        struct global_setter
+        {
+            std::shared_ptr<thread_state> m_threadState
+                = std::make_shared<thread_state>();
+
+            global_setter()
+            {
+                std::unique_lock allThreadsLock{ m_allThreadsMutex };
+                m_allThreads.resize(
+                    std::max(
+                        m_allThreads.size(),
+                        m_threadState->thread_id() + 1
+                    )
+                );
+                m_allThreads[
+                    m_threadState->thread_id()
+                ] = m_threadState;
+            }
+
+            ~global_setter()
+            {
+                std::unique_lock allThreadsLock{ m_allThreadsMutex };
+                m_allThreads[
+                    m_threadState->thread_id()
+                ] = nullptr;
+            }
+        };
+
+        static thread_local global_setter threadStateSetter;
+        return *threadStateSetter.m_threadState;
     }
 
     [[msvc::forceinline]]
@@ -302,15 +320,17 @@ public:
 
     ~thread_local_storage()
     {
-        auto allThreads = m_allThreads.load();
-        if (allThreads)
+        // Copy the current set of all threads so that we
+        // can release the individual thread values outside of a lock.
+        std::unique_lock allThreadsLock{ m_allThreadsMutex };
+        auto allThreads = m_allThreads;
+        allThreadsLock.unlock();
+
+        for (auto& threadState : allThreads)
         {
-            for (auto threadState : *allThreads)
+            if(threadState)
             {
-                if(threadState)
-                {
-                    threadState->reset(m_threadLocalStorageId);
-                }
+                threadState->reset(m_threadLocalStorageId);
             }
         }
     }
