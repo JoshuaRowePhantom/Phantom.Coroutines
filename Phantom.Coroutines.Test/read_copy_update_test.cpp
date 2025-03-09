@@ -236,6 +236,64 @@ TEST(read_copy_update_test, update_operation_exchange_set_value_to_new_and_sets_
     ASSERT_EQ(1, statistics2.instance_count);
 }
 
+TEST(read_copy_update_test, update_operation_compare_exchange_success_set_value_to_new_and_sets_replacement_to_old_value)
+{
+    lifetime_statistics statistics1;
+    lifetime_statistics statistics2;
+    read_copy_update_section<lifetime_tracker> section{ statistics1 };
+
+    {
+        auto updateOperation = section.update();
+        updateOperation = statistics2;
+        ASSERT_EQ(statistics1, *section);
+        ASSERT_EQ(statistics1, *updateOperation);
+        ASSERT_EQ(statistics2, updateOperation.replacement());
+        bool result = updateOperation.compare_exchange_strong();
+        ASSERT_EQ(true, result);
+
+        ASSERT_EQ(statistics2, *updateOperation);
+        ASSERT_EQ(statistics1, updateOperation.replacement());
+
+        ASSERT_EQ(statistics2, *section);
+        ASSERT_EQ(1, statistics1.instance_count);
+        ASSERT_EQ(1, statistics2.instance_count);
+    }
+    ASSERT_EQ(0, statistics1.instance_count);
+    ASSERT_EQ(1, statistics2.instance_count);
+}
+
+TEST(read_copy_update_test, update_operation_compare_exchange_failure_set_value_to_current_and_keeps_replacement_to_new_value)
+{
+    lifetime_statistics statistics1;
+    lifetime_statistics statistics2;
+    lifetime_statistics statistics3;
+    read_copy_update_section<lifetime_tracker> section{ statistics1 };
+
+    {
+        auto updateOperation = section.update();
+        updateOperation = statistics2;
+        ASSERT_EQ(statistics1, *section);
+        ASSERT_EQ(statistics1, *updateOperation);
+        ASSERT_EQ(statistics2, updateOperation.replacement());
+
+        section.emplace(statistics3);
+
+        bool result = updateOperation.compare_exchange_strong();
+        ASSERT_EQ(false, result);
+
+        ASSERT_EQ(statistics3, *updateOperation);
+        ASSERT_EQ(statistics2, updateOperation.replacement());
+
+        ASSERT_EQ(statistics3, *section);
+        ASSERT_EQ(0, statistics1.instance_count);
+        ASSERT_EQ(1, statistics2.instance_count);
+        ASSERT_EQ(1, statistics3.instance_count);
+    }
+    ASSERT_EQ(0, statistics1.instance_count);
+    ASSERT_EQ(0, statistics2.instance_count);
+    ASSERT_EQ(1, statistics3.instance_count);
+}
+
 typedef read_copy_update_section<std::string> rcu_string;
 typedef read_copy_update_section<const std::string> rcu_const_string;
 
