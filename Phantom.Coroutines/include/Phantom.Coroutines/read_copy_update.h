@@ -571,9 +571,9 @@ public:
     // 
     // A typical use is:
     // 
+    //  read_copy_update_section<std::map<std::string, std::string>> section;
     // void AddEntryToMap(std::string key, std::string value)
     // {
-    //    read_copy_update_section<std::map<std::string, std::string>> section;
     //    auto operation = section.update();
     //  
     // // Start by copying the original map.
