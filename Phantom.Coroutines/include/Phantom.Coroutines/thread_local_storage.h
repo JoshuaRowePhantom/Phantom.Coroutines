@@ -6,7 +6,6 @@
 #include <set>
 #include <type_traits>
 #include <vector>
-#include "detail/assert_same_thread.h"
 #include "detail/consecutive_thread_id.h"
 #include "reusable_consecutive_global_id.h"
 
@@ -126,8 +125,7 @@ class thread_local_storage
         }
     };
 
-    class thread_state : 
-        assert_same_thread
+    class thread_state
     {
         using value_ptr = std::shared_ptr<value_holder>;
         using atomic_hard_vector_ptr = atomic_vector<value_ptr>;
@@ -203,8 +201,6 @@ class thread_local_storage
             auto& initializer
         )
         {
-            check_thread();
-
             Value* softValue = nullptr;
             if (m_softVector
                 &&
@@ -235,8 +231,23 @@ class thread_local_storage
         }
     };
 
-    static inline std::mutex m_allThreadsMutex;
-    static inline std::vector<std::shared_ptr<thread_state>> m_allThreads;
+    struct locked_all_threads
+    {
+        std::unique_lock<std::mutex> lock;
+        std::vector<std::shared_ptr<thread_state>>& vector;
+    };
+
+    static locked_all_threads get_locked_all_threads()
+    {
+        static std::mutex mutex;
+        static std::vector<std::shared_ptr<thread_state>> allThreads;
+
+        return 
+        {
+            std::unique_lock{ mutex },
+            allThreads
+        };
+    }
     
     [[msvc::noinline]]
     thread_state& get_thread_state_expensive()
@@ -248,22 +259,22 @@ class thread_local_storage
 
             global_setter()
             {
-                std::unique_lock allThreadsLock{ m_allThreadsMutex };
-                m_allThreads.resize(
+                locked_all_threads allThreads = get_locked_all_threads();
+                allThreads.vector.resize(
                     std::max(
-                        m_allThreads.size(),
+                        allThreads.vector.size(),
                         m_threadState->thread_id() + 1
                     )
                 );
-                m_allThreads[
+                allThreads.vector[
                     m_threadState->thread_id()
                 ] = m_threadState;
             }
 
             ~global_setter()
             {
-                std::unique_lock allThreadsLock{ m_allThreadsMutex };
-                m_allThreads[
+                locked_all_threads allThreads = get_locked_all_threads();
+                allThreads.vector[
                     m_threadState->thread_id()
                 ] = nullptr;
             }
@@ -322,9 +333,9 @@ public:
     {
         // Copy the current set of all threads so that we
         // can release the individual thread values outside of a lock.
-        std::unique_lock allThreadsLock{ m_allThreadsMutex };
-        auto allThreads = m_allThreads;
-        allThreadsLock.unlock();
+        locked_all_threads lockedAllThreads = get_locked_all_threads();
+        auto allThreads = lockedAllThreads.vector;
+        lockedAllThreads.lock.unlock();
 
         for (auto& threadState : allThreads)
         {
