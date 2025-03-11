@@ -15,7 +15,7 @@ if (MSVC)
         add_compile_definitions(_M_AMD64=100)
     endif()
 
-    string(REPLACE "/Ob2" "/Ob3" CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
+    string(REPLACE "/Ob1" "/Ob3" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
 endif()
 
 add_subdirectory(Phantom.Coroutines)

@@ -158,6 +158,13 @@ private immovable_object
         {
             return m_softReference == softReference;
         }
+        
+        auto operator==(
+            const hard_reference_type& hardReference
+            ) const noexcept
+        {
+            return m_softReference == hardReference.get();
+        }
 
         auto operator==(
             const reference& other

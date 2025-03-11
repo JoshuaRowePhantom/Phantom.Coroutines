@@ -5,6 +5,7 @@
 #include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include <optional>
+#include <chrono>
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
@@ -292,6 +293,92 @@ TEST(read_copy_update_test, update_operation_compare_exchange_failure_set_value_
     ASSERT_EQ(0, statistics1.instance_count);
     ASSERT_EQ(0, statistics2.instance_count);
     ASSERT_EQ(1, statistics3.instance_count);
+}
+
+TEST(read_copy_update_test, performance_test)
+{
+    std::vector<std::thread> threads;
+    read_copy_update_section<std::string> section;
+    std::atomic_flag flag;
+    std::atomic<size_t> totalReads;
+
+    std::function<void()> threadLambda = [&]()
+    {
+        size_t sectionReadCounter = 0;
+        while (!flag.test())
+        {
+            section.read().value();
+            sectionReadCounter++;
+            if (sectionReadCounter % 10000 == 0)
+            {
+                section.emplace("hello");
+            }
+        }
+        totalReads += sectionReadCounter;
+    };
+
+    for (unsigned threadCounter = 0; threadCounter < std::thread::hardware_concurrency() /*1*/; ++threadCounter)
+    //for (unsigned threadCounter = 0; threadCounter < 1; ++threadCounter)
+    {
+        threads.emplace_back(threadLambda);
+    }
+
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(5s);
+    //std::this_thread::sleep_for(500s);
+
+    flag.test_and_set();
+    for (auto& thread : threads)
+    {
+        thread.join();
+    }
+
+    std::cerr << "Read count: " << totalReads.load() << "\n";
+}
+
+TEST(read_copy_update_test, performance_test_srw)
+{
+    std::vector<std::thread> threads;
+    std::shared_mutex mutex;
+    std::atomic_flag flag;
+    std::atomic<size_t> totalReads;
+    std::string value;
+
+    std::function<void()> threadLambda = [&]()
+    {
+        size_t sectionReadCounter = 0;
+        while (!flag.test())
+        {
+            {
+                std::shared_lock lock{ mutex };
+                sectionReadCounter++;
+            }
+            if (sectionReadCounter % 10000 == 0)
+            {
+                std::unique_lock lock{ mutex };
+                value = "hello";
+            }
+        }
+        totalReads += sectionReadCounter;
+    };
+
+    for (unsigned threadCounter = 0; threadCounter < std::thread::hardware_concurrency() /*1*/; ++threadCounter)
+    //for (unsigned threadCounter = 0; threadCounter < 1; ++threadCounter)
+    {
+        threads.emplace_back(threadLambda);
+    }
+
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(5s);
+    //std::this_thread::sleep_for(500s);
+
+    flag.test_and_set();
+    for (auto& thread : threads)
+    {
+        thread.join();
+    }
+
+    std::cerr << "Read count: " << totalReads.load() << "\n";
 }
 
 typedef read_copy_update_section<std::string> rcu_string;
