@@ -326,7 +326,7 @@ public:
     thread_local_storage(
         Args&& ... args
     ) :
-        thread_local_storage([args...]() { return Value(args ...); })
+        m_initializer([args...]() { return Value(args ...); })
     { }
 
     ~thread_local_storage()
