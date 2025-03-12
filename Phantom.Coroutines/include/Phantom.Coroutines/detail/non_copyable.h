@@ -1,4 +1,7 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
+#include "Phantom.Coroutines/detail/config.h"
+#endif
 
 namespace Phantom::Coroutines::detail
 {

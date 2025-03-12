@@ -18,7 +18,7 @@ target_sources(
     FILES
     "non_copyable.ixx"
     "type_traits.ixx"
-)
+ "coroutine.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules
