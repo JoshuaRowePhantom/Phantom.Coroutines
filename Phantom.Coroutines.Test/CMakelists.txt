@@ -67,6 +67,7 @@ add_executable(
     Phantom.Coroutines.Modules.Test
     "atomic_state_test.cpp"
     "detail/non_copyable_test.cpp"
+    "reusable_consecutive_global_id_test.cpp"
 )
 
 target_compile_definitions(

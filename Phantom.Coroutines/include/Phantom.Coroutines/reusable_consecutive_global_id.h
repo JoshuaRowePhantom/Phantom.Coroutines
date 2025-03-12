@@ -1,7 +1,9 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
-
 #include <atomic>
 #include <cstddef>
+#include "detail/config.h"
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -135,7 +137,9 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::reusable_consecutive_global_id;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::reusable_consecutive_global_id_default_increment;
 
 }

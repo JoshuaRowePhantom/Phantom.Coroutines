@@ -1,9 +1,12 @@
 #include <optional>
 #include <gtest/gtest.h>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.reusable_consecutive_global_id;
+#else
 #include "Phantom.Coroutines/reusable_consecutive_global_id.h"
+#endif
 
 using namespace Phantom::Coroutines;
-using namespace Phantom::Coroutines::detail;
 
 TEST(reusable_consecutive_global_id_test, starts_at_zero_and_increments)
 {
