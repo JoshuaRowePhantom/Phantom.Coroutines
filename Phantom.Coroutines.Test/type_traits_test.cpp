@@ -1,5 +1,9 @@
 #include <gtest/gtest.h>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.type_traits;
+#else
 #include "Phantom.Coroutines/type_traits.h"
+#endif
 #include <tuple>
 #include <type_traits>
 #include "detail/awaiters.h"

@@ -5,6 +5,7 @@ find_package(GTest REQUIRED)
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 set(CMAKE_CXX_STANDARD 23)
+set(CXX_SCAN_FOR_MODULES true)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/W4>)
 
 if (MSVC)

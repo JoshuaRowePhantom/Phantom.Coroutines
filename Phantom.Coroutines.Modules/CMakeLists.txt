@@ -16,5 +16,12 @@ target_sources(
     FILE_SET CXX_MODULES
     TYPE CXX_MODULES
     FILES
-    type_traits.ixx
+    "non_copyable.ixx"
+    "type_traits.ixx"
+)
+
+target_link_libraries(
+    Phantom.Coroutines.Modules
+    PRIVATE
+    Phantom.Coroutines
 )

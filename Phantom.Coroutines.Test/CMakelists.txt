@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.30)
 
-add_executable(
-    Phantom.Coroutines.Test
+set(
+    PhantomCoroutinesTestSources
     "aligned_array_test.cpp"
     "async_atomic_test.cpp"
     "async_auto_reset_event_test.cpp"
@@ -22,6 +22,7 @@ add_executable(
     "detail/awaiter_wrapper_test.cpp"   
     "detail/awaiters.h"
     "detail/fibonacci_heap_test.cpp"
+    "detail/non_copyable_test.cpp"
     "detail/scope_guard_test.cpp"
     "detail/variant_result_storage_test.cpp"
     "direct_initialized_optional_test.cpp"
@@ -49,6 +50,11 @@ add_executable(
     "type_traits_test.cpp"
 )
 
+add_executable(
+    Phantom.Coroutines.Test
+    ${PhantomCoroutinesTestSources}
+)
+
 target_link_libraries(
     Phantom.Coroutines.Test
     PUBLIC
@@ -57,8 +63,31 @@ target_link_libraries(
     GTest::gtest_main
 )
 
+add_executable(
+    Phantom.Coroutines.Modules.Test
+    "detail/non_copyable_test.cpp"
+)
+
+target_compile_definitions(
+    Phantom.Coroutines.Modules.Test
+    PRIVATE
+    PHANTOM_COROUTINES_TESTING_MODULES
+)
+
+target_link_libraries(
+    Phantom.Coroutines.Modules.Test
+    PUBLIC
+    Phantom.Coroutines.Modules
+    GTest::gtest
+    GTest::gtest_main
+)
+
 enable_testing()
 
 gtest_discover_tests(
     Phantom.Coroutines.Test
+    EXTRA_ARGS "--gtest_break_on_failure")
+
+gtest_discover_tests(
+    Phantom.Coroutines.Modules.Test
     EXTRA_ARGS "--gtest_break_on_failure")

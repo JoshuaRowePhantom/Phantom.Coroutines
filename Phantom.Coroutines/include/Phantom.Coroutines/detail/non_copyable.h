@@ -2,18 +2,19 @@
 
 namespace Phantom::Coroutines::detail
 {
-    class noncopyable
-    {
-    protected:
-        noncopyable() {}
+PHANTOM_COROUTINES_MODULE_EXPORT
+class noncopyable
+{
+protected:
+    noncopyable() {}
 
-    private:
-        noncopyable(
-            const noncopyable&
-        );
+private:
+    noncopyable(
+        const noncopyable&
+    );
 
-        noncopyable& operator=(
-            const noncopyable&
-            ) = delete;
-    };
+    noncopyable& operator=(
+        const noncopyable&
+        ) = delete;
+};
 }
