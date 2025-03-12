@@ -25,11 +25,9 @@ static_assert(true == is_template_instantiation<const std::tuple<>&&, std::tuple
 static_assert(false == is_template_instantiation<int, std::tuple>);
 
 static_assert(!has_return_void<std::tuple<>>);
-#if PHANTOM_COROUTINES_NO_REJECT_LAMBDA_WITH_INVALID_MEMBER
 static_assert(!has_await_suspend<std::tuple<>>);
 static_assert(!has_await_suspend<std::tuple<>&>);
 static_assert(!has_await_suspend<std::tuple<>&&>);
-#endif
 
 struct has_tested_members
 {

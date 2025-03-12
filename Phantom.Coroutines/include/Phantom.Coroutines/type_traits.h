@@ -1,14 +1,18 @@
 #pragma once
 
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <optional>
 #include <tuple>
 #include <type_traits>
+#include "detail/config.h"
 #include "detail/coroutine.h"
+#endif
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename...
 > constexpr bool always_false = false;
@@ -28,6 +32,7 @@ template<
     Template
 > = true;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T,
     template <typename ...> typename Template
@@ -45,6 +50,7 @@ template<
         const Template<Args...>&);
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T,
     template<typename...> typename Template
@@ -53,6 +59,7 @@ template<
     { derived_instantiation_detector<Template>::detect(t) };
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T,
     typename...TTypes
@@ -142,10 +149,6 @@ template<
 };
 
 template<
-    typename ... Tuples
-> using tuple_cat_types_t = typename tuple_cat_types<Tuples...>::tuple_type;
-
-template<
     typename ... Types
 > struct tuple_cat_types<
     std::tuple<Types...>
@@ -153,6 +156,11 @@ template<
 {
     typedef std::tuple<Types...> tuple_type;
 };
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename ... Tuples
+> using tuple_cat_types_t = typename tuple_cat_types<Tuples...>::tuple_type;
 
 template<
     typename... Types1,
@@ -229,28 +237,32 @@ struct tuple_element_index<
         tuple_element_index<Type, std::tuple<RemainingTypes...>>::value;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Type,
     typename Tuple
 > constexpr size_t tuple_element_index_v = tuple_element_index<Type, Tuple>::value;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T,
     typename Conflict
 >
-    requires std::is_class_v<T>
+    requires std::is_class_v<std::remove_reference_t<T>>
 struct conflict_detector
     :
-    public T,
+    public std::remove_reference_t<T>,
     public Conflict
 {
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct has_await_suspend_conflicted_name
 {
     using await_suspend = int;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Awaiter
 > concept has_await_suspend = !requires
@@ -258,6 +270,7 @@ template<
     typename conflict_detector<Awaiter, has_await_suspend_conflicted_name>::await_suspend;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > concept has_get_return_object_on_allocation_failure = requires
@@ -265,6 +278,7 @@ template<
     { Promise::get_return_object_on_allocation_failure() };
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaiter,
     typename CoroutineHandle = coroutine_handle<>
@@ -275,6 +289,7 @@ template<
     { awaiter.await_suspend(continuation) } -> std::same_as<void>;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaiter,
     typename CoroutineHandle = coroutine_handle<>
@@ -285,6 +300,7 @@ template<
     { awaiter.await_suspend(continuation) } -> std::same_as<bool>;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaiter,
     typename CoroutineHandle = coroutine_handle<>
@@ -295,6 +311,7 @@ template<
     { awaiter.await_suspend(continuation) } -> std::convertible_to<coroutine_handle<>>;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaiter,
     typename CoroutineHandle = coroutine_handle<>
@@ -308,6 +325,7 @@ TAwaiter awaiter)
 }
 && has_await_suspend<TAwaiter>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaitable
 > concept has_co_await_member = requires(
@@ -317,6 +335,7 @@ template<
     { std::forward<TAwaitable>(awaitable).operator co_await() } -> is_awaiter;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaitable
 > concept has_co_await_non_member = requires(
@@ -326,6 +345,7 @@ template<
     { operator co_await(std::forward(awaitable)) } -> is_awaiter;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaitable
 > concept is_awaitable =
@@ -335,6 +355,7 @@ has_co_await_non_member<TAwaitable>
 ||
 is_awaiter<TAwaitable>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     has_co_await_member CoAwaitMember
 >
@@ -345,6 +366,7 @@ decltype(auto) get_awaiter(
     return std::forward<CoAwaitMember>(awaitable).operator co_await();
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     has_co_await_non_member CoAwaitNonMember
 >
@@ -355,6 +377,7 @@ decltype(auto) get_awaiter(
     return operator co_await(std::forward<CoAwaitNonMember>(awaitable));
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_awaiter Awaiter
 >
@@ -379,23 +402,28 @@ template<
     typedef T type;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > using remove_rvalue_reference_t = typename remove_rvalue_reference<T>::type;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_awaitable Awaitable
 > using awaiter_type = decltype(get_awaiter(std::declval<Awaitable>()));
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_awaitable TAwaitable
 >
 using awaitable_result_type_t = decltype(std::declval<awaiter_type<TAwaitable>>().await_resume());
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > constexpr bool is_optional = false;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > constexpr bool is_optional<std::optional<T>> = true;
@@ -405,6 +433,7 @@ struct has_await_transform_conflicted_name
     using await_transform = int;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > concept has_await_transform = !requires
@@ -416,6 +445,7 @@ template<
     typename T
 > using has_await_transform_filter = std::bool_constant<has_await_transform<T>>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
     typename ... Awaiter
@@ -424,6 +454,7 @@ template<
     { promise.await_transform(std::declval<Awaiter>()...) };
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > concept has_return_void = requires (Promise promise)
@@ -431,6 +462,7 @@ template<
     promise.return_void();
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
     typename Awaiter
@@ -439,10 +471,12 @@ template<
     { promise.return_void(awaiter) };
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Continuation
 > concept is_coroutine_handle = is_template_instantiation_v<Continuation, std::coroutine_handle>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Continuation
 > concept is_continuation =
@@ -453,6 +487,7 @@ std::constructible_from<Continuation>
     { c.resume() };
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Owner,
     typename Value
@@ -478,6 +513,7 @@ template<
 }
 
 // Conditionally inherit from one base or another.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     bool Condition,
     typename BaseTrue,
@@ -487,6 +523,7 @@ template<
     using BaseTrue::BaseTrue;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename BaseTrue,
     typename BaseFalse
@@ -499,6 +536,7 @@ template<
     using BaseFalse::BaseFalse;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value
 > class value_storage
@@ -529,17 +567,29 @@ protected:
 };
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::awaiter_type;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::awaitable_result_type_t;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_awaitable;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_awaiter;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_co_await_member;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_co_await_non_member;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::get_awaiter;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_coroutine_handle;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_continuation;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_return_void;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_await_transform;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_get_return_object_on_allocation_failure;
 
 } // namespace Phantom::Coroutines

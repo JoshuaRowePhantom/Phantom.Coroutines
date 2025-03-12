@@ -19,6 +19,7 @@ if (MSVC)
 endif()
 
 add_subdirectory(Phantom.Coroutines)
+add_subdirectory(Phantom.Coroutines.Modules)
 add_subdirectory(Phantom.Coroutines.Test)
 add_subdirectory(Phantom.Coroutines.cppcoro)
 add_subdirectory(Phantom.Coroutines.cppcoro.Test)
