@@ -254,6 +254,13 @@ private immovable_object
             }
         }
 
+        bool need_refresh() const noexcept
+        {
+            return (m_section.m_sequenceNumber.load(
+                std::memory_order_relaxed
+            ) == m_threadState.m_sequenceNumber);
+        }
+
     protected:
 
         operation(
@@ -261,10 +268,14 @@ private immovable_object
         ) noexcept
             :
             m_section{ section },
-            m_threadState{ section.m_threadState.get() }
+            m_threadState{ section.m_threadState.get() },
+            m_reference{ m_threadState.m_hardReference.get() }
         {
             link();
-            refresh();
+            if (need_refresh()) [[unlikely]]
+            {
+                refresh();
+            }
         }
 
         ~operation() noexcept
@@ -275,9 +286,7 @@ private immovable_object
         [[msvc::forceinline]]
         bool refresh_thread_local_reference() noexcept
         {
-            if (m_section.m_sequenceNumber.load(
-                std::memory_order_relaxed
-            ) == m_threadState.m_sequenceNumber)
+            if (!need_refresh()) [[likely]]
             {
                 return false;
             }
@@ -358,6 +367,7 @@ private immovable_object
 
         // Refresh the value to the latest stored in the section.
         // Returns true if the value changed.
+        [[msvc::noinline]]
         bool refresh() noexcept
         {
             refresh_thread_local_reference();

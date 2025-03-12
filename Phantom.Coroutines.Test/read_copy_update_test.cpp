@@ -309,7 +309,7 @@ TEST(read_copy_update_test, performance_test)
         {
             section.read().value();
             sectionReadCounter++;
-            if (sectionReadCounter % 10000 == 0)
+            if (sectionReadCounter % 1000000 == 0)
             {
                 section.emplace("hello");
             }
