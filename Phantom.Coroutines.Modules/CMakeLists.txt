@@ -16,11 +16,16 @@ target_sources(
     FILE_SET CXX_MODULES
     TYPE CXX_MODULES
     FILES
+    "assert_same_thread.ixx"
     "atomic_state.ixx"
+    "consecutive_thread_id.ixx"
     "coroutine.ixx" 
+    "immovable_object.ixx"
     "non_copyable.ixx"
+    "reusable_consecutive_global_id.ixx"
+    "scope_guard.ixx"
     "type_traits.ixx"
- "reusable_consecutive_global_id.ixx" "assert_same_thread.ixx" "consecutive_thread_id.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

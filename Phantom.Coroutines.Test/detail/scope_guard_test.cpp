@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
-#include "Phantom.Coroutines/detail/scope_guard.h"
 #include <optional>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.scope_guard;
+#else
+#include "Phantom.Coroutines/detail/scope_guard.h"
+#endif
 
 using namespace Phantom::Coroutines::detail;
 

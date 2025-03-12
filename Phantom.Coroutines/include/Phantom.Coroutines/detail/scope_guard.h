@@ -1,14 +1,17 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
 #include <concepts>
 #include <type_traits>
 #include "immovable_object.h"
+#endif
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
      std::invocable<> Lambda
 >
@@ -32,6 +35,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     std::invocable<> Lambda
 > scope_guard(Lambda)->scope_guard<std::remove_reference_t<Lambda>>;
