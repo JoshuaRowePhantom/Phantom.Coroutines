@@ -200,18 +200,69 @@ private immovable_object
         m_sequenceNumber.fetch_add(1, std::memory_order_seq_cst);
     }
 
-    class operation;
+    class operation_node;
 
     struct thread_state
     {
-        operation* m_operationsHead = nullptr;
         hard_reference_type m_hardReference;
         sequence_number m_sequenceNumber = 0;
+        
+        // The head and tail exist to allow link() and unlink() to be
+        // as simple as possible with no conditionals.
+        operation_node m_operationsHead;
+        operation_node m_operationsTail;
+
+        thread_state()
+            :
+            m_operationsHead{ nullptr },
+            m_operationsTail{ nullptr }
+        {
+            m_operationsHead.m_nextOperationInThread = &m_operationsTail;
+            m_operationsTail.m_previousOperationInThread = &m_operationsHead;
+        }
     };
 
     thread_local_storage<
         thread_state
     > m_threadState;
+
+    class operation_node
+    {
+    public:
+        operation_node(
+            soft_reference_type initialValue
+        ) :
+            m_reference{ initialValue }
+        { }
+
+        reference m_reference;
+        operation_node* m_nextOperationInThread = nullptr;
+        operation_node* m_previousOperationInThread = nullptr;
+
+        void link(
+            thread_state& threadState
+        ) noexcept
+        {
+            m_previousOperationInThread = &threadState.m_operationsHead;
+            m_nextOperationInThread = threadState.m_operationsHead.m_nextOperationInThread;
+            m_nextOperationInThread->m_previousOperationInThread = this;
+            threadState.m_operationsHead.m_nextOperationInThread = this;
+        }
+
+        void unlink(
+        ) noexcept
+        {
+            m_previousOperationInThread->m_nextOperationInThread = m_nextOperationInThread;
+            m_nextOperationInThread->m_previousOperationInThread = m_previousOperationInThread;
+        }
+
+        void make_hard_reference_to(
+            const hard_reference_type& hardReference) noexcept
+        {
+            m_reference.make_hard_reference_to(
+                hardReference);
+        }
+    };
 
     class operation
         :
@@ -221,57 +272,28 @@ private immovable_object
     protected:
         read_copy_update_section& m_section;
         thread_state& m_threadState;
-        reference m_reference;
+        operation_node m_node;
+
     private:
-        operation* m_nextOperationInThread = nullptr;
-        operation* m_previousOperationInThread = nullptr;
-
-        void link() noexcept
-        {
-            m_nextOperationInThread = m_threadState.m_operationsHead;
-            m_threadState.m_operationsHead = this;
-            if (m_nextOperationInThread)
-            {
-                m_nextOperationInThread->m_previousOperationInThread = this;
-            }
-        }
-
-        void unlink() noexcept
-        {
-            if (m_threadState.m_operationsHead == this)
-            {
-                m_threadState.m_operationsHead = this->m_nextOperationInThread;
-            }
-
-            if (m_nextOperationInThread)
-            {
-                m_nextOperationInThread->m_previousOperationInThread = m_previousOperationInThread;
-            }
-
-            if (m_previousOperationInThread)
-            {
-                m_previousOperationInThread->m_nextOperationInThread = m_nextOperationInThread;
-            }
-        }
-
         bool need_refresh() const noexcept
         {
             return (m_section.m_sequenceNumber.load(
                 std::memory_order_relaxed
-            ) == m_threadState.m_sequenceNumber);
+            ) != m_threadState.m_sequenceNumber);
         }
 
     protected:
-
         operation(
             read_copy_update_section& section
         ) noexcept
             :
             m_section{ section },
             m_threadState{ section.m_threadState.get() },
-            m_reference{ m_threadState.m_hardReference.get() }
+            m_node{ m_threadState.m_hardReference.get() }
         {
-            link();
+            m_node.link(
+                m_threadState
+            );
             if (need_refresh()) [[unlikely]]
             {
                 refresh();
@@ -280,7 +302,7 @@ private immovable_object
 
         ~operation() noexcept
         {
-            unlink();
+            m_node.unlink();
         }
 
         [[msvc::forceinline]]
@@ -319,36 +341,38 @@ private immovable_object
             // We're going to replace the thread-local hard reference,
             // so make sure all other operations on the current thread
             // pointing at the same value holder get a hard reference.
-            for (auto updatedOperation = m_threadState.m_operationsHead;
-                updatedOperation; 
+            for (auto updatedOperation = m_threadState.m_operationsHead.m_nextOperationInThread;
+                updatedOperation;
                 updatedOperation = updatedOperation->m_nextOperationInThread)
             {
                 if (updatedOperation->m_reference == oldHardReference)
                 {
-                    updatedOperation->make_hard_reference();
+                    updatedOperation->make_hard_reference_to(
+                        oldHardReference);
                 }
             }
         }
 
         void make_hard_reference() noexcept
         {
-            if (m_reference.is_hard_reference())
+            if (m_node.m_reference.is_hard_reference())
             {
                 return;
             }
 
             // If the reference is a soft reference,
             // it must refere to the thread-local value.
-            assert(m_reference == m_threadState.m_hardReference);
+            assert(m_node.m_reference == m_threadState.m_hardReference);
 
-            m_reference.make_hard_reference_to(m_threadState.m_hardReference);
+            m_node.m_reference.make_hard_reference_to(
+                m_threadState.m_hardReference);
         }
 
     public:
         Value& value() noexcept
         {
             check_thread();
-            return m_reference.get()->m_value;
+            return m_node.m_reference.get()->m_value;
         }
 
         // Read the value of the read_copy_update_section as
@@ -372,9 +396,9 @@ private immovable_object
         {
             refresh_thread_local_reference();
 
-            bool result = m_reference == m_threadState.m_hardReference;
+            bool result = m_node.m_reference == m_threadState.m_hardReference;
 
-            m_reference.make_soft_reference_to(
+            m_node.m_reference.make_soft_reference_to(
                 m_threadState.m_hardReference.get());
 
             return result;
@@ -404,8 +428,8 @@ public:
     {
     protected:
         using read_operation::m_section;
-        using read_operation::m_reference;
         using read_operation::m_threadState;
+        using read_operation::m_node;
         using read_operation::make_hard_reference;
         using read_operation::update_thread_local_references;
 
@@ -458,7 +482,7 @@ public:
             operation::check_thread();
 
             assert(m_replacement.is_hard_reference());
-            m_reference = m_replacement;
+            m_node.m_reference = m_replacement;
             m_replacement.exchange(
                 m_section.m_currentValueHardReference
             );
@@ -482,7 +506,7 @@ public:
 
             make_hard_reference();
 
-            bool result = m_reference.compare_exchange_strong(
+            bool result = m_node.m_reference.compare_exchange_strong(
                 m_section.m_currentValueHardReference,
                 std::move(m_replacement)
             );
