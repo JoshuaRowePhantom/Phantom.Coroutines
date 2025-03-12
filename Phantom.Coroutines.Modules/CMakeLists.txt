@@ -20,7 +20,7 @@ target_sources(
     "coroutine.ixx" 
     "non_copyable.ixx"
     "type_traits.ixx"
- "reusable_consecutive_global_id.ixx" "assert_same_thread.ixx")
+ "reusable_consecutive_global_id.ixx" "assert_same_thread.ixx" "consecutive_thread_id.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules
