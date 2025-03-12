@@ -1,6 +1,5 @@
-#pragma once
-
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#pragma once
 #include <optional>
 #include <tuple>
 #include <type_traits>
@@ -70,6 +69,7 @@ template<
 > concept Label =
 std::is_empty_v<T>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     template<typename> typename Filter,
     is_template_instantiation<std::tuple> TypesTuple,

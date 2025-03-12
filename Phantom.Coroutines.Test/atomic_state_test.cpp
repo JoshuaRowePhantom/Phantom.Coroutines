@@ -1,5 +1,9 @@
 #include <gtest/gtest.h>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.atomic_state;
+#else
 #include "Phantom.Coroutines/detail/atomic_state.h"
+#endif
 
 namespace Phantom::Coroutines
 {

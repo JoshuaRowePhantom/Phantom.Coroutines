@@ -16,9 +16,11 @@ target_sources(
     FILE_SET CXX_MODULES
     TYPE CXX_MODULES
     FILES
+    "atomic_state.ixx"
+    "coroutine.ixx" 
     "non_copyable.ixx"
     "type_traits.ixx"
- "coroutine.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

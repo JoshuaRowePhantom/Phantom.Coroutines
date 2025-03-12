@@ -1,3 +1,4 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 #include <atomic>
 #include <assert.h>
@@ -6,6 +7,7 @@
 #include <type_traits>
 #include "coroutine.h"
 #include "Phantom.Coroutines/type_traits.h"
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -741,11 +743,17 @@ auto compare_exchange_weak_loop(
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::SingletonState;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::StateSet;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::StateSetTraits;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_atomic_state;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::atomic_state;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::state;
 
 }
