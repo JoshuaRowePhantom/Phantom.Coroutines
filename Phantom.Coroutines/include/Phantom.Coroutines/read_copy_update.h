@@ -9,6 +9,7 @@
 #include "detail/assert_same_thread.h"
 #include "detail/scope_guard.h"
 #include "detail/immovable_object.h"
+#include "nonatomic_shared_ptr.h"
 #include "thread_local_storage.h"
 
 namespace Phantom::Coroutines
@@ -43,148 +44,8 @@ private immovable_object
     using atomic_hard_reference_type = std::atomic<hard_reference_type>;
     using sequence_number = size_t;
     using atomic_sequence_number = std::atomic<size_t>;
-
-    class reference
-    {
-        hard_reference_type m_hardReference;
-        soft_reference_type m_softReference = nullptr;
-
-    public:
-        reference(
-            hard_reference_type hardReference
-            ) noexcept
-            :
-            m_hardReference(std::move(hardReference)),
-            m_softReference{ m_hardReference.get() }
-        {
-        }
-
-        reference(
-            soft_reference_type softReference = nullptr
-        ) noexcept :
-            m_softReference{ softReference }
-        {
-        }
-
-        reference& operator=(
-            reference&& other
-        ) noexcept
-        {
-            m_hardReference = std::move(other.m_hardReference);
-            m_softReference = other.m_softReference;
-            other.m_softReference = nullptr;
-            return *this;
-        }
-        
-        reference& operator=(
-            const reference& other
-            ) noexcept = default;
-
-        bool is_hard_reference() const noexcept
-        {
-            return m_hardReference.get() == m_softReference;
-        }
-
-        void make_hard_reference_to(
-            const reference& other
-        ) noexcept
-        {
-            make_hard_reference_to(other.m_hardReference);
-        }
-
-        void make_hard_reference_to(
-            hard_reference_type other
-        ) noexcept
-        {
-            m_hardReference = std::move(other);
-            m_softReference = m_hardReference.get();
-        }
-
-        void make_soft_reference_to(
-            const reference& other
-        ) noexcept
-        {
-            m_hardReference = nullptr;
-            m_softReference = other.m_softReference;
-        }
-
-        void make_soft_reference_to(
-            const hard_reference_type& other
-        ) noexcept
-        {
-            m_hardReference = nullptr;
-            m_softReference = other.get();
-        }
-
-        void exchange(
-            atomic_hard_reference_type& other
-        ) noexcept
-        {
-            assert(is_hard_reference());
-            m_hardReference = other.exchange(
-                std::move(m_hardReference)
-            );
-            m_softReference = m_hardReference.get();
-        }
-        
-        bool compare_exchange_strong(
-            atomic_hard_reference_type& destination,
-            reference&& desired
-        ) noexcept
-        {
-            assert(is_hard_reference());
-            assert(desired.is_hard_reference());
-
-            bool result = destination.compare_exchange_strong(
-                m_hardReference,
-                desired.m_hardReference
-            );
-            m_softReference = m_hardReference.get();
-            if (result)
-            {
-                swap(
-                    *this,
-                    desired);
-            }
-
-            return result;
-        }
-        
-        auto operator==(
-            soft_reference_type softReference
-            ) const noexcept
-        {
-            return m_softReference == softReference;
-        }
-        
-        auto operator==(
-            const hard_reference_type& hardReference
-            ) const noexcept
-        {
-            return m_softReference == hardReference.get();
-        }
-
-        auto operator==(
-            const reference& other
-            ) const noexcept
-        {
-            return m_softReference == other.m_softReference;
-        }
-
-        auto get() const noexcept
-        {
-            return m_softReference;
-        }
-
-        friend void swap(
-            reference& left,
-            reference& right
-        ) noexcept
-        {
-            std::swap(left.m_hardReference, right.m_hardReference);
-            std::swap(left.m_softReference, right.m_softReference);
-        }
-    };
+    using nonatomic_indirect_hard_reference_type = nonatomic_shared_ptr<hard_reference_type>;
+    using nonatomic_hard_reference_type = nonatomic_shared_ptr<value_holder>;
 
     // This is the most recent value set on the section.
     atomic_hard_reference_type m_currentValueHardReference;
@@ -198,69 +59,32 @@ private immovable_object
         m_sequenceNumber.fetch_add(1, std::memory_order_seq_cst);
     }
 
+    static nonatomic_hard_reference_type make_nonatomic_hard_reference(
+        hard_reference_type hardReference
+    )
+    {
+        auto indirectHardReference = make_nonatomic_shared<hard_reference_type>(
+            std::move(hardReference));
+
+        return nonatomic_hard_reference_type
+        {
+            std::move(indirectHardReference),
+            indirectHardReference->get()
+        };
+    }
+
     class operation_node;
 
     struct thread_state
     {
-        hard_reference_type m_hardReference;
+        nonatomic_indirect_hard_reference_type m_indirectHardReference;
+        nonatomic_hard_reference_type m_hardReference;
         sequence_number m_sequenceNumber = 0;
-        
-        // The head and tail exist to allow link() and unlink() to be
-        // as simple as possible with no conditionals.
-        operation_node m_operationsHead;
-        operation_node m_operationsTail;
-
-        thread_state()
-            :
-            m_operationsHead{ nullptr },
-            m_operationsTail{ nullptr }
-        {
-            m_operationsHead.m_nextOperationInThread = &m_operationsTail;
-            m_operationsTail.m_previousOperationInThread = &m_operationsHead;
-        }
     };
 
     thread_local_storage<
         thread_state
     > m_threadState;
-
-    class operation_node
-    {
-    public:
-        operation_node(
-            soft_reference_type initialValue
-        ) :
-            m_reference{ initialValue }
-        { }
-
-        reference m_reference;
-        operation_node* m_nextOperationInThread = nullptr;
-        operation_node* m_previousOperationInThread = nullptr;
-
-        void link(
-            thread_state& threadState
-        ) noexcept
-        {
-            m_previousOperationInThread = &threadState.m_operationsHead;
-            m_nextOperationInThread = threadState.m_operationsHead.m_nextOperationInThread;
-            m_nextOperationInThread->m_previousOperationInThread = this;
-            threadState.m_operationsHead.m_nextOperationInThread = this;
-        }
-
-        void unlink(
-        ) noexcept
-        {
-            m_previousOperationInThread->m_nextOperationInThread = m_nextOperationInThread;
-            m_nextOperationInThread->m_previousOperationInThread = m_previousOperationInThread;
-        }
-
-        void make_hard_reference_to(
-            const hard_reference_type& hardReference) noexcept
-        {
-            m_reference.make_hard_reference_to(
-                hardReference);
-        }
-    };
 
     class operation
         :
@@ -270,7 +94,7 @@ private immovable_object
     protected:
         read_copy_update_section& m_section;
         thread_state& m_threadState;
-        operation_node m_node;
+        nonatomic_hard_reference_type m_reference;
 
     private:
         bool need_refresh() const noexcept
@@ -287,20 +111,12 @@ private immovable_object
             :
             m_section{ section },
             m_threadState{ section.m_threadState.get() },
-            m_node{ m_threadState.m_hardReference.get() }
+            m_reference{ m_threadState.m_hardReference }
         {
-            m_node.link(
-                m_threadState
-            );
             if (need_refresh()) [[unlikely]]
             {
                 refresh();
             }
-        }
-
-        ~operation() noexcept
-        {
-            m_node.unlink();
         }
 
         [[msvc::forceinline]]
@@ -310,7 +126,12 @@ private immovable_object
             {
                 return false;
             }
+            return force_refresh_thread_local_reference();
+        }
 
+        [[msvc::forceinline]]
+        bool force_refresh_thread_local_reference() noexcept
+        {
             m_threadState.m_sequenceNumber = m_section.m_sequenceNumber.load(
                 std::memory_order_seq_cst
             );
@@ -318,59 +139,27 @@ private immovable_object
             auto newHardReference = m_section.m_currentValueHardReference.load(
                 std::memory_order_seq_cst);
 
-            if (newHardReference == m_threadState.m_hardReference)
+            if (newHardReference.get() == m_threadState.m_hardReference.get())
             {
                 return false;
             }
 
-            update_thread_local_references(
-                m_threadState.m_hardReference);
-
-            m_threadState.m_hardReference = std::move(newHardReference);
+            m_threadState.m_indirectHardReference = make_nonatomic_shared<hard_reference_type>(
+                std::move(newHardReference)
+            );
+            m_threadState.m_hardReference = nonatomic_hard_reference_type
+            {
+                m_threadState.m_indirectHardReference,
+                m_threadState.m_indirectHardReference->get()
+            };
 
             return true;
         }
-
-        [[msvc::noinline]]
-        void update_thread_local_references(
-            const hard_reference_type& oldHardReference
-        ) noexcept
-        {
-            // We're going to replace the thread-local hard reference,
-            // so make sure all other operations on the current thread
-            // pointing at the same value holder get a hard reference.
-            for (auto updatedOperation = m_threadState.m_operationsHead.m_nextOperationInThread;
-                updatedOperation;
-                updatedOperation = updatedOperation->m_nextOperationInThread)
-            {
-                if (updatedOperation->m_reference == oldHardReference)
-                {
-                    updatedOperation->make_hard_reference_to(
-                        oldHardReference);
-                }
-            }
-        }
-
-        void make_hard_reference() noexcept
-        {
-            if (m_node.m_reference.is_hard_reference())
-            {
-                return;
-            }
-
-            // If the reference is a soft reference,
-            // it must refere to the thread-local value.
-            assert(m_node.m_reference == m_threadState.m_hardReference);
-
-            m_node.m_reference.make_hard_reference_to(
-                m_threadState.m_hardReference);
-        }
-
     public:
         Value& value() noexcept
         {
             check_thread();
-            return m_node.m_reference.get()->m_value;
+            return m_reference->m_value;
         }
 
         // Read the value of the read_copy_update_section as
@@ -394,10 +183,8 @@ private immovable_object
         {
             refresh_thread_local_reference();
 
-            bool result = m_node.m_reference == m_threadState.m_hardReference;
-
-            m_node.m_reference.make_soft_reference_to(
-                m_threadState.m_hardReference.get());
+            bool result = m_reference == m_threadState.m_hardReference;
+            m_reference = m_threadState.m_hardReference;
 
             return result;
         }
@@ -427,16 +214,15 @@ public:
     protected:
         using read_operation::m_section;
         using read_operation::m_threadState;
-        using read_operation::m_node;
-        using read_operation::make_hard_reference;
-        using read_operation::update_thread_local_references;
+        using read_operation::m_reference;
+        using read_operation::force_refresh_thread_local_reference;
 
     public:
         using read_operation::refresh;
         using read_operation::value;
 
     private:
-        reference m_replacement;
+        hard_reference_type m_replacement;
 
     public:
         update_operation(
@@ -462,11 +248,11 @@ public:
         )
             requires std::constructible_from<Value, decltype(args)...>
         {
-            m_replacement.make_hard_reference_to(std::make_shared<value_holder>(
+            m_replacement = std::make_shared<value_holder>(
                 std::forward<decltype(args)>(args)...
-                ));
+            );
 
-            return replacement();
+            return m_replacement->m_value;
         }
 
         // Perform the exchange.
@@ -479,13 +265,17 @@ public:
         {
             operation::check_thread();
 
-            assert(m_replacement.is_hard_reference());
-            m_node.m_reference = m_replacement;
-            m_replacement.exchange(
-                m_section.m_currentValueHardReference
+            assert(m_replacement);
+            
+            m_reference = make_nonatomic_hard_reference(
+                m_replacement);
+
+            m_replacement = m_section.m_currentValueHardReference.exchange(
+                std::move(m_replacement)
             );
 
             m_section.updateSequenceNumber();
+
             return value();
         }
 
@@ -502,19 +292,38 @@ public:
         {
             operation::check_thread();
 
-            make_hard_reference();
+            // Operations don't have hard_references to the value,
+            // so we have to force a refresh to compute a value we can compare against.
+            force_refresh_thread_local_reference();
 
-            bool result = m_node.m_reference.compare_exchange_strong(
-                m_section.m_currentValueHardReference,
-                std::move(m_replacement)
-            );
+            auto expectedHardReference = *m_threadState.m_indirectHardReference;
 
-            if (result)
+            // The new thread-local value might already indicate
+            // that the compare-and-swap would fail.
+            if (expectedHardReference.get() != m_reference.get())
             {
-                m_section.updateSequenceNumber();
+                m_reference = m_threadState.m_hardReference;
+                return false;
             }
 
-            return result;
+            if (m_section.m_currentValueHardReference.compare_exchange_strong(
+                expectedHardReference,
+                m_replacement))
+            {
+                m_section.updateSequenceNumber();
+
+                assert(expectedHardReference.get() == m_threadState.m_indirectHardReference->get());
+                m_reference = make_nonatomic_hard_reference(
+                    std::move(m_replacement));
+                m_replacement = *m_threadState.m_indirectHardReference;
+                return true;
+            }
+            else
+            {
+                m_reference = make_nonatomic_hard_reference(
+                    std::move(expectedHardReference));
+                return false;
+            }
         }
 
         // Obtain the value created by the previous operator=
