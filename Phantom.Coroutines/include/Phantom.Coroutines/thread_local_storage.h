@@ -284,7 +284,6 @@ class thread_local_storage
         return *threadStateSetter.m_threadState;
     }
 
-    [[msvc::forceinline]]
     thread_state& get_thread_state()
     {
         static thread_local thread_state* threadStatePointer = nullptr;
@@ -346,7 +345,6 @@ public:
         }
     }
 
-    [[msvc::forceinline]]
     Value& get()
     {
         return get_thread_state().get(
@@ -354,7 +352,6 @@ public:
             m_initializer);
     }
 
-    [[msvc::forceinline]] 
     const Value& get() const
     {
         return get_thread_state().get(
