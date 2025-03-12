@@ -22,7 +22,7 @@
 #define PHANTOM_COROUTINES_NO_REJECT_LAMBDA_WITH_INVALID_MEMBER 1
 #endif
 
-#endif
+#endif // _MSVC_LANG
 
 #if !NDEBUG
 #ifndef PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING
@@ -30,7 +30,8 @@
 #endif
 #endif
 
-namespace Phantom::Coroutines
-{
-static constexpr size_t cache_line_size = 64;
-}
+#ifdef PHANTOM_COROUTINES_COMPILING_MODULES
+#define PHANTOM_COROUTINES_MODULE_EXPORT export
+#else
+#define PHANTOM_COROUTINES_MODULE_EXPORT
+#endif

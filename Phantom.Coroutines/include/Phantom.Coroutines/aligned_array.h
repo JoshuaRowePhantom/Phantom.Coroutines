@@ -3,6 +3,7 @@
 #include "detail/config.h"
 #include<array>
 #include<compare>
+#include<new>
 
 namespace Phantom::Coroutines
 {
@@ -206,6 +207,7 @@ public:
 template<
     typename T,
     size_t Size
-> using cache_aligned_array = aligned_array<T, Size, cache_line_size>;
+> using cache_aligned_array = aligned_array<T, Size, std::hardware_destructive_interference_size>;
+
 
 }
