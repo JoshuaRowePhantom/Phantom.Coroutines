@@ -1,14 +1,17 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
 #if !NDEBUG
 #include <assert.h>
 #include <thread>
 #endif
+#endif
 
 namespace Phantom::Coroutines::detail
 {
 
 #if NDEBUG
+PHANTOM_COROUTINES_MODULE_EXPORT
 class assert_same_thread
 {
 public:
@@ -25,6 +28,7 @@ public:
     }
 };
 #else
+PHANTOM_COROUTINES_MODULE_EXPORT
 class assert_same_thread
 {
     std::thread::id m_threadId;
