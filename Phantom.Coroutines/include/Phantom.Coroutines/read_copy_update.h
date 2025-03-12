@@ -24,8 +24,6 @@ class read_copy_update_section
     :
 private immovable_object
 {
-    typedef size_t epoch_type;
-
     typedef Value value_type;
     typedef std::remove_const_t<Value> mutable_value_type;
 

@@ -297,6 +297,8 @@ TEST(read_copy_update_test, update_operation_compare_exchange_failure_set_value_
 
 TEST(read_copy_update_test, performance_test)
 {
+    bool debug = false;
+
     std::vector<std::thread> threads;
     read_copy_update_section<std::string> section;
     std::atomic_flag flag;
@@ -317,15 +319,13 @@ TEST(read_copy_update_test, performance_test)
         totalReads += sectionReadCounter;
     };
 
-    for (unsigned threadCounter = 0; threadCounter < std::thread::hardware_concurrency() /*1*/; ++threadCounter)
-    //for (unsigned threadCounter = 0; threadCounter < 1; ++threadCounter)
+    for (unsigned threadCounter = 0; threadCounter < (debug ? 1 : std::thread::hardware_concurrency()); ++threadCounter)
     {
         threads.emplace_back(threadLambda);
     }
 
     using namespace std::chrono_literals;
-    std::this_thread::sleep_for(5s);
-    //std::this_thread::sleep_for(500s);
+    std::this_thread::sleep_for(debug ? 5000s : 5s);
 
     flag.test_and_set();
     for (auto& thread : threads)
