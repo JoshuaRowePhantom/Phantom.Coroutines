@@ -37,6 +37,8 @@ TEST(read_copy_update_test, can_modify_value_before_exchange)
     auto operation = section.update();
     operation.emplace("hello world 2")[0] = '2';
     operation.exchange();
+    ASSERT_EQ("2ello world 2", *operation);
+    ASSERT_EQ("hello world 1", operation.original());
 
     ASSERT_EQ(*section.read(), "2ello world 2");
 }
@@ -103,7 +105,7 @@ TEST(read_copy_update_test, read_continues_to_return_value_at_beginning_of_read_
     ASSERT_EQ(*readOperation1, "hello world 1");
 }
 
-TEST(read_copy_update_test, object_released_after_replace_and_reread)
+TEST(read_copy_update_test, write_operation_object_released_after_replace)
 {
     lifetime_statistics statistics1;
     read_copy_update_section<lifetime_tracker> section{ statistics1.tracker() };
@@ -113,16 +115,11 @@ TEST(read_copy_update_test, object_released_after_replace_and_reread)
     lifetime_statistics statistics2;
     section.write().emplace(statistics2.tracker());
 
-    ASSERT_EQ(1, statistics1.instance_count);
-    ASSERT_EQ(1, statistics2.instance_count);
-
-    std::ignore = section.operator->();
-
     ASSERT_EQ(0, statistics1.instance_count);
     ASSERT_EQ(1, statistics2.instance_count);
 }
 
-TEST(read_copy_update_test, object_released_after_replace_and_last_reader_released_and_reread)
+TEST(read_copy_update_test, write_operation_object_released_after_replace_and_last_reader_released)
 {
     lifetime_statistics statistics1;
     read_copy_update_section<lifetime_tracker> section{ statistics1.tracker() };
@@ -161,10 +158,6 @@ TEST(read_copy_update_test, object_released_after_replace_and_last_reader_releas
 
     readOperation1.reset();
 
-    ASSERT_EQ(1, statistics1.instance_count);
-    ASSERT_EQ(1, statistics2.instance_count);
-
-    std::ignore = section.operator->();
     ASSERT_EQ(0, statistics1.instance_count);
     ASSERT_EQ(1, statistics2.instance_count);
 }
@@ -215,7 +208,7 @@ TEST(read_copy_update_test, many_parallel_uses)
     }
 }
 
-TEST(read_copy_update_test, update_operation_exchange_set_value_to_new_and_sets_replacement_to_old_value)
+TEST(read_copy_update_test, update_operation_store_sets_value_to_new_and_sets_replacement_and_original_to_empty)
 {
     lifetime_statistics statistics1;
     lifetime_statistics statistics2;
@@ -227,12 +220,45 @@ TEST(read_copy_update_test, update_operation_exchange_set_value_to_new_and_sets_
         ASSERT_EQ(statistics1, *section);
         ASSERT_EQ(statistics1, *updateOperation);
         ASSERT_EQ(statistics2, updateOperation.replacement());
-        updateOperation.exchange();
+        updateOperation.store();
 
         ASSERT_EQ(statistics2, *updateOperation);
-        ASSERT_EQ(statistics1, updateOperation.replacement());
 
         ASSERT_EQ(statistics2, *section);
+        ASSERT_EQ(0, statistics1.instance_count);
+        ASSERT_EQ(1, statistics2.instance_count);
+    }
+
+    ASSERT_EQ(0, statistics1.instance_count);
+    ASSERT_EQ(1, statistics2.instance_count);
+}
+
+TEST(read_copy_update_test, update_operation_exchange_set_value_to_new_and_sets_original_to_old_value)
+{
+    lifetime_statistics statistics1;
+    lifetime_statistics statistics2;
+    read_copy_update_section<lifetime_tracker> section{ statistics1 };
+
+    {
+        auto readOperation = section.read();
+
+        {
+            auto updateOperation = section.update();
+            updateOperation = statistics2;
+            ASSERT_EQ(statistics1, *section);
+            ASSERT_EQ(statistics1, *updateOperation);
+            ASSERT_EQ(statistics2, updateOperation.replacement());
+            updateOperation.exchange();
+
+            ASSERT_EQ(statistics2, *updateOperation);
+            ASSERT_EQ(statistics1, updateOperation.original());
+
+            ASSERT_EQ(statistics2, *section);
+            ASSERT_EQ(1, statistics1.instance_count);
+            ASSERT_EQ(1, statistics2.instance_count);
+            ASSERT_EQ(&*readOperation, &updateOperation.original());
+        }
+
         ASSERT_EQ(1, statistics1.instance_count);
         ASSERT_EQ(1, statistics2.instance_count);
     }
@@ -240,25 +266,34 @@ TEST(read_copy_update_test, update_operation_exchange_set_value_to_new_and_sets_
     ASSERT_EQ(1, statistics2.instance_count);
 }
 
-TEST(read_copy_update_test, update_operation_compare_exchange_success_set_value_to_new_and_sets_replacement_to_old_value)
+TEST(read_copy_update_test, update_operation_compare_exchange_success_set_value_to_new_and_sets_original_to_old_value)
 {
     lifetime_statistics statistics1;
     lifetime_statistics statistics2;
     read_copy_update_section<lifetime_tracker> section{ statistics1 };
 
     {
-        auto updateOperation = section.update();
-        updateOperation = statistics2;
-        ASSERT_EQ(statistics1, *section);
-        ASSERT_EQ(statistics1, *updateOperation);
-        ASSERT_EQ(statistics2, updateOperation.replacement());
-        bool result = updateOperation.compare_exchange_strong();
-        ASSERT_EQ(true, result);
+        auto readOperation = section.read();
 
-        ASSERT_EQ(statistics2, *updateOperation);
-        ASSERT_EQ(statistics1, updateOperation.replacement());
+        {
+            auto updateOperation = section.update();
+            updateOperation = statistics2;
+            ASSERT_EQ(statistics1, *section);
+            ASSERT_EQ(statistics1, *updateOperation);
+            ASSERT_EQ(statistics2, updateOperation.replacement());
+            bool result = updateOperation.compare_exchange_strong();
+            ASSERT_EQ(true, result);
 
-        ASSERT_EQ(statistics2, *section);
+            ASSERT_EQ(statistics2, *updateOperation);
+            ASSERT_EQ(statistics1, updateOperation.original());
+
+            ASSERT_EQ(&*readOperation, &updateOperation.original());
+
+            ASSERT_EQ(statistics2, *section);
+            ASSERT_EQ(1, statistics1.instance_count);
+            ASSERT_EQ(1, statistics2.instance_count);
+            }
+
         ASSERT_EQ(1, statistics1.instance_count);
         ASSERT_EQ(1, statistics2.instance_count);
     }

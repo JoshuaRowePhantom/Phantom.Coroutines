@@ -83,6 +83,20 @@ private immovable_object
         nonatomic_indirect_hard_reference_type m_indirectHardReference;
         nonatomic_hard_reference_type m_hardReference;
         sequence_number m_sequenceNumber = 0;
+
+        void make_hard_reference_to(
+            hard_reference_type hardReference
+        )
+        {
+            m_indirectHardReference = make_nonatomic_shared<hard_reference_type>(
+                std::move(hardReference));
+
+            m_hardReference = nonatomic_hard_reference_type
+            {
+                m_indirectHardReference,
+                m_indirectHardReference->get()
+            };
+        }
     };
 
     thread_local_storage<
@@ -226,6 +240,7 @@ public:
 
     private:
         hard_reference_type m_replacement;
+        hard_reference_type m_original;
 
     public:
         update_operation(
@@ -258,23 +273,53 @@ public:
             return m_replacement->m_value;
         }
 
-        // Perform the exchange.
+        // Perform a store operation
         // using the value that was assigned or emplaced.
         // If there was no previous assignment or emplacement, behavior is undefined.
         // The value of the operator-> and operator* will be
         // updated to the new value,
-        // and replacement will become the old value.
-        const Value& exchange() noexcept
+        // and replacement and original will become empty.
+        Value& store() noexcept
         {
             operation::check_thread();
 
             assert(m_replacement);
             
-            m_reference = make_nonatomic_hard_reference(
-                m_replacement);
-
-            m_replacement = m_section.m_currentValueHardReference.exchange(
+            m_threadState.make_hard_reference_to(
                 std::move(m_replacement)
+            );
+            m_reference = m_threadState.m_hardReference;
+
+            m_section.m_currentValueHardReference.store(
+                *m_threadState.m_indirectHardReference
+            );
+
+            m_section.updateSequenceNumber();
+            m_original.reset();
+
+            return value();
+        }
+        
+        // Perform the exchange.
+        // using the value that was assigned or emplaced.
+        // If there was no previous assignment or emplacement, behavior is undefined.
+        // The value of the operator-> and operator* will be
+        // updated to the new value,
+        // and replacement will become empty,
+        // and original will become the original value.
+        Value& exchange() noexcept
+        {
+            operation::check_thread();
+
+            assert(m_replacement);
+
+            m_threadState.make_hard_reference_to(
+                std::move(m_replacement)
+            );
+            m_reference = m_threadState.m_hardReference;
+
+            m_original = m_section.m_currentValueHardReference.exchange(
+                *m_threadState.m_indirectHardReference
             );
 
             m_section.updateSequenceNumber();
@@ -299,32 +344,31 @@ public:
             // so we have to force a refresh to compute a value we can compare against.
             force_refresh_thread_local_reference();
 
-            auto expectedHardReference = *m_threadState.m_indirectHardReference;
+            m_original = *m_threadState.m_indirectHardReference;
 
             // The new thread-local value might already indicate
             // that the compare-and-swap would fail.
-            if (expectedHardReference.get() != m_reference.get())
+            if (m_original.get() != m_reference.get())
             {
                 m_reference = m_threadState.m_hardReference;
                 return false;
             }
 
             if (m_section.m_currentValueHardReference.compare_exchange_strong(
-                expectedHardReference,
+                m_original,
                 m_replacement))
             {
                 m_section.updateSequenceNumber();
 
-                assert(expectedHardReference.get() == m_threadState.m_indirectHardReference->get());
+                assert(m_original.get() == m_threadState.m_indirectHardReference->get());
                 m_reference = make_nonatomic_hard_reference(
                     std::move(m_replacement));
-                m_replacement = *m_threadState.m_indirectHardReference;
+                m_replacement.reset();
                 return true;
             }
             else
             {
-                m_reference = make_nonatomic_hard_reference(
-                    std::move(expectedHardReference));
+                m_reference = m_threadState.m_hardReference;
                 return false;
             }
         }
@@ -337,6 +381,16 @@ public:
         {
             operation::check_thread();
             return m_replacement.get()->m_value;
+        }
+
+        // Obtain the original value stored in the section
+        // before any exchange or compare_exchange operation.
+        // If no exchange operation has been done, 
+        // behavior is undefined.
+        [[nodiscard]]
+        Value& original() const noexcept
+        {
+            return m_original->m_value;
         }
     };
 
@@ -372,7 +426,7 @@ public:
                 std::forward<decltype(args)>(args)...
             );
 
-            return update_operation::exchange();
+            return update_operation::store();
         }
     };
 
