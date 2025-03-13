@@ -1,11 +1,16 @@
+#ifndef PHANTOM_COROUTINES_TESTING_MODULES
+#include "Phantom.Coroutines/detail/config.h"
 #include <assert.h>
 #include <memory>
+#endif
 
-namespace Phantom::Coroutines::detail
+namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class lifetime_tracker;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class lifetime_statistics
 {
 public:
@@ -32,6 +37,7 @@ class lifetime_tracker
     lifetime_statistics * m_statistics;
     bool m_movedFrom = false;
 
+public:
     lifetime_tracker(
         lifetime_statistics* statistics
     ) : m_statistics(
@@ -41,7 +47,6 @@ class lifetime_tracker
         m_statistics->instance_count++;
     }
 
-public:
     lifetime_tracker(
         const lifetime_tracker& other
     ) : m_statistics(

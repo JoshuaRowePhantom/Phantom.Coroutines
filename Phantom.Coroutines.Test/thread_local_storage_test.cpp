@@ -1,11 +1,12 @@
 #include <gtest/gtest.h>
-#include "lifetime_tracker.h"
 #include <thread>
 
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.Test.lifetime_tracker;
 import Phantom.Coroutines.thread_local_storage;
 #else
 #include "Phantom.Coroutines/thread_local_storage.h"
+#include "lifetime_tracker.h"
 #endif
 
 using namespace Phantom::Coroutines;

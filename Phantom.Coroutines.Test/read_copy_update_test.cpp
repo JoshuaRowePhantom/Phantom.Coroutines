@@ -1,13 +1,14 @@
 #include <gtest/gtest.h>
-#include "lifetime_tracker.h"
 #include <chrono>
 #include <optional>
 #include <shared_mutex>
 
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.Test.lifetime_tracker;
 import Phantom.Coroutines.read_copy_update;
 #else
 #include "Phantom.Coroutines/read_copy_update.h"
+#include "lifetime_tracker.h"
 #endif
 
 using namespace Phantom::Coroutines;

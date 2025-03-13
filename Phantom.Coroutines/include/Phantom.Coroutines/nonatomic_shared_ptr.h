@@ -2,6 +2,7 @@
 #pragma once
 #include <assert.h>
 #include <optional>
+#include <utility>
 #include "detail/config.h"
 #endif
 
@@ -37,6 +38,28 @@ struct nonatomic_shared_ptr_embedded_value_control_block
     }
 };
 
+template<
+    typename T
+>
+struct typed_externally_allocated_control_block
+    :
+    public detail::nonatomic_shared_ptr_control_block
+{
+    T* m_value;
+
+    typed_externally_allocated_control_block(
+        T* value
+    ) :
+        m_value{ value }
+    {
+    }
+
+    void destroy_and_deallocate() override
+    {
+        delete m_value;
+    }
+};
+
 }
 
 // nonatomic_shared_ptr is like shared_ptr,
@@ -54,25 +77,6 @@ class nonatomic_shared_ptr
 
     detail::nonatomic_shared_ptr_control_block* m_controlBlock = nullptr;
     T* m_value = nullptr;
-
-    struct typed_externally_allocated_control_block
-        :
-        public detail::nonatomic_shared_ptr_control_block
-    {
-        T* m_value;
-
-        typed_externally_allocated_control_block(
-            T* value
-        ) : 
-            m_value{ value }
-        {
-        }
-
-        void destroy_and_deallocate() override
-        {
-            delete m_value;
-        }
-    };
 
     template<
         typename T
@@ -94,8 +98,12 @@ public:
     )
     { }
 
+    template<
+        typename U
+    >
+    requires std::convertible_to<U*, T*>
     explicit nonatomic_shared_ptr(
-        T* value
+        U* value
     )
     {
         reset(value);
@@ -150,7 +158,8 @@ public:
             assert(other.m_controlBlock);
             m_controlBlock = other.m_controlBlock;
             m_value = value;
-            ++m_controlBlock->m_referenceCount;
+            other.m_controlBlock = nullptr;
+            other.m_value = nullptr;
         }
     }
 
@@ -210,8 +219,7 @@ public:
         return m_value;
     }
 
-    void reset(
-        T* value = nullptr)
+    void reset()
     {
         if (m_controlBlock
             &&
@@ -219,10 +227,28 @@ public:
         {
             m_controlBlock->destroy_and_deallocate();
         }
-        m_value = value;
-        if (m_value)
+    }
+
+    void reset(
+        nullptr_t
+    )
+    {
+        return reset<T>(nullptr);
+    }
+
+    template<
+        typename U
+    >
+        requires std::convertible_to<U*, T*>
+    void reset(
+        U* value
+    )
+    {
+        reset();
+        if (value)
         {
-            m_controlBlock = new typed_externally_allocated_control_block(m_value);
+            m_controlBlock = new detail::typed_externally_allocated_control_block<U>(value);
+            m_value = value;
         }
     }
 
@@ -252,10 +278,16 @@ public:
         nonatomic_shared_ptr& right
     )
     {
+        using std::swap;
         swap(left.m_controlBlock, right.m_controlBlock);
         swap(left.m_value, right.m_value);
     }
 };
+
+template<
+    typename T
+>
+nonatomic_shared_ptr(T*) -> nonatomic_shared_ptr<T>;
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
