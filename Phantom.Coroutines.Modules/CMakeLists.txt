@@ -28,7 +28,7 @@ target_sources(
     "scope_guard.ixx"
     "thread_local_storage.ixx" 
     "type_traits.ixx"
-)
+ "Phantom.Coroutines.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules
