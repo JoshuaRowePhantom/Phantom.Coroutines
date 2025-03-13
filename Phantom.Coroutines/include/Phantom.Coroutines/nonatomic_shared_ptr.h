@@ -1,5 +1,8 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 #include <optional>
+#include "detail/config.h"
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -37,6 +40,7 @@ struct nonatomic_shared_ptr_embedded_value_control_block
 
 // nonatomic_shared_ptr is like shared_ptr,
 // but the reference counting does not use std::atomic.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 >
@@ -252,6 +256,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > nonatomic_shared_ptr<T> make_nonatomic_shared(

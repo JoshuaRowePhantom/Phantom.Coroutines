@@ -22,10 +22,12 @@ target_sources(
     "coroutine.ixx" 
     "immovable_object.ixx"
     "non_copyable.ixx"
+    "nonatomic_shared_ptr.ixx"
     "reusable_consecutive_global_id.ixx"
     "scope_guard.ixx"
+    "thread_local_storage.ixx" 
     "type_traits.ixx"
- "thread_local_storage.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules
