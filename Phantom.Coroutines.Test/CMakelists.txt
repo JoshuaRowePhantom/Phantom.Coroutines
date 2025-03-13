@@ -69,6 +69,7 @@ add_executable(
     "detail/non_copyable_test.cpp"
     "detail/scope_guard_test.cpp"
     "reusable_consecutive_global_id_test.cpp"
+    "thread_local_storage_test.cpp"
 )
 
 target_compile_definitions(

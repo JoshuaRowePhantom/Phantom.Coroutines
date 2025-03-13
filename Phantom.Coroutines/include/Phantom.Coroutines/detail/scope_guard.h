@@ -3,6 +3,7 @@
 
 #include <concepts>
 #include <type_traits>
+#include "config.h"
 #include "immovable_object.h"
 #endif
 

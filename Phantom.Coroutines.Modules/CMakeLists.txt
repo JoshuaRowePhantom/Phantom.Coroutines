@@ -25,7 +25,7 @@ target_sources(
     "reusable_consecutive_global_id.ixx"
     "scope_guard.ixx"
     "type_traits.ixx"
-)
+ "thread_local_storage.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules

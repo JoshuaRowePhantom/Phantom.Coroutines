@@ -1,13 +1,17 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
 #include <concepts>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <type_traits>
 #include <vector>
+#include "detail/config.h"
 #include "detail/consecutive_thread_id.h"
 #include "reusable_consecutive_global_id.h"
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -398,6 +402,7 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::thread_local_storage;
 
 }
