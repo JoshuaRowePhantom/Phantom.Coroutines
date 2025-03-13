@@ -1,4 +1,5 @@
 module;
+#include <assert.h>
 #include <optional>
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.nonatomic_shared_ptr;

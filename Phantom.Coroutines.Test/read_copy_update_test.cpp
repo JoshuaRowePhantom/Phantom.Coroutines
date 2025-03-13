@@ -1,11 +1,14 @@
 #include <gtest/gtest.h>
 #include "lifetime_tracker.h"
-#include "Phantom.Coroutines/async_scope.h"
-#include "Phantom.Coroutines/read_copy_update.h"
-#include "Phantom.Coroutines/static_thread_pool.h"
-#include "Phantom.Coroutines/sync_wait.h"
-#include <optional>
 #include <chrono>
+#include <optional>
+#include <shared_mutex>
+
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.read_copy_update;
+#else
+#include "Phantom.Coroutines/read_copy_update.h"
+#endif
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;

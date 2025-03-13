@@ -1,5 +1,6 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
+#include <assert.h>
 #include <optional>
 #include "detail/config.h"
 #endif

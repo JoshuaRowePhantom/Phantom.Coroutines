@@ -1,3 +1,4 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
 #include <atomic>
@@ -6,11 +7,13 @@
 #include <mutex>
 #include <thread>
 #include <unordered_set>
+#include "detail/config.h"
 #include "detail/assert_same_thread.h"
 #include "detail/scope_guard.h"
 #include "detail/immovable_object.h"
 #include "nonatomic_shared_ptr.h"
 #include "thread_local_storage.h"
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -477,6 +480,7 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::read_copy_update_section;
 
 }

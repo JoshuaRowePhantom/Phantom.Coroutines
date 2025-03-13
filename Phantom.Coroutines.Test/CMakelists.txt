@@ -68,6 +68,7 @@ add_executable(
     "atomic_state_test.cpp"
     "detail/non_copyable_test.cpp"
     "detail/scope_guard_test.cpp"
+    "read_copy_update_test.cpp"
     "reusable_consecutive_global_id_test.cpp"
     "thread_local_storage_test.cpp"
 )

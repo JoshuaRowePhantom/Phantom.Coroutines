@@ -23,6 +23,7 @@ target_sources(
     "immovable_object.ixx"
     "non_copyable.ixx"
     "nonatomic_shared_ptr.ixx"
+    "read_copy_update.ixx"
     "reusable_consecutive_global_id.ixx"
     "scope_guard.ixx"
     "thread_local_storage.ixx" 
