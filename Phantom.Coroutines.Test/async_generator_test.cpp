@@ -173,7 +173,7 @@ ASYNC_TEST(async_generator_test, Can_enumerate_async_actions)
 
 ASYNC_TEST(async_generator_test, Destroys_coroutine_when_not_iterated)
 {
-    detail::lifetime_statistics statistics;
+    lifetime_statistics statistics;
 
     auto lambda = [](auto tracker)->async_generator<std::string&>
     {
@@ -190,7 +190,7 @@ ASYNC_TEST(async_generator_test, Destroys_coroutine_when_not_iterated)
 
 ASYNC_TEST(async_generator_test, Destroys_coroutine_when_iterated_partially)
 {
-    detail::lifetime_statistics statistics;
+    lifetime_statistics statistics;
 
     auto lambda = [&]()->async_generator<std::string>
     {
@@ -224,7 +224,7 @@ ASYNC_TEST(async_generator_test, Destroys_coroutine_when_iterated_partially)
 
 ASYNC_TEST(async_generator_test, Destroys_coroutine_when_iterated_completely)
 {
-    detail::lifetime_statistics statistics;
+    lifetime_statistics statistics;
 
     auto lambda = [&]()->async_generator<std::string>
     {

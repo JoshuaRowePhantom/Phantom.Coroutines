@@ -253,12 +253,12 @@ ASYNC_TEST(reusable_task_test, Can_return_rvalue_reference_Address_doesnt_change
 
 ASYNC_TEST(reusable_task_test, Can_use_returned_rvalue_reference)
 {
-    detail::lifetime_statistics statistics;
-    detail::lifetime_tracker initialValue = statistics.tracker();
+    lifetime_statistics statistics;
+    lifetime_tracker initialValue = statistics.tracker();
 
     co_await [&]() -> reusable_task<>
     {
-        auto endValue = co_await[&]() -> reusable_task<detail::lifetime_tracker&&>
+        auto endValue = co_await[&]() -> reusable_task<lifetime_tracker&&>
     {
         co_return std::move(initialValue);
     }();
@@ -275,18 +275,18 @@ ASYNC_TEST(reusable_task_test, Can_use_returned_rvalue_reference)
 
 ASYNC_TEST(reusable_task_test, Can_use_returned_rvalue_reference_with_same_address)
 {
-    detail::lifetime_statistics statistics;
-    detail::lifetime_tracker initialValue = statistics.tracker();
+    lifetime_statistics statistics;
+    lifetime_tracker initialValue = statistics.tracker();
 
     co_await [&]() -> reusable_task<>
     {
-        [&](detail::lifetime_tracker&& endValue) {
+        [&](lifetime_tracker&& endValue) {
 
             endValue.use();
             ASSERT_EQ(1, statistics.instance_count);
             ASSERT_EQ(0, statistics.move_construction_count);
         }(
-            co_await[&]() -> reusable_task<detail::lifetime_tracker&&>
+            co_await[&]() -> reusable_task<lifetime_tracker&&>
         {
             co_return std::move(initialValue);
         }());

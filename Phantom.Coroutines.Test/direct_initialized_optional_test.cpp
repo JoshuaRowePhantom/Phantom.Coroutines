@@ -5,9 +5,6 @@
 namespace Phantom::Coroutines
 {
 
-using detail::lifetime_tracker;
-using detail::lifetime_statistics;
-
 ASYNC_TEST(direct_initialized_optional_test, default_constructed_optional_is_empty)
 {
     direct_initialized_optional<lifetime_tracker> optional;

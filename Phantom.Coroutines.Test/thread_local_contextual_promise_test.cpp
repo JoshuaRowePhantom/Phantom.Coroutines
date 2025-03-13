@@ -10,7 +10,7 @@ namespace Phantom::Coroutines
 
 namespace
 {
-using TestContext = thread_local_context<detail::lifetime_tracker*>;
+using TestContext = thread_local_context<lifetime_tracker*>;
 
 template<
     typename Result = void
@@ -24,7 +24,7 @@ template<
 
 ASYNC_TEST(thread_local_contextual_promise, sets_context_during_promise_execution)
 {
-    detail::lifetime_statistics statistics;
+    lifetime_statistics statistics;
     async_manual_reset_event<> signal;
 
     EXPECT_EQ(nullptr, TestContext::current());

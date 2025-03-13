@@ -46,9 +46,9 @@ TEST(async_promise_test, Set_before_await_causes_await_to_not_suspend)
 
 TEST(async_promise_test, Destroy_calls_destructor_of_embedded_value)
 {
-    detail::lifetime_statistics statistics;
+    lifetime_statistics statistics;
     {
-        async_promise<detail::lifetime_tracker> promise;
+        async_promise<lifetime_tracker> promise;
 
         promise.emplace(statistics.tracker());
         ASSERT_EQ(1, statistics.instance_count);

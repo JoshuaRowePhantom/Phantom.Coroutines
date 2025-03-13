@@ -26,7 +26,7 @@ ASYNC_TEST(cppcoro_async_generator_test, can_enumerate_items)
 
 ASYNC_TEST(cppcoro_async_generator_test, destroys_promise)
 {
-    Phantom::Coroutines::detail::lifetime_statistics statistics;
+    Phantom::Coroutines::lifetime_statistics statistics;
 
     auto lambda = [&]() -> async_generator<std::string>
     {

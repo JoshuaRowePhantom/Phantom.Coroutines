@@ -7,8 +7,6 @@
 
 namespace Phantom::Coroutines
 {
-using detail::lifetime_statistics;
-
 static_assert(!std::is_copy_constructible_v<generator<int>>);
 static_assert(!std::is_copy_assignable_v<generator<int>>);
 static_assert(std::is_move_constructible_v<generator<int>>);

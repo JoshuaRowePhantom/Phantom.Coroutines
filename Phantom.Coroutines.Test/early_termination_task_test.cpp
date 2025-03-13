@@ -168,7 +168,7 @@ ASYNC_TEST(expected_early_termination_test, co_await_expected_handle_errors_with
 
 ASYNC_TEST(expected_early_termination_test, error_causes_coroutine_to_be_destroyed_before_resuming_caller)
 {
-    detail::lifetime_statistics statistics;
+    lifetime_statistics statistics;
 
     auto lambda1 = [&]() -> expected_early_termination_task<>
     {
