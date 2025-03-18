@@ -1,13 +1,18 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
 #include<concepts>
+#include "detail/config.h"
 #include"type_traits.h"
+#endif
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct concrete_policy {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TPolicy,
     typename TBasePolicy
@@ -16,6 +21,7 @@ std::is_base_of_v<TBasePolicy, TPolicy>
 &&
 std::is_base_of_v<concrete_policy, TPolicy>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename BasePolicy
 > struct policy_selector
@@ -66,21 +72,27 @@ struct select_policy_impl<
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename PolicySelector,
     typename ... Policies
 > using select_policy = typename detail::select_policy_impl<PolicySelector, Policies...>::type;
 
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct await_cancellation_policy {};
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct await_is_cancellable : public await_cancellation_policy, public concrete_policy {};
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct await_is_not_cancellable : public await_cancellation_policy, public concrete_policy {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_await_cancellation_policy =
 is_concrete_policy<T, await_cancellation_policy>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using select_await_cancellation_policy = select_policy<
@@ -88,10 +100,14 @@ template<
     Policies...
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct awaiter_cardinality_policy {};
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct single_awaiter : public awaiter_cardinality_policy, public concrete_policy {};
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct multiple_awaiters : public awaiter_cardinality_policy, public concrete_policy {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_awaiter_cardinality_policy = 
@@ -100,6 +116,7 @@ is_concrete_policy<
     awaiter_cardinality_policy
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using select_awaiter_cardinality_policy = select_policy<
@@ -107,11 +124,16 @@ template<
     Policies...
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct await_result_on_destruction_policy {};
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct throw_on_destroy : public await_result_on_destruction_policy, public concrete_policy {};
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct noop_on_destroy : public await_result_on_destruction_policy, public concrete_policy {};
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct fail_on_destroy_with_awaiters : public await_result_on_destruction_policy, public concrete_policy {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_await_result_on_destruction_policy =
@@ -120,6 +142,7 @@ is_concrete_policy<
     await_result_on_destruction_policy
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using select_await_result_on_destruction_policy = select_policy<
@@ -127,6 +150,7 @@ template<
     Policies...
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T = void
 > struct continuation_type : 
@@ -139,12 +163,15 @@ template<
 template<> struct continuation_type<void>
 {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using default_continuation_type = continuation_type<coroutine_handle<>>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_continuation_type_policy = is_concrete_policy<T, continuation_type<>>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using select_continuation_type_policy = select_policy<
@@ -152,12 +179,15 @@ template<
     Policies...
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using select_continuation_type = typename select_continuation_type_policy<Policies...>::type;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct use_after_join_policy {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_use_after_join_policy =
@@ -165,11 +195,14 @@ is_concrete_policy<T, use_after_join_policy>;
 
 // throw_on_use_after_join causes exceptions to be thrown at runtime
 // if a primitive is used after its join() method is called.
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct throw_on_use_after_join : use_after_join_policy, concrete_policy {};
 // fail_on_use_after_join causes assertion failures in debug builds
 // if a primitive is used after its join() method is called.
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct fail_on_use_after_join : use_after_join_policy, concrete_policy {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using select_use_after_join_policy = select_policy<
@@ -177,6 +210,7 @@ template<
     Policies...
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T = void
 > struct base_promise_type
@@ -191,11 +225,13 @@ template<>
 struct base_promise_type<void>
 {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_base_promise_type_policy =
 is_concrete_policy<T, base_promise_type<>>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using select_base_promise_type_policy = select_policy<
@@ -203,29 +239,37 @@ template<
     Policies...
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using select_base_promise_type = typename select_base_promise_type_policy<Policies...>::type;
 
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct ordering_policy {};
 // The user has no ordering preference.
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct no_ordering_preference : public ordering_policy, concrete_policy {};
 // The user requires that any available operation be immediately serviced.
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct first_available_ordering : public ordering_policy, concrete_policy {};
 // The user requires strict FIFO ordering.
 // Generally, FIFO ordering is relaxed for simultaneous operations, but all
 // operations queue operations that happens-before a dequeue operation
 // will be serviced in FIFO order.
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct fifo_ordering : public ordering_policy, concrete_policy {};
 // The user requires bounded ordering, but not necessarily strict FIFO.
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct bounded_ordering : public ordering_policy, concrete_policy {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_ordering_policy =
 is_concrete_policy<T, ordering_policy>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using select_ordering_policy = select_policy<

@@ -1,13 +1,17 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
 #include "detail/config.h"
 #include<array>
+#include<cstddef>
 #include<compare>
 #include<new>
+#endif
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T,
     size_t Size,
@@ -204,6 +208,7 @@ public:
     friend auto operator<=>(const aligned_array&, const aligned_array&) = default;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T,
     size_t Size

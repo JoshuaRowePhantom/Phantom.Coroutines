@@ -5,6 +5,7 @@
 #include <bit>
 #include <optional>
 #include <type_traits>
+#include "config.h"
 #include "coroutine.h"
 #include "Phantom.Coroutines/type_traits.h"
 #endif

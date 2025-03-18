@@ -16,6 +16,7 @@ target_sources(
     FILE_SET CXX_MODULES
     TYPE CXX_MODULES
     FILES
+    "aligned_array.ixx"
     "assert_same_thread.ixx"
     "atomic_state.ixx"
     "consecutive_thread_id.ixx"
@@ -23,12 +24,14 @@ target_sources(
     "immovable_object.ixx"
     "non_copyable.ixx"
     "nonatomic_shared_ptr.ixx"
+    "Phantom.Coroutines.ixx" 
+    "policies.ixx"
     "read_copy_update.ixx"
     "reusable_consecutive_global_id.ixx"
     "scope_guard.ixx"
     "thread_local_storage.ixx" 
     "type_traits.ixx"
- "Phantom.Coroutines.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

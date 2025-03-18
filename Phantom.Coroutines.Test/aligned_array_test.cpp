@@ -1,5 +1,10 @@
-#include "async_test.h"
+#include <gtest/gtest.h>
+#include <array>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.aligned_array;
+#else
 #include "Phantom.Coroutines/aligned_array.h"
+#endif
 #include <string>
 
 namespace Phantom::Coroutines
