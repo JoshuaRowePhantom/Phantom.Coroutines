@@ -29,6 +29,7 @@ target_sources(
     "read_copy_update.ixx"
     "reusable_consecutive_global_id.ixx"
     "scope_guard.ixx"
+    "sequence_lock.ixx"
     "thread_local_storage.ixx" 
     "type_traits.ixx"
 )

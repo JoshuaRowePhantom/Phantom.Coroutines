@@ -2,8 +2,13 @@
 
 #include <type_traits>
 #include "awaiter_wrapper.h"
-#include "detail/coroutine.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "Phantom.Coroutines/detail/coroutine.h"
 #include "type_traits.h"
+#else
+import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.type_traits;
+#endif
 
 namespace Phantom::Coroutines
 {

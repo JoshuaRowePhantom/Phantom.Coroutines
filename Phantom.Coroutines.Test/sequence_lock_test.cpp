@@ -1,9 +1,14 @@
 #include <array>
+#include <coroutine>
 #include <iostream>
 #include "async_test.h"
 #include "Phantom.Coroutines/async_mutex.h"
 #include "Phantom.Coroutines/async_scope.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.sequence_lock;
+#else
 #include "Phantom.Coroutines/sequence_lock.h"
+#endif
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
 

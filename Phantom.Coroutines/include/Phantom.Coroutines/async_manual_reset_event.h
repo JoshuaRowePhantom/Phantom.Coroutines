@@ -1,9 +1,15 @@
 #pragma once
 
 #include <atomic>
-#include "detail/atomic_state.h"
-#include "detail/coroutine.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "policies.h"
+#include "Phantom.Coroutines/detail/atomic_state.h"
+#include "Phantom.Coroutines/detail/coroutine.h"
+#else
+import Phantom.Coroutines.atomic_state;
+import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.policies;
+#endif
 
 namespace Phantom::Coroutines
 {

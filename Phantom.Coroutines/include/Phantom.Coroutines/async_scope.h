@@ -1,10 +1,16 @@
 #pragma once
 
 #include <atomic>
-#include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "Phantom.Coroutines/detail/coroutine.h"
 #include "policies.h"
 #include "type_traits.h"
+#else
+import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.policies;
+import Phantom.Coroutines.type_traits;
+#endif
 
 namespace Phantom::Coroutines
 {

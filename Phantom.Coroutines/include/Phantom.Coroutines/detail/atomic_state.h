@@ -15,6 +15,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TLabel
 > class SingletonState
@@ -28,11 +29,13 @@ public:
     ) {}
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TStateSetType, 
     typename TRepresentation
 > struct StateSetTraits;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     // A label for the type of state being stored.
     typename TLabel,
@@ -688,6 +691,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename AtomicState
 > concept is_atomic_state_type = is_template_instantiation<AtomicState, basic_atomic_state>;
@@ -703,6 +707,7 @@ is_atomic_state_type<AtomicState>
     { lambda(state) } -> std::convertible_to<std::optional<typename AtomicState::state_type>>;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 // TNextStateLambda should return either a state_type or an std::optional<state_type>.
 template <
     is_atomic_state_type TAtomicState,

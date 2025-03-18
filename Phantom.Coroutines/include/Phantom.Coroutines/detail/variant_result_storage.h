@@ -1,7 +1,11 @@
 #pragma once
 #include <type_traits>
 #include <variant>
-#include "../type_traits.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "Phantom.Coroutines/type_traits.h"
+#else
+import Phantom.Coroutines.type_traits;
+#endif
 
 namespace Phantom::Coroutines::detail
 {

@@ -1,8 +1,13 @@
 #pragma once
 #include "async_reader_writer_lock.h"
 #include "direct_initialized_optional.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/immovable_object.h"
-#include "detail/scope_guard.h"
+#include "Phantom.Coroutines/detail/scope_guard.h"
+#else
+import Phantom.Coroutines.immovable_object;
+import Phantom.Coroutines.scope_guard;
+#endif
 #include "sharding.h"
 
 namespace Phantom::Coroutines

@@ -2,9 +2,14 @@
 
 #include <atomic>
 #include "double_wide_atomic.h"
-#include "detail/coroutine.h"
 #include "detail/config.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "Phantom.Coroutines/detail/coroutine.h"
 #include "policies.h"
+#else
+import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.policies;
+#endif
 
 namespace Phantom::Coroutines
 {

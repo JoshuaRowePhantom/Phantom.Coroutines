@@ -2,9 +2,15 @@
 
 #include <concepts>
 #include <type_traits>
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "Phantom.Coroutines/detail/coroutine.h"
+#include "Phantom.Coroutines/detail/scope_guard.h"
 #include "type_traits.h"
-#include "detail/scope_guard.h"
-#include "detail/coroutine.h"
+#else
+import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.scope_guard;
+import Phantom.Coroutines.type_traits;
+#endif
 
 namespace Phantom::Coroutines
 {

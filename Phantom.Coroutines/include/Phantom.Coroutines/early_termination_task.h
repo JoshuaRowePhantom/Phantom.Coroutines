@@ -11,8 +11,13 @@
 #include "detail/variant_result_storage.h"
 #include "extensible_promise.h"
 #include "task.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "policies.h"
 #include "type_traits.h"
+#else
+import Phantom.Coroutines.policies;
+import Phantom.Coroutines.type_traits;
+#endif
 
 namespace Phantom::Coroutines
 {

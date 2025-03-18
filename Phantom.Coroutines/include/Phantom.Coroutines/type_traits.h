@@ -106,6 +106,7 @@ template<
 {
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     template<typename> typename Filter,
     typename...Types
@@ -441,6 +442,7 @@ template<
     typename conflict_detector<Promise, has_await_transform_conflicted_name>::await_transform;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > using has_await_transform_filter = std::bool_constant<has_await_transform<T>>;

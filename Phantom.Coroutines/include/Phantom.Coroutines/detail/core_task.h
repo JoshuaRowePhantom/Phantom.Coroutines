@@ -1,16 +1,23 @@
 #pragma once
 
-#include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
-#include "detail/immovable_object.h"
-#include "detail/non_copyable.h"
 #include "detail/variant_result_storage.h"
 #include <concepts>
 #include <exception>
 #include <type_traits>
 #include <variant>
 #include "extensible_promise.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "Phantom.Coroutines/detail/coroutine.h"
+#include "detail/immovable_object.h"
+#include "detail/non_copyable.h"
 #include "policies.h"
+#else
+import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.immovable_object;
+import Phantom.Coroutines.non_copyable;
+import Phantom.Coroutines.policies;
+#endif
 
 namespace Phantom::Coroutines::detail
 {

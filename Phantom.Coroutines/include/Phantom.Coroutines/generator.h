@@ -1,7 +1,12 @@
 #pragma once
 
-#include "detail/coroutine.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "Phantom.Coroutines/detail/coroutine.h"
 #include "detail/immovable_object.h"
+#else
+import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.immovable_object;
+#endif
 #include <concepts>
 #include <exception>
 #include <variant>

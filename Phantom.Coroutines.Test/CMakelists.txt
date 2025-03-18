@@ -32,7 +32,6 @@ set(
     "pmr_task.h" 
     "promise_allocator_test.cpp" 
     "reusable_task_test.cpp" 
-    "sequence_lock_test.cpp" 
     "sharding_test.cpp"
     "shared_task_test.cpp"
     "suspend_result_test.cpp" 
@@ -54,6 +53,7 @@ set(
     "nonatomic_shared_ptr_test.cpp"
     "read_copy_update_test.cpp"
     "reusable_consecutive_global_id_test.cpp"
+    "sequence_lock_test.cpp" 
     "thread_local_storage_test.cpp"
 )
 

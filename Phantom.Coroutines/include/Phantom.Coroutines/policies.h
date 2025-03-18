@@ -3,7 +3,7 @@
 
 #include<concepts>
 #include "detail/config.h"
-#include"type_traits.h"
+#include "type_traits.h"
 #endif
 
 namespace Phantom::Coroutines

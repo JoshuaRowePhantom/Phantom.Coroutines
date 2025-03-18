@@ -1,7 +1,12 @@
 #include <algorithm>
 #include <type_traits>
-#include "immovable_object.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "detail/immovable_object.h"
 #include "../type_traits.h"
+#else
+import Phantom.Coroutines.immovable_object;
+import Phantom.Coroutines.type_traits;
+#endif
 
 namespace Phantom::Coroutines::detail
 {

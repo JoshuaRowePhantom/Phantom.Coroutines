@@ -1,7 +1,11 @@
 #pragma once
 
 #include <concepts>
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "policies.h"
+#else
+import Phantom.Coroutines.policies;
+#endif
 #include "detail/core_task.h"
 
 namespace Phantom::Coroutines::detail
@@ -55,7 +59,7 @@ template<
     auto task = lambda();
     auto awaiter = task.when_ready();
     awaiter.await_ready();
-    awaiter.await_suspend(std::noop_coroutine()).resume();
+    awaiter.await_suspend(noop_coroutine()).resume();
 
     return std::move(task);
 }
@@ -74,7 +78,7 @@ template<
     auto task = lambda();
     auto awaiter = task.when_ready();
     awaiter.await_ready();
-    awaiter.await_suspend(std::noop_coroutine()).resume();
+    awaiter.await_suspend(noop_coroutine()).resume();
 
     return std::move(task);
 }

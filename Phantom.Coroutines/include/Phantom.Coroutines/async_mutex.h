@@ -1,9 +1,16 @@
 #pragma once
 
-#include "detail/atomic_state.h"
-#include "detail/coroutine.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "Phantom.Coroutines/detail/atomic_state.h"
+#include "Phantom.Coroutines/detail/coroutine.h"
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
+#else
+import Phantom.Coroutines.atomic_state;
+import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.immovable_object;
+import Phantom.Coroutines.non_copyable;
+#endif
 #include "awaiter_list.h"
 #include <type_traits>
 

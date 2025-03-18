@@ -1,7 +1,11 @@
 #pragma once
 
 #include <concepts>
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "policies.h"
+#else
+import Phantom.Coroutines.policies;
+#endif
 #include "detail/core_task.h"
 
 namespace Phantom::Coroutines::detail

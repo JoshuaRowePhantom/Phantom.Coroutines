@@ -1,4 +1,8 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "Phantom.Coroutines/detail/coroutine.h"
+#else
+import Phantom.Coroutines.coroutine;
+#endif
 #include <functional>
 
 namespace Phantom::Coroutines::detail

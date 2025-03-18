@@ -1,6 +1,10 @@
 #pragma once
 
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "policies.h"
+#else
+import Phantom.Coroutines.policies;
+#endif
 #include "awaiter_list.h"
 #include "double_wide_atomic.h"
 #include "tagged_pointer.h"

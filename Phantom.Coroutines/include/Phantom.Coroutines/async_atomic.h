@@ -1,8 +1,13 @@
 #pragma once
 #include <atomic>
 #include <concepts>
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/immovable_object.h"
 #include "type_traits.h"
+#else
+import Phantom.Coroutines.immovable_object;
+import Phantom.Coroutines.type_traits;
+#endif
 #include "double_wide_atomic.h"
 
 namespace Phantom::Coroutines

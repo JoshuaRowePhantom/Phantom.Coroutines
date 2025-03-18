@@ -1,9 +1,14 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#pragma once
 #include <assert.h>
 #include <atomic>
+#include <cstddef>
 #include <type_traits>
+#endif
 
 namespace Phantom::Coroutines
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value
 > 
