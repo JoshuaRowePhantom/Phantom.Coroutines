@@ -1,10 +1,11 @@
 #pragma once
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "extensible_promise.h"
 #include "type_traits.h"
 #else
+import Phantom.Coroutines.extensible_promise;
 import Phantom.Coroutines.type_traits;
 #endif
-#include "extensible_promise.h"
 
 namespace Phantom::Coroutines
 {

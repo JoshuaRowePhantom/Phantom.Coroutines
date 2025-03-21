@@ -1,15 +1,11 @@
-#pragma once
-
-#include <concepts>
-#include <type_traits>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#pragma once
+#include <concepts>
+#include <tuple>
+#include <type_traits>
 #include "Phantom.Coroutines/detail/coroutine.h"
 #include "Phantom.Coroutines/detail/scope_guard.h"
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.scope_guard;
-import Phantom.Coroutines.type_traits;
 #endif
 
 namespace Phantom::Coroutines
@@ -26,7 +22,7 @@ public:
         this auto& self
     ) noexcept
     {
-        return std::coroutine_handle<
+        return coroutine_handle<
             std::remove_cvref_t<decltype(self)>
         >::from_promise(self);
     }
@@ -413,11 +409,13 @@ protected:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename PromiseHandle
 > concept is_extended_promise_handle = is_derived_instantiation<PromiseHandle, extended_promise_handle>;
 
 // This class helps for transferring ownership of single-owner awaitables.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class single_owner_promise_handle
@@ -496,9 +494,13 @@ public:
 };
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::extensible_promise;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_extensible_promise;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::extensible_promise_handle;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::derived_promise;
 
 }

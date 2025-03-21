@@ -21,6 +21,7 @@ target_sources(
     "atomic_state.ixx"
     "consecutive_thread_id.ixx"
     "coroutine.ixx" 
+    "extensible_promise.ixx"
     "immovable_object.ixx"
     "non_copyable.ixx"
     "nonatomic_shared_ptr.ixx"

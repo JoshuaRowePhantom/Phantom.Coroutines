@@ -1,5 +1,9 @@
 #pragma once
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "extensible_promise.h"
+#else
+import Phantom.Coroutines.extensible_promise;
+#endif
 
 namespace Phantom::Coroutines
 {

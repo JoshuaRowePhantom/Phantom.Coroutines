@@ -6,14 +6,15 @@
 #include <exception>
 #include <type_traits>
 #include <variant>
-#include "extensible_promise.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "Phantom.Coroutines/detail/coroutine.h"
+#include "extensible_promise.h"
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
 #include "policies.h"
 #else
 import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.extensible_promise;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.non_copyable;
 import Phantom.Coroutines.policies;

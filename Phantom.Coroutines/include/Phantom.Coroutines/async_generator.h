@@ -1,7 +1,11 @@
 #pragma once
 
 #include "awaiter_wrapper.h"
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "extensible_promise.h"
+#else
+import Phantom.Coroutines.extensible_promise;
+#endif
 #include "task.h"
 #include <concepts>
 #include <exception>
