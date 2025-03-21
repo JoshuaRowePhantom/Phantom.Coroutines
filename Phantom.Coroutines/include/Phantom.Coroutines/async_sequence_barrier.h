@@ -1,14 +1,15 @@
 #pragma once
 
-#include "detail/fibonacci_heap.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "Phantom.Coroutines/detail/atomic_state.h"
 #include "Phantom.Coroutines/detail/coroutine.h"
+#include "detail/fibonacci_heap.h"
 #include "detail/immovable_object.h"
 #include "policies.h"
 #else
 import Phantom.Coroutines.atomic_state;
 import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.fibonacci_heap;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.policies;
 #endif

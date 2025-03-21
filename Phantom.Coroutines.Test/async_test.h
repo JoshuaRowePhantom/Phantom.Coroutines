@@ -1,7 +1,6 @@
 #pragma once
 
 #include <gtest/gtest.h>
-#include <coroutine>
 #include "Phantom.Coroutines/reusable_task.h"
 
 

@@ -1,18 +1,15 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/atomic_state.h"
-#include "Phantom.Coroutines/detail/coroutine.h"
+#include <concepts>
+#include "detail/config.h"
+#include "detail/atomic_state.h"
+#include "detail/coroutine.h"
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
-#else
-import Phantom.Coroutines.atomic_state;
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.immovable_object;
-import Phantom.Coroutines.non_copyable;
-#endif
 #include "awaiter_list.h"
 #include <type_traits>
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -171,7 +168,7 @@ public:
 
         [[nodiscard]] lock_type await_resume() noexcept
         {
-            return lock_type { m_mutex, std::adopt_lock };
+            return lock_type { m_mutex, adopt_lock };
         }
     };
 
@@ -313,7 +310,9 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_mutex;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_async_mutex_policy;
 
 }

@@ -1,9 +1,9 @@
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/coroutine.h"
-#else
-import Phantom.Coroutines.coroutine;
-#endif
 #include <functional>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.coroutine;
+#else
+#include "Phantom.Coroutines/detail/coroutine.h"
+#endif
 
 namespace Phantom::Coroutines::detail
 {

@@ -1,5 +1,9 @@
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_manual_reset_event;
+#else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#endif
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/async_sequence_barrier.h"
 #include "Phantom.Coroutines/shared_task.h"

@@ -6,11 +6,11 @@
 #include <tuple>
 #include <type_traits>
 #include "await_all_await_transform.h"
-#include "detail/variant_result_storage.h"
 #include "task.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "awaiter_wrapper.h"
 #include "detail/final_suspend_transfer.h"
+#include "detail/variant_result_storage.h"
 #include "extensible_promise.h"
 #include "policies.h"
 #include "type_traits.h"
@@ -20,6 +20,7 @@ import Phantom.Coroutines.extensible_promise;
 import Phantom.Coroutines.final_suspend_transfer;
 import Phantom.Coroutines.policies;
 import Phantom.Coroutines.type_traits;
+import Phantom.Coroutines.variant_result_storage;
 #endif
 
 namespace Phantom::Coroutines

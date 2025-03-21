@@ -1,5 +1,9 @@
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.Test.lifetime_tracker;
+#else
 #include "../Phantom.Coroutines.Test/lifetime_tracker.h"
+#endif
 #include "cppcoro/async_generator.hpp"
 
 namespace cppcoro

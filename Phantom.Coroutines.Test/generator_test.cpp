@@ -1,9 +1,14 @@
 #include <gtest/gtest.h>
+#include <coroutine>
 #include <optional>
 #include <string>
 #include <vector>
 #include "Phantom.Coroutines/generator.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.Test.lifetime_tracker;
+#else
 #include "lifetime_tracker.h"
+#endif
 
 namespace Phantom::Coroutines
 {

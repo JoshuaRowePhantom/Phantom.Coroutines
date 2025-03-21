@@ -10,19 +10,17 @@ namespace Phantom::Coroutines
 {
 namespace detail
 {
-PHANTOM_COROUTINES_MODULE_EXPORT
+using std::coroutine_traits;
+
 template<
     typename TPromise = void
 >
 using coroutine_handle = std::coroutine_handle<TPromise>;
 
-PHANTOM_COROUTINES_MODULE_EXPORT
 using suspend_always = std::suspend_always;
 
-PHANTOM_COROUTINES_MODULE_EXPORT
 using suspend_never = std::suspend_never;
 
-PHANTOM_COROUTINES_MODULE_EXPORT
 inline auto noop_coroutine()
 {
     return std::noop_coroutine();
@@ -80,4 +78,28 @@ using detail::suspend_never;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::noop_coroutine;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
+constexpr auto operator<=>(const coroutine_handle<>& left, const coroutine_handle<> right)
+{
+    return std::operator<=>(left, right);
+}
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<typename Promise>
+constexpr auto operator==(const coroutine_handle<>& left, const coroutine_handle<> right)
+{
+    return std::operator==(left, right);
+}
+
+}
+
+namespace std
+{
+PHANTOM_COROUTINES_MODULE_EXPORT
+using std::coroutine_traits;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+using std::operator==;
+PHANTOM_COROUTINES_MODULE_EXPORT
+using std::operator<=>;
 }

@@ -116,6 +116,7 @@ template<
 };
 
 // Determine if a tuple contains a given element type.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Type,
     typename Tuple
@@ -187,6 +188,7 @@ template<
 
 // Locate the index of a Type in a Tuple,
 // returning no valid index if the type is not present or is duplicated.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Type,
     typename Tuple,

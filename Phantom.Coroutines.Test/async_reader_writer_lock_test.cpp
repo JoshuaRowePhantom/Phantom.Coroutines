@@ -1,6 +1,10 @@
 #include "async_test.h"
 #include <array>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_manual_reset_event;
+#else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#endif
 #include "Phantom.Coroutines/async_reader_writer_lock.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/static_thread_pool.h"

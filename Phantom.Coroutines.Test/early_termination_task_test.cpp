@@ -2,7 +2,11 @@
 #include "Phantom.Coroutines/early_termination_task.h"
 #include "Phantom.Coroutines/error_condition_early_termination.h"
 #include "Phantom.Coroutines/expected_early_termination.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.Test.lifetime_tracker;
+#else
 #include "lifetime_tracker.h"
+#endif
 
 namespace Phantom::Coroutines
 {

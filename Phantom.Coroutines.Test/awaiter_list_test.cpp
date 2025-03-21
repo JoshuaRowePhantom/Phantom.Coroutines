@@ -1,5 +1,9 @@
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.awaiter_list;
+#else
 #include "Phantom.Coroutines/awaiter_list.h"
+#endif
 
 namespace Phantom::Coroutines
 {

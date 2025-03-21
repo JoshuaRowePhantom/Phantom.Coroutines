@@ -1,4 +1,3 @@
-#include <coroutine>
 #include "async_test.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/sync_wait.h"

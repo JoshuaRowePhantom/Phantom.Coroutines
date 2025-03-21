@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <coroutine>
 #include "async_test.h"
 #include "Phantom.Coroutines/async_scope.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES

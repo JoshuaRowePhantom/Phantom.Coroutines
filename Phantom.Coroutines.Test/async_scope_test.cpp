@@ -2,7 +2,11 @@
 #include "async_test.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/async_sequence_barrier.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_manual_reset_event;
+#else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#endif
 #include "Phantom.Coroutines/reusable_task.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"

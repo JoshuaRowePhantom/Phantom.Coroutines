@@ -10,10 +10,10 @@
 #pragma once
 
 #include <variant>
-#include "detail/variant_result_storage.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/atomic_state.h"
 #include "detail/final_suspend_transfer.h"
+#include "detail/variant_result_storage.h"
 #include "extensible_promise.h"
 #include "policies.h"
 #include "type_traits.h"
@@ -27,6 +27,7 @@ import Phantom.Coroutines.final_suspend_transfer;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.policies;
 import Phantom.Coroutines.type_traits;
+import Phantom.Coroutines.variant_result_storage;
 #endif
 
 namespace Phantom::Coroutines
@@ -298,7 +299,7 @@ template<
         // before resuming, because resuming will destroy the awaiter.
         // Note that there will always be at least one awaiter,
         // otherwise the promise would not have been started.
-        auto awaiter = previousState.as<Running>();
+        auto awaiter = previousState.template as<Running>();
         while (true)
         {
             auto nextAwaiter = awaiter->m_nextAwaiter;

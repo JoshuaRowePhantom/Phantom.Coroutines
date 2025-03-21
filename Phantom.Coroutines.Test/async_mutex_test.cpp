@@ -1,11 +1,15 @@
-#include <gtest/gtest.h>
+#include <chrono>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_auto_reset_event;
+import Phantom.Coroutines.async_mutex;
+#else
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_mutex.h"
+#endif
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 #include "async_test.h"
-#include <chrono>
 
 namespace Phantom::Coroutines
 {
@@ -81,13 +85,13 @@ TEST(async_mutex_test, assign_self_keeps_scoped_lock)
     ASSERT_FALSE(result2);
 }
 
-TEST(async_mutex_test, double_release_scoped_lock_does_not_unlock)
+TEST(async_mutex_test, double_unlock_scoped_lock_does_not_unlock)
 {
     async_mutex<> mutex;
     auto result1 = mutex.try_scoped_lock();
-    result1.release();
+    result1.unlock();
     auto result2 = mutex.try_scoped_lock();
-    result1.release();
+    result1.unlock();
     auto result3 = mutex.try_scoped_lock();
     ASSERT_FALSE(result3);
 }

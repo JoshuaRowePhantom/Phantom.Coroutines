@@ -1,5 +1,9 @@
 #pragma once
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "aligned_array.h"
+#else
+import Phantom.Coroutines.aligned_array;
+#endif
 #include <algorithm>
 #include <ranges>
 

@@ -2,12 +2,18 @@
 #include <type_traits>
 #include <gtest/gtest.h>
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_manual_reset_event;
+import Phantom.Coroutines.type_traits;
+import Phantom.Coroutines.Test.lifetime_tracker;
+#else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#include "Phantom.Coroutines/type_traits.h"
+#include "lifetime_tracker.h"
+#endif
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/shared_task.h"
 #include "Phantom.Coroutines/sync_wait.h"
-#include "Phantom.Coroutines/type_traits.h"
-#include "lifetime_tracker.h"
 
 
 namespace Phantom::Coroutines::detail
@@ -134,7 +140,7 @@ ASYNC_TEST(shared_task_test, when_ready_doesnt_return_exception)
 
     auto lambda = [&]() -> shared_task<std::string>
     {
-        co_await detail::suspend_never{};
+        co_await suspend_never{};
         throw 1;
         co_return "hello world";
     };

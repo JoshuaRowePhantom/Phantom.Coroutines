@@ -27,6 +27,7 @@ struct storage_for_impl<
     inline static char m_storage;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... TValues
 > struct storage_for

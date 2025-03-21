@@ -3,8 +3,8 @@
 
 #include <atomic>
 #include "policies.h"
-#include "Phantom.Coroutines/detail/atomic_state.h"
-#include "Phantom.Coroutines/detail/coroutine.h"
+#include "detail/atomic_state.h"
+#include "detail/coroutine.h"
 #endif
 
 namespace Phantom::Coroutines
@@ -176,4 +176,8 @@ public:
 }
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_manual_reset_event;
+PHANTOM_COROUTINES_MODULE_EXPORT
+using detail::is_async_manual_reset_event_policy;
+PHANTOM_COROUTINES_MODULE_EXPORT
+using detail::basic_async_manual_reset_event;
 }

@@ -8,6 +8,7 @@ import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.type_traits;
 #endif
 #include "detail/config.h"
+#include <assert.h>
 #include <exception>
 #include <future>
 #ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE

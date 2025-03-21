@@ -3,7 +3,11 @@
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/sync_wait.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.Test.lifetime_tracker;
+#else
 #include "lifetime_tracker.h"
+#endif
 #include <string>
 
 namespace Phantom::Coroutines

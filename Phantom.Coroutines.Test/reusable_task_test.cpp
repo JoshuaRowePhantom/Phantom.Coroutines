@@ -2,12 +2,19 @@
 #include <type_traits>
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/async_scope.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_auto_reset_event;
+import Phantom.Coroutines.async_manual_reset_event;
+import Phantom.Coroutines.type_traits;
+import Phantom.Coroutines.Test.lifetime_tracker;
+#else
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#include "lifetime_tracker.h"
+#include "Phantom.Coroutines/type_traits.h"
+#endif
 #include "Phantom.Coroutines/reusable_task.h"
 #include "Phantom.Coroutines/suspend_result.h"
-#include "Phantom.Coroutines/type_traits.h"
-#include "lifetime_tracker.h"
 #include "async_test.h"
 #include "pmr_task.h"
 

@@ -1,30 +1,32 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/atomic_state.h"
-#include "policies.h"
-#else
-import Phantom.Coroutines.atomic_state;
-import Phantom.Coroutines.policies;
-#endif
+#include <assert.h>
 #include <future>
 #include <mutex>
 #include <concepts>
+#include "detail/config.h"
+#include "detail/atomic_state.h"
+#include "policies.h"
+#endif
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_awaiter_cardinality_policy ConsumerPolicy,
     typename DerivedAwaiter
 > class awaiter_list_entry;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_await_cancellation_policy WaitCancellationPolicy,
     typename Awaiter,
     detail::is_atomic_state_type State
 > class awaiter_list;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename DerivedAwaiter
 > class awaiter_list_entry<
@@ -46,6 +48,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename DerivedAwaiter
 > class awaiter_list_entry<
@@ -69,6 +72,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Awaiter
 > concept is_awaiter_list_entry = requires(
@@ -79,10 +83,12 @@ template<
     { awaiter->next() } -> std::same_as<Awaiter*>;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_await_cancellation_policy AwaitCancellationPolicy
 > class awaiter_list_mutex;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
 > class awaiter_list_mutex<
     await_is_cancellable
@@ -91,7 +97,7 @@ template<
     std::mutex m_mutex;
 
 protected:
-    typedef std::scoped_lock<std::mutex> lock_type;
+    using lock_type = std::unique_lock<std::mutex>;
 
     lock_type acquire_mutex()
     {
@@ -99,6 +105,10 @@ protected:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
+using std::adopt_lock;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
 > class awaiter_list_mutex<
     await_is_not_cancellable
@@ -118,6 +128,7 @@ protected:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_awaiter_list_entry Awaiter
 > void invoke_on_awaiters(
@@ -135,6 +146,7 @@ template<
 
 // Given a source list of awaiters, reverse it
 // and prepend it to the destination list.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_awaiter_list_entry Awaiter
 > void reverse_and_prepend_awaiter_list(
@@ -151,11 +163,13 @@ template<
     });
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 inline void resume_from_destruction_of_awaitable_object(
     noop_on_destroy
 ) noexcept
 {}
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 inline void resume_from_destruction_of_awaitable_object(
     throw_on_destroy
 ) 
@@ -165,6 +179,7 @@ inline void resume_from_destruction_of_awaitable_object(
     );
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 inline void resume_from_destruction_of_awaitable_object(
     fail_on_destroy_with_awaiters
 )

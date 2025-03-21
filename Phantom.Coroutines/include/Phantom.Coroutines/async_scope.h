@@ -1,6 +1,10 @@
 #pragma once
 
+#include <assert.h>
 #include <atomic>
+#include <concepts>
+#include <exception>
+#include <utility>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
