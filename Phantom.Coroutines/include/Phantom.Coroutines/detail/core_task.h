@@ -1,39 +1,35 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
-
 #include "detail/variant_result_storage.h"
 #include <concepts>
 #include <exception>
 #include <type_traits>
 #include <variant>
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/coroutine.h"
 #include "extensible_promise.h"
 #include "detail/final_suspend_transfer.h"
 #include "detail/immovable_object.h"
 #include "detail/non_copyable.h"
 #include "policies.h"
-#else
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.extensible_promise;
-import Phantom.Coroutines.final_suspend_transfer;
-import Phantom.Coroutines.immovable_object;
-import Phantom.Coroutines.non_copyable;
-import Phantom.Coroutines.policies;
+#include "type_traits.h"
 #endif
 
 namespace Phantom::Coroutines::detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     is_continuation Continuation,
     template<typename Result> typename PromiseBase
 > class core_task_promise;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class core_task;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class core_task_awaiter;
@@ -226,6 +222,7 @@ protected:
     using core_task_awaiter_result_base::single_owner_promise_handle::single_owner_promise_handle;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result
 > class core_reusable_task_promise_base
@@ -236,6 +233,7 @@ public:
     static constexpr bool is_reusable = true;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result
 > class core_non_reusable_task_promise_base

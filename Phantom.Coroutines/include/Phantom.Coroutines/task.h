@@ -2,11 +2,12 @@
 
 #include <concepts>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "detail/core_task.h"
 #include "policies.h"
 #else
+import Phantom.Coroutines.core_task;
 import Phantom.Coroutines.policies;
 #endif
-#include "detail/core_task.h"
 
 namespace Phantom::Coroutines::detail
 {
