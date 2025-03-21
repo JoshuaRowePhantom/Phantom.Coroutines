@@ -1,16 +1,15 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
+#include "detail/config.h"
 #include "awaiter_wrapper.h"
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "extensible_promise.h"
-#else
-import Phantom.Coroutines.extensible_promise;
-#endif
 #include "task.h"
 #include <concepts>
 #include <exception>
 #include <variant>
 #include <type_traits>
+#endif
 
 
 namespace Phantom::Coroutines
@@ -27,6 +26,7 @@ template<
     typename Promise
 > class basic_async_generator;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class async_generator_yield_awaiter
@@ -57,6 +57,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 enum class async_generator_current_value_index : size_t
 {
     // The iterator needs to be advanced,
@@ -429,8 +430,11 @@ template<
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_async_generator;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_async_generator_promise;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_generator;
 
 }

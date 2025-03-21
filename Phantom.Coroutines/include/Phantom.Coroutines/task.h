@@ -3,9 +3,11 @@
 #include <concepts>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/core_task.h"
+#include "detail/coroutine.h"
 #include "policies.h"
 #else
 import Phantom.Coroutines.core_task;
+import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.policies;
 #endif
 

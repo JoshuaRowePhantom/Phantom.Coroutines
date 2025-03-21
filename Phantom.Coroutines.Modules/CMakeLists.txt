@@ -40,7 +40,7 @@ target_sources(
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
-)
+ "async_generator.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules

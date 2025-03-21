@@ -1,10 +1,16 @@
 #include <gtest/gtest.h>
+#include <coroutine>
 #include <optional>
 #include <string>
 #include <vector>
 #include "async_test.h"
-#include "lifetime_tracker.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_generator;
+import Phantom.Coroutines.Test.lifetime_tracker;
+#else
 #include "Phantom.Coroutines/async_generator.h"
+#include "lifetime_tracker.h"
+#endif
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/sync_wait.h"
