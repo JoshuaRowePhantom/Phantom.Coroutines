@@ -1,15 +1,15 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
+#include <atomic>
 #include "async_manual_reset_event.h"
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.type_traits;
 #endif
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Event = async_manual_reset_event<>
 >

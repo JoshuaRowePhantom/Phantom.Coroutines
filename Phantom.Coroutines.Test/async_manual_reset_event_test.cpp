@@ -1,6 +1,11 @@
 #include <gtest/gtest.h>
+#include <coroutine>
 #include "Phantom.Coroutines/async_scope.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_manual_reset_event;
+#else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#endif
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
@@ -67,7 +72,7 @@ TEST(manual_reset_event_test, Set_after_await_continues_awaiters_and_leaves_set)
         {
             co_await asyncScope.join();
             complete = true;
-        }());
+        });
 
     ASSERT_EQ(false, complete);
     event.set();
@@ -90,7 +95,7 @@ TEST(manual_reset_event_test, Set_before_await_causes_awaiter_to_not_suspend_and
             stateBeforeWait = event.is_set();
             co_await(suspendResult << event);
             stateAfterWait = event.is_set();
-        }());
+        });
 
     future.get();
     ASSERT_EQ(true, stateBeforeWait);

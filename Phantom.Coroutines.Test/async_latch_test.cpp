@@ -1,5 +1,9 @@
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_latch;
+#else
 #include "Phantom.Coroutines/async_latch.h"
+#endif
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/task.h"
 

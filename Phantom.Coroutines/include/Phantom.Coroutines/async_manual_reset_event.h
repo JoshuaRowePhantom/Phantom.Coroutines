@@ -1,14 +1,10 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
 #include <atomic>
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "policies.h"
 #include "Phantom.Coroutines/detail/atomic_state.h"
 #include "Phantom.Coroutines/detail/coroutine.h"
-#else
-import Phantom.Coroutines.atomic_state;
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.policies;
 #endif
 
 namespace Phantom::Coroutines
@@ -178,5 +174,6 @@ public:
 };
 
 }
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_manual_reset_event;
 }
