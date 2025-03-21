@@ -6,13 +6,6 @@
 #include "async_manual_reset_event.h"
 #include "policies.h"
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.async_manual_reset_event;
-import Phantom.Coroutines.awaiter_wrapper;
-import Phantom.Coroutines.immovable_object;
-import Phantom.Coroutines.policies;
-import Phantom.Coroutines.storage_for;
-import Phantom.Coroutines.type_traits;
 #endif
 
 namespace Phantom::Coroutines
@@ -117,6 +110,7 @@ public:
 };
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_promise;
 
 }
