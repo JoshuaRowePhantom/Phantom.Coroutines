@@ -4,7 +4,6 @@ cmake_minimum_required (VERSION 3.30)
 set(
     PhantomCoroutinesTestSources
     "async_atomic_test.cpp"
-    "async_auto_reset_event_test.cpp"
     "async_generator_test.cpp"
     "async_latch_test.cpp" 
     "async_manual_reset_event_test.cpp"
@@ -14,7 +13,6 @@ set(
     "async_scope_test.cpp"
     "async_sequence_barrier_test.cpp"
     "async_sharded_reader_writer_lock_test.cpp"
-    "async_test.cpp"
     "async_test.h"
     "awaiter_list_test.cpp" 
     "contextual_promise_test.cpp" 
@@ -45,6 +43,8 @@ set(
 set(
     PhantomCoroutinesTestModulesSources
     "aligned_array_test.cpp"
+    "async_auto_reset_event_test.cpp"
+    "async_test.cpp"
     "atomic_state_test.cpp"
     "detail/fibonacci_heap_test.cpp"
     "detail/non_copyable_test.cpp"

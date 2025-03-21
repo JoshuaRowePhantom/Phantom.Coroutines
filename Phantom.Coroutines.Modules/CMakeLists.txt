@@ -18,10 +18,15 @@ target_sources(
     FILES
     "aligned_array.ixx"
     "assert_same_thread.ixx"
+    "async_auto_reset_event.ixx"
     "atomic_state.ixx"
+    "awaiter_wrapper.ixx"
     "consecutive_thread_id.ixx"
+    "core_task.ixx"
     "coroutine.ixx" 
     "extensible_promise.ixx"
+    "fibonacci_heap.ixx" 
+    "final_suspend_transfer.ixx"
     "immovable_object.ixx"
     "non_copyable.ixx"
     "nonatomic_shared_ptr.ixx"
@@ -31,9 +36,11 @@ target_sources(
     "reusable_consecutive_global_id.ixx"
     "scope_guard.ixx"
     "sequence_lock.ixx"
+    "storage_for.ixx"
     "thread_local_storage.ixx" 
     "type_traits.ixx"
- "fibonacci_heap.ixx" "final_suspend_transfer.ixx" "core_task.ixx" "storage_for.ixx" "variant_result_storage.ixx")
+    "variant_result_storage.ixx" 
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

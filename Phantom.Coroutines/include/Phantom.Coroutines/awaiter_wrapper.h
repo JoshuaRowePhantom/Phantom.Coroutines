@@ -1,10 +1,9 @@
-#pragma once
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#pragma once
+#include <optional>
+#include "detail/config.h"
 #include "extensible_promise.h"
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.extensible_promise;
-import Phantom.Coroutines.type_traits;
 #endif
 
 namespace Phantom::Coroutines
@@ -238,5 +237,6 @@ public:
 };
 
 }
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::awaiter_wrapper;
 }

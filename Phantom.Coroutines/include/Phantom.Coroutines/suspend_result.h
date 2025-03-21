@@ -1,11 +1,12 @@
 #pragma once
 
 #include <type_traits>
-#include "awaiter_wrapper.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/coroutine.h"
+#include "awaiter_wrapper.h"
+#include "detail/coroutine.h"
 #include "type_traits.h"
 #else
+import Phantom.Coroutines.awaiter_wrapper;
 import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.type_traits;
 #endif

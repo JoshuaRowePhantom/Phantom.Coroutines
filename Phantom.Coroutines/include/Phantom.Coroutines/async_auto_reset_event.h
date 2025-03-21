@@ -1,14 +1,13 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
+#include <algorithm>
 #include <atomic>
-#include "double_wide_atomic.h"
 #include "detail/config.h"
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/coroutine.h"
+#include "detail/coroutine.h"
+#include "double_wide_atomic.h"
 #include "policies.h"
-#else
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.policies;
+#include "type_traits.h"
 #endif
 
 namespace Phantom::Coroutines
@@ -404,5 +403,6 @@ public:
 };
 
 }
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_auto_reset_event;
 }

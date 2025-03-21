@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 #include "awaiters.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.awaiter_wrapper;
+#else
 #include "Phantom.Coroutines/awaiter_wrapper.h"
+#endif
 
 namespace Phantom::Coroutines::detail
 {

@@ -1,9 +1,10 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "awaiter_wrapper.h"
 #include "extensible_promise.h"
 #else
+import Phantom.Coroutines.awaiter_wrapper;
 import Phantom.Coroutines.extensible_promise;
 #endif
-#include "awaiter_wrapper.h"
 
 namespace Phantom::Coroutines
 {

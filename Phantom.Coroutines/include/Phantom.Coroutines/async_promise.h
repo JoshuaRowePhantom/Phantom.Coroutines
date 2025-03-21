@@ -1,13 +1,14 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/immovable_object.h"
+#include "awaiter_wrapper.h"
 #include "type_traits.h"
 #else
+import Phantom.Coroutines.awaiter_wrapper;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.type_traits;
 #endif
 #include "detail/storage_for.h"
 #include "async_manual_reset_event.h"
-#include "awaiter_wrapper.h"
 
 namespace Phantom::Coroutines
 {

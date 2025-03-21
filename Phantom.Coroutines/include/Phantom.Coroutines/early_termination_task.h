@@ -5,16 +5,17 @@
 #include <optional>
 #include <tuple>
 #include <type_traits>
-#include "awaiter_wrapper.h"
 #include "await_all_await_transform.h"
 #include "detail/variant_result_storage.h"
 #include "task.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "awaiter_wrapper.h"
 #include "detail/final_suspend_transfer.h"
 #include "extensible_promise.h"
 #include "policies.h"
 #include "type_traits.h"
 #else
+import Phantom.Coroutines.awaiter_wrapper;
 import Phantom.Coroutines.extensible_promise;
 import Phantom.Coroutines.final_suspend_transfer;
 import Phantom.Coroutines.policies;

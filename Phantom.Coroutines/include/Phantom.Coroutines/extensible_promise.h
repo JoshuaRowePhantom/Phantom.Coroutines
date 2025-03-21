@@ -497,7 +497,11 @@ public:
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::extensible_promise;
 PHANTOM_COROUTINES_MODULE_EXPORT
+using detail::extended_promise_handle;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_extensible_promise;
+PHANTOM_COROUTINES_MODULE_EXPORT
+using detail::is_extensible_promise_handle;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::extensible_promise_handle;
 PHANTOM_COROUTINES_MODULE_EXPORT
