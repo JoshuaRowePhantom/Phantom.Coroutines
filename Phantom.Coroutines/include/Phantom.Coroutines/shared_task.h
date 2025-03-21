@@ -10,19 +10,20 @@
 #pragma once
 
 #include <variant>
-#include "detail/final_suspend_transfer.h"
 #include "detail/variant_result_storage.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/atomic_state.h"
+#include "detail/atomic_state.h"
+#include "detail/final_suspend_transfer.h"
 #include "extensible_promise.h"
 #include "policies.h"
 #include "type_traits.h"
-#include "Phantom.Coroutines/detail/coroutine.h"
+#include "detail/coroutine.h"
 #include "detail/immovable_object.h"
 #else
 import Phantom.Coroutines.atomic_state;
 import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.extensible_promise;
+import Phantom.Coroutines.final_suspend_transfer;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.policies;
 import Phantom.Coroutines.type_traits;

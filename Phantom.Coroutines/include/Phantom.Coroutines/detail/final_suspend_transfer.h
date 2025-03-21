@@ -1,15 +1,14 @@
-#pragma once
-
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/coroutine.h"
-#else
-import Phantom.Coroutines.coroutine;
-#endif
+#pragma once
 #include <assert.h>
+#include "Phantom.Coroutines/detail/coroutine.h"
+#include "Phantom.Coroutines/detail/config.h"
+#endif
 
 namespace Phantom::Coroutines::detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class final_suspend_transfer
 {
     coroutine_handle<> m_continuation;
