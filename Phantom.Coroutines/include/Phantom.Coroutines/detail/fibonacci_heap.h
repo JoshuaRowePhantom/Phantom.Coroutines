@@ -1,14 +1,18 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
 #include <array>
 #include <initializer_list>
 #include <limits>
+#include "config.h"
+#endif
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Builder
 > concept is_fibonacci_heap_builder = requires(
@@ -26,6 +30,7 @@ template<
     std::swap(node, node);
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename HeapType
 > class fibonacci_heap_builder

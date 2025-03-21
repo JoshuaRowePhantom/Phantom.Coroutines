@@ -1,5 +1,9 @@
 #include <gtest/gtest.h>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.fibonacci_heap;
+#else
 #include "Phantom.Coroutines/detail/fibonacci_heap.h"
+#endif
 #include <memory>
 #include <random>
 #include <sstream>
