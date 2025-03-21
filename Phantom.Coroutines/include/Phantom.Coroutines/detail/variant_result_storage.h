@@ -1,14 +1,13 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 #include <type_traits>
 #include <variant>
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "Phantom.Coroutines/type_traits.h"
-#else
-import Phantom.Coroutines.type_traits;
 #endif
 
 namespace Phantom::Coroutines::detail
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > struct variant_return_result
@@ -74,6 +73,7 @@ template<
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > struct variant_result_storage

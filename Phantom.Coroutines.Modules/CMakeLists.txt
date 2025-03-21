@@ -33,7 +33,7 @@ target_sources(
     "sequence_lock.ixx"
     "thread_local_storage.ixx" 
     "type_traits.ixx"
- "fibonacci_heap.ixx" "final_suspend_transfer.ixx" "core_task.ixx" "storage_for.ixx")
+ "fibonacci_heap.ixx" "final_suspend_transfer.ixx" "core_task.ixx" "storage_for.ixx" "variant_result_storage.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules
