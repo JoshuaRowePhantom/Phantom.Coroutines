@@ -24,7 +24,11 @@ target_sources(
     "async_latch.ixx" 
     "async_manual_reset_event.ixx"  
     "async_mutex.ixx"
+    "async_promise.ixx" 
+    "async_reader_writer_lock.ixx" 
+    "async_scope.ixx" 
     "atomic_state.ixx"
+    "await_all_await_transform.ixx"
     "awaiter_list.ixx"
     "awaiter_wrapper.ixx"
     "consecutive_thread_id.ixx"
@@ -43,10 +47,11 @@ target_sources(
     "scope_guard.ixx"
     "sequence_lock.ixx"
     "storage_for.ixx"
+    "tagged_pointer.ixx" 
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- "async_promise.ixx" "async_reader_writer_lock.ixx" "tagged_pointer.ixx" "async_scope.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

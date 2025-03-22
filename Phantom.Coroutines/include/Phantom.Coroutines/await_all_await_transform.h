@@ -2,9 +2,9 @@
 #define PHANTOM_COROUTINES_INCLUDE_AWAIT_ALL_AWAIT_TRANSFORM_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.type_traits;
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -26,6 +26,7 @@ public:
     }
 };
 }
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::await_all_await_transform;
 
 }
