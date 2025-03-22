@@ -1,16 +1,18 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_SHARDING_H
 #define PHANTOM_COROUTINES_INCLUDE_SHARDING_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "aligned_array.h"
-#else
-import Phantom.Coroutines.aligned_array;
-#endif
 #include <algorithm>
+#include <atomic>
 #include <ranges>
+#include "aligned_array.h"
+#endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 // Default implementation of get_current_shard() that returns t.get_current_shard()
 decltype(auto) get_current_shard(
     auto& t
@@ -23,6 +25,7 @@ decltype(auto) get_current_shard(
     return t.get_current_shard();
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 // Default implementation of get_shards() that returns t.get_shards()
 decltype(auto) get_shards(
     auto& t
@@ -35,6 +38,7 @@ decltype(auto) get_shards(
     return t.get_shards();
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 // Default implementation of get_shard_count() that returns t.get_shard_count()
 decltype(auto) get_shard_count(
     auto& t
@@ -47,6 +51,7 @@ decltype(auto) get_shard_count(
     return t.get_shard_count();
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 decltype(auto) get_current_shard_number(
     auto& t
 )
@@ -58,6 +63,7 @@ decltype(auto) get_current_shard_number(
     return t.get_current_shard_number();
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename I,
     typename T,
@@ -72,6 +78,7 @@ decltype(auto) create_shards(
         std::forward<Args>(args)...);
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename I,
     typename T,
@@ -86,6 +93,7 @@ decltype(auto) create_cache_aligned_shards(
         std::forward<Args>(args)...);
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_shard_numbering = requires(T t)
@@ -94,6 +102,7 @@ template<
     { get_shard_count(t) } -> std::convertible_to<size_t>;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T,
     typename I
@@ -104,6 +113,7 @@ template<
 };
 
 // A sharded item supports get_shard(T) and get_shards(T) (which supports iteration)
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_sharded = is_shard_numbering<T> && requires (
@@ -117,6 +127,7 @@ template<
     { get_shards(t)[index] };
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     size_t Shards
 >
@@ -160,6 +171,7 @@ struct static_shard_numbering
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     size_t Shards
 >
@@ -180,6 +192,7 @@ struct static_thread_id_shard_numbering
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Range,
     is_shard_numbering ShardNumbering
@@ -214,6 +227,7 @@ struct sharded_range
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T,
     is_shard_numbering ShardNumbering
@@ -224,6 +238,7 @@ using cache_aligned_sharded_range =
         ShardNumbering
     >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T,
     size_t Shards = 32
@@ -233,6 +248,7 @@ using static_cache_aligned_sharded_array = cache_aligned_sharded_range<
     static_thread_id_shard_numbering<Shards>
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_sharded Sharded,
     typename Transformation

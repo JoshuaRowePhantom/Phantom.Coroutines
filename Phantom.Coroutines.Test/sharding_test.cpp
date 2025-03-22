@@ -1,5 +1,10 @@
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.aligned_array;
+import Phantom.Coroutines.sharding;
+#else
 #include "Phantom.Coroutines/sharding.h"
+#endif
 #include <concepts>
 #include <type_traits>
 
