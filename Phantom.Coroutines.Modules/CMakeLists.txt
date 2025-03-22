@@ -32,17 +32,22 @@ target_sources(
     "await_none_await_transform.ixx"
     "awaiter_list.ixx"
     "awaiter_wrapper.ixx"
-    "consecutive_thread_id.ixx"
     "consecutive_global_id.ixx" 
+    "consecutive_thread_id.ixx"
     "contextual_promise.ixx"
     "core_task.ixx"
     "coroutine.ixx" 
     "direct_initialized_optional.ixx"
     "double_wide_atomic.ixx"
+    "early_termination_task.ixx" 
+    "error_condition_early_termination.ixx" 
+    "expected_early_termination.ixx" 
     "extensible_promise.ixx"
     "fibonacci_heap.ixx" 
     "final_suspend_transfer.ixx"
+    "generator.ixx" 
     "immovable_object.ixx"
+    "inline_scheduler.ixx"
     "non_copyable.ixx"
     "nonatomic_shared_ptr.ixx"
     "Phantom.Coroutines.ixx" 
@@ -56,7 +61,7 @@ target_sources(
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- "early_termination_task.ixx" "error_condition_early_termination.ixx" "expected_early_termination.ixx" "generator.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules
