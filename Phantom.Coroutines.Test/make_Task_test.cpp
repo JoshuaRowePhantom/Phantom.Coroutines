@@ -1,10 +1,11 @@
 #include "async_test.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_manual_reset_event;
+import Phantom.Coroutines.make_task;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
-#endif
 #include "Phantom.Coroutines/make_task.h"
+#endif
 #include "Phantom.Coroutines/shared_task.h"
 #include "Phantom.Coroutines/task.h"
 

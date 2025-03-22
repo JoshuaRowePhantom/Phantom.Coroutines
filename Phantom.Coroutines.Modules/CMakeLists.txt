@@ -48,6 +48,7 @@ target_sources(
     "generator.ixx" 
     "immovable_object.ixx"
     "inline_scheduler.ixx"
+    "make_task.ixx"
     "non_copyable.ixx"
     "nonatomic_shared_ptr.ixx"
     "Phantom.Coroutines.ixx" 

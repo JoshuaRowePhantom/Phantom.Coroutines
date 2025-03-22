@@ -1,15 +1,16 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_MAKE_TASK_H
 #define PHANTOM_COROUTINES_INCLUDE_MAKE_TASK_H
-#include "task.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "task.h"
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.type_traits;
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     template <typename Result> typename Task = task,
     typename Awaitable
