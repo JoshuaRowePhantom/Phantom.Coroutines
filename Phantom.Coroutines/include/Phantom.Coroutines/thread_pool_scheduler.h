@@ -2,17 +2,18 @@
 #define PHANTOM_COROUTINES_INCLUDE_THREAD_POOL_SCHEDULER_H
 #include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/coroutine.h"
+#include "detail/coroutine.h"
 #include "policies.h"
-#include "Phantom.Coroutines/read_copy_update.h"
+#include "read_copy_update.h"
+#include "scheduler.h"
 #include "type_traits.h"
 #else
 import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.policies;
 import Phantom.Coroutines.read_copy_update;
+import Phantom.Coroutines.scheduler;
 import Phantom.Coroutines.type_traits;
 #endif
-#include "scheduler.h"
 #include "task.h"
 #include <algorithm>
 #include <atomic>

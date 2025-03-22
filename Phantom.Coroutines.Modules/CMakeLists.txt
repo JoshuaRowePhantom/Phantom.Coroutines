@@ -57,6 +57,7 @@ target_sources(
     "read_copy_update.ixx"
     "reusable_consecutive_global_id.ixx"
     "reusable_task.ixx"
+    "scheduler.ixx"
     "scope_guard.ixx"
     "sequence_lock.ixx"
     "storage_for.ixx"

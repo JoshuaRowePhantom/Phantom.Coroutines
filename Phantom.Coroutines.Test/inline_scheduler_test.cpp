@@ -1,10 +1,11 @@
 #include "async_test.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.inline_scheduler;
+import Phantom.Coroutines.scheduler;
 #else
 #include "Phantom.Coroutines/inline_scheduler.h"
-#endif
 #include "Phantom.Coroutines/scheduler.h"
+#endif
 #include <thread>
 
 using namespace Phantom::Coroutines;

@@ -1,6 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_INLINE_SCHEDULER_H
 #define PHANTOM_COROUTINES_INCLUDE_INLINE_SCHEDULER_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "detail/coroutine.h"
 #include "scheduler.h"
 #endif
 

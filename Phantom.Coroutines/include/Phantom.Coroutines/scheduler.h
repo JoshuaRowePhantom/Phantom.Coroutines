@@ -2,9 +2,9 @@
 #define PHANTOM_COROUTINES_INCLUDE_SCHEDULER_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.type_traits;
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -20,6 +20,7 @@ template<
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_scheduler;
 
 }

@@ -1,6 +1,10 @@
 #include <thread>
 #include <vector>
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "scheduler.h"
+#else
+import Phantom.Coroutines.scheduler;
+#endif
 #include "thread_pool_scheduler.h"
 #include <latch>
 
