@@ -29,6 +29,7 @@ target_sources(
     "async_scope.ixx" 
     "atomic_state.ixx"
     "await_all_await_transform.ixx"
+    "await_none_await_transform.ixx"
     "awaiter_list.ixx"
     "awaiter_wrapper.ixx"
     "consecutive_thread_id.ixx"

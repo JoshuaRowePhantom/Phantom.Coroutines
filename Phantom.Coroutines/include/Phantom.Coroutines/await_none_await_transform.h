@@ -6,6 +6,8 @@
 import Phantom.Coroutines.type_traits;
 #endif
 
+#include "detail/assert_is_configured_module.h"
+
 namespace Phantom::Coroutines
 {
 namespace detail
@@ -22,6 +24,7 @@ public:
     ) = delete;
 };
 }
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::await_none_await_transform;
 
 }
