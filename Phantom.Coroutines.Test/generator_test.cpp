@@ -3,10 +3,11 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include "Phantom.Coroutines/generator.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.generator;
 import Phantom.Coroutines.Test.lifetime_tracker;
 #else
+#include "Phantom.Coroutines/generator.h"
 #include "lifetime_tracker.h"
 #endif
 

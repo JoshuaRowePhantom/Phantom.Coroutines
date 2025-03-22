@@ -1,17 +1,15 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_GENERATOR_H
 #define PHANTOM_COROUTINES_INCLUDE_GENERATOR_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/coroutine.h"
-#include "detail/immovable_object.h"
-#else
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.immovable_object;
-#endif
 #include <concepts>
 #include <exception>
 #include <variant>
 #include <type_traits>
+#include "Phantom.Coroutines/detail/coroutine.h"
+#include "detail/immovable_object.h"
+#endif
 
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -360,10 +358,15 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_generator;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_generator_iterator;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_generator_promise;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::generator;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::GeneratorTraits;
 
 }
