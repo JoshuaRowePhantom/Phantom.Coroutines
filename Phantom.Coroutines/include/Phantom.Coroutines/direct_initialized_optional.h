@@ -1,10 +1,15 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_DIRECT_INITIALIZED_OPTIONAL_H
 #define PHANTOM_COROUTINES_INCLUDE_DIRECT_INITIALIZED_OPTIONAL_H
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
+#endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > class direct_initialized_optional
