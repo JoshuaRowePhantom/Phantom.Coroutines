@@ -1,13 +1,15 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_EARLY_TERMINATION_TASK_H
 #define PHANTOM_COROUTINES_INCLUDE_EARLY_TERMINATION_TASK_H
 
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <assert.h>
 #include <concepts>
 #include <exception>
 #include <optional>
 #include <tuple>
 #include <type_traits>
+#include <variant>
 #include "task.h"
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "await_all_await_transform.h"
 #include "awaiter_wrapper.h"
 #include "detail/final_suspend_transfer.h"
@@ -15,29 +17,26 @@
 #include "extensible_promise.h"
 #include "policies.h"
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.await_all_await_transform;
-import Phantom.Coroutines.awaiter_wrapper;
-import Phantom.Coroutines.extensible_promise;
-import Phantom.Coroutines.final_suspend_transfer;
-import Phantom.Coroutines.policies;
-import Phantom.Coroutines.type_traits;
-import Phantom.Coroutines.variant_result_storage;
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class early_termination_policy
 {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class early_termination_transformer
     :
     public early_termination_policy
 {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class early_termination_result
     :
     public early_termination_policy
@@ -48,6 +47,7 @@ public:
     void get_success_value(invalid_return_value);
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class early_termination_error_propagator
 {
 public:
@@ -66,6 +66,7 @@ public:
     virtual coroutine_handle<> propagate_exception() = 0;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class early_termination_exception_sink
 {
 public:
@@ -75,6 +76,7 @@ public:
     virtual void return_unhandled_exception() = 0;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ErrorResult
 >
@@ -88,6 +90,7 @@ public:
     ) = 0;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class early_termination_error_propagator_loop
 {
     template<
@@ -219,6 +222,7 @@ inline thread_local early_termination_error_propagator_loop early_termination_er
     = early_termination_error_propagator_loop::do_propagation_loop();
 
 // An early_termination_transformed_awaiter can cause a promise to terminate early.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 >
@@ -277,11 +281,13 @@ public:
     {}
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 >
 class early_termination_synchronous_awaiter;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Awaiter
 > concept is_early_termination_synchronous_awaiter = 
@@ -301,6 +307,7 @@ is_derived_instantiation<Awaiter, early_termination_synchronous_awaiter>
 // synchronously-obtained values.
 // Derived classes must implement the is_early_termination_synchronous_awaiter
 // concept.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 >
@@ -343,10 +350,12 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > concept is_early_termination_policy = std::derived_from<Policy, early_termination_policy>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > struct early_termination_policy_selector
@@ -357,10 +366,12 @@ template<
     >
 {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > concept is_early_termination_transformer = std::derived_from<Policy, early_termination_transformer>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > struct early_termination_transformer_selector
@@ -371,10 +382,12 @@ template<
     >
 {};
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > concept is_early_termination_result = std::derived_from<Policy, early_termination_result>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > struct early_termination_result_selector
@@ -387,6 +400,7 @@ template<
 
 // This awaiter is used to capture and return the successful or error result of
 // executing an early_termination_task.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ResultType
 > struct basic_error_handling_early_termination_task_result
@@ -400,6 +414,7 @@ template<
     >;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename CalledPromise
 > class basic_error_handling_early_termination_task_awaiter
@@ -492,6 +507,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename CallingPromise,
     typename CalledPromise
@@ -582,6 +598,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class basic_early_termination_task
@@ -611,10 +628,12 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > basic_early_termination_task(coroutine_handle<Promise>) -> basic_early_termination_task<Promise>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename BasePromise
 > class basic_early_termination_promise
@@ -734,11 +753,13 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > concept is_early_termination_promise =
 is_template_instantiation<Promise, basic_early_termination_promise>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_template_instantiation<basic_early_termination_promise> Promise,
     is_template_instantiation<std::tuple> PoliciesTuple,
@@ -755,6 +776,7 @@ template<
 >
 class early_termination_promise_inheritor;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
     typename ... Policies,
@@ -811,12 +833,19 @@ template<
     >;
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_early_termination_policy;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::early_termination_task;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::early_termination_promise;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::early_termination_transformer;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::early_termination_awaiter;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::early_termination_synchronous_awaiter;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::early_termination_result;
 }
 #endif

@@ -1,7 +1,10 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ERROR_CONDITION_EARLY_TERMINATION_H
 #define PHANTOM_COROUTINES_INCLUDE_ERROR_CONDITION_EARLY_TERMINATION_H
-
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "early_termination_task.h"
+#else
+import Phantom.Coroutines.early_termination_task;
+#endif
 #include <system_error>
 #include <variant>
 

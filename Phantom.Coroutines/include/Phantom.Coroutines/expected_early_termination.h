@@ -1,9 +1,10 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_EXPECTED_EARLY_TERMINATION_H
 #define PHANTOM_COROUTINES_INCLUDE_EXPECTED_EARLY_TERMINATION_H
-#include "early_termination_task.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "early_termination_task.h"
 #include "type_traits.h"
 #else
+import Phantom.Coroutines.early_termination_task;
 import Phantom.Coroutines.type_traits;
 #endif
 #include <concepts>
