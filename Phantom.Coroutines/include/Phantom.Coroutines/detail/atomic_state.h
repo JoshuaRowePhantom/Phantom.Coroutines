@@ -1,5 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_ATOMIC_STATE_H
+#define PHANTOM_COROUTINES_INCLUDE_ATOMIC_STATE_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include <atomic>
 #include <assert.h>
 #include <bit>
@@ -9,6 +10,8 @@
 #include "coroutine.h"
 #include "Phantom.Coroutines/type_traits.h"
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -763,3 +766,4 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::state;
 
 }
+#endif

@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
-#include "Phantom.Coroutines/async_scope.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_manual_reset_event;
+import Phantom.Coroutines.async_scope;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#include "Phantom.Coroutines/async_scope.h"
 #endif
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_SHARDING_H
+#define PHANTOM_COROUTINES_INCLUDE_SHARDING_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "aligned_array.h"
 #else
@@ -258,3 +259,4 @@ struct transformed_sharded_range
 };
 
 }
+#endif

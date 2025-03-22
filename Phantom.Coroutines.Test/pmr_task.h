@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef PHANTOM_COROUTINES_INCLUDE_PMR_TASK_H
+#define PHANTOM_COROUTINES_INCLUDE_PMR_TASK_H
 #include "Phantom.Coroutines/promise_allocator.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/reusable_task.h"
@@ -62,5 +62,5 @@ template<
     >
 >;
 
-
 }
+#endif

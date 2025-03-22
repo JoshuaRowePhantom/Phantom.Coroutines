@@ -1,11 +1,13 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_MANUAL_RESET_EVENT_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_MANUAL_RESET_EVENT_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include <atomic>
 #include "policies.h"
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -181,3 +183,4 @@ using detail::is_async_manual_reset_event_policy;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_async_manual_reset_event;
 }
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_TEST_H_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_TEST_H_H
 
 #include <gtest/gtest.h>
 #include "Phantom.Coroutines/reusable_task.h"
@@ -31,3 +32,4 @@ GTEST_TEST_(test_suite_name, test_name, ASYNC_TEST_CLASS_NAME(test_suite_name, t
 #define ASYNC_TEST(test_suite_name, test_name) ASYNC_TEST_(test_suite_name, test_name, ::testing::Test, ::testing::internal::GetTestTypeId())
 #define ASYNC_TEST_F(test_suite_name, test_name) ASYNC_TEST_(test_suite_name, test_name, test_suite_name, ::testing::internal::GetTypeId<test_suite_name>())
 
+#endif

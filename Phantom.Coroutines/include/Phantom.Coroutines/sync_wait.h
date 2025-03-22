@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef PHANTOM_COROUTINES_INCLUDE_SYNC_WAIT_H
+#define PHANTOM_COROUTINES_INCLUDE_SYNC_WAIT_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "Phantom.Coroutines/detail/coroutine.h"
 #include "type_traits.h"
@@ -199,3 +199,4 @@ using detail::as_future;
 using detail::sync_wait;
 
 }
+#endif

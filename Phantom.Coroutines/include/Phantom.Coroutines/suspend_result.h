@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef PHANTOM_COROUTINES_INCLUDE_SUSPEND_RESULT_H
+#define PHANTOM_COROUTINES_INCLUDE_SUSPEND_RESULT_H
 #include <type_traits>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "awaiter_wrapper.h"
@@ -133,3 +133,4 @@ public:
 using detail::suspend_result;
 
 }
+#endif

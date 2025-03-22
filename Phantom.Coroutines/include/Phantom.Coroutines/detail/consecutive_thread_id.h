@@ -1,7 +1,10 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_CONSECUTIVE_THREAD_ID_H
+#define PHANTOM_COROUTINES_INCLUDE_CONSECUTIVE_THREAD_ID_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include "../reusable_consecutive_global_id.h"
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -36,3 +39,4 @@ public:
     }
 };
 }
+#endif

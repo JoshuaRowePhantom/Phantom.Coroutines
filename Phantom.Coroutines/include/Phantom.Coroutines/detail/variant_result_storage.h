@@ -1,9 +1,12 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_VARIANT_RESULT_STORAGE_H
+#define PHANTOM_COROUTINES_INCLUDE_VARIANT_RESULT_STORAGE_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include <type_traits>
 #include <variant>
 #include "Phantom.Coroutines/type_traits.h"
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -217,3 +220,4 @@ template<
 };
 
 }
+#endif

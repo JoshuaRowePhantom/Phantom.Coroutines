@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_SHARDED_READER_WRITER_LOCK_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_SHARDED_READER_WRITER_LOCK_H
 #include "direct_initialized_optional.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "async_reader_writer_lock.h"
@@ -480,3 +481,4 @@ private:
 };
 
 }
+#endif

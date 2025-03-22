@@ -1,10 +1,12 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_LATCH_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_LATCH_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include <atomic>
 #include "async_manual_reset_event.h"
 #include "type_traits.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -44,3 +46,4 @@ public:
 };
 
 }
+#endif

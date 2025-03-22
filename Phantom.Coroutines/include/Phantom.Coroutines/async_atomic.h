@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_ATOMIC_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_ATOMIC_H
 #include <atomic>
 #include <concepts>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
@@ -248,3 +249,4 @@ using detail::basic_async_atomic;
 using detail::async_atomic;
 
 }
+#endif

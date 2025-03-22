@@ -7,7 +7,8 @@ add_library(
 target_compile_definitions(
     Phantom.Coroutines.Modules
     PRIVATE
-    PHANTOM_COROUTINES_COMPILING_MODULES
+    PHANTOM_COROUTINES_COMPILING_MODULES=1
+    PHANTOM_COROUTINES_IS_COMPILED_MODULE=1
 )
 
 target_sources(
@@ -45,10 +46,15 @@ target_sources(
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- "async_promise.ixx" "async_reader_writer_lock.ixx" "tagged_pointer.ixx")
+ "async_promise.ixx" "async_reader_writer_lock.ixx" "tagged_pointer.ixx" "async_scope.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules
     PRIVATE
     Phantom.Coroutines
 )
+
+set_target_properties(
+    Phantom.Coroutines.Modules
+    PROPERTIES
+    CXX_SCAN_FOR_MODULES true)

@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef PHANTOM_COROUTINES_INCLUDE_INLINE_SCHEDULER_H
+#define PHANTOM_COROUTINES_INCLUDE_INLINE_SCHEDULER_H
 #include "scheduler.h"
 
 namespace Phantom::Coroutines
@@ -23,3 +23,4 @@ static_assert(is_scheduler<inline_scheduler>);
 using detail::inline_scheduler;
 
 }
+#endif

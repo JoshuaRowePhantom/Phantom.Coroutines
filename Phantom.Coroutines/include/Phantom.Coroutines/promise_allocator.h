@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_PROMISE_ALLOCATOR_H
+#define PHANTOM_COROUTINES_INCLUDE_PROMISE_ALLOCATOR_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "extensible_promise.h"
 #else
@@ -149,3 +150,4 @@ public:
 };
 
 }
+#endif

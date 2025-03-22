@@ -1,12 +1,14 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_ALIGNED_ARRAY_H
+#define PHANTOM_COROUTINES_INCLUDE_ALIGNED_ARRAY_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include "detail/config.h"
 #include<array>
 #include<cstddef>
 #include<compare>
 #include<new>
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -216,3 +218,4 @@ template<
 
 
 }
+#endif

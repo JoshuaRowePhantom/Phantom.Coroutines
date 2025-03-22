@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_TASK_H
+#define PHANTOM_COROUTINES_INCLUDE_TASK_H
 
 #include <concepts>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
@@ -52,3 +53,5 @@ using detail::task;
 using detail::task_promise;
 
 }
+
+#endif

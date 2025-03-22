@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_CORO_SHARED_TASK_HPP
+#define PHANTOM_COROUTINES_INCLUDE_CORO_SHARED_TASK_HPP
 
 #include "Phantom.Coroutines/make_task.h"
 #include "Phantom.Coroutines/shared_task.h"
@@ -22,3 +23,4 @@ template<
 }
 
 }
+#endif

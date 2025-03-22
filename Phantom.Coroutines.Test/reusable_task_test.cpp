@@ -1,15 +1,16 @@
 #include <string>
 #include <type_traits>
 #include <gtest/gtest.h>
-#include "Phantom.Coroutines/async_scope.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_auto_reset_event;
 import Phantom.Coroutines.async_manual_reset_event;
+import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.Test.lifetime_tracker;
 #else
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#include "Phantom.Coroutines/async_scope.h"
 #include "lifetime_tracker.h"
 #include "Phantom.Coroutines/type_traits.h"
 #endif

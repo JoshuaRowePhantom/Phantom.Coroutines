@@ -1,10 +1,13 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_COROUTINE_H
+#define PHANTOM_COROUTINES_INCLUDE_COROUTINE_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include "Phantom.Coroutines/detail/config.h"
 #include <assert.h>
 #include <coroutine>
 #include <tuple>
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -103,3 +106,4 @@ using std::operator==;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using std::operator<=>;
 }
+#endif

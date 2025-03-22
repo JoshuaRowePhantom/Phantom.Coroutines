@@ -1,11 +1,13 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASSERT_SAME_THREAD_H
+#define PHANTOM_COROUTINES_INCLUDE_ASSERT_SAME_THREAD_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #if !NDEBUG
 #include <assert.h>
 #include <thread>
 #endif
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -52,3 +54,4 @@ public:
 #endif
 
 }
+#endif

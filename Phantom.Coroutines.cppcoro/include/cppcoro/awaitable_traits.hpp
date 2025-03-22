@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_CORO_AWAITABLE_TRAITS_HPP
+#define PHANTOM_COROUTINES_INCLUDE_CORO_AWAITABLE_TRAITS_HPP
 
 #include "Phantom.Coroutines/type_traits.h"
 
@@ -23,3 +24,4 @@ struct awaitable_traits<
 };
 
 }
+#endif

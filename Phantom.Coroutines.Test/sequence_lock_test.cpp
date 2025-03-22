@@ -1,12 +1,13 @@
 #include <array>
 #include <iostream>
 #include "async_test.h"
-#include "Phantom.Coroutines/async_scope.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_mutex;
 import Phantom.Coroutines.sequence_lock;
+import Phantom.Coroutines.async_scope;
 #else
 #include "Phantom.Coroutines/async_mutex.h"
+#include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/sequence_lock.h"
 #endif
 #include "Phantom.Coroutines/sync_wait.h"

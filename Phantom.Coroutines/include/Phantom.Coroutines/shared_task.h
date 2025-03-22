@@ -1,3 +1,5 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_SHARED_TASK_H
+#define PHANTOM_COROUTINES_INCLUDE_SHARED_TASK_H
 // shared_task and shared_task_promise implement a reference-counted task
 // that can be co_await'ed multiple times.
 // A shared_task<> itself can be copied or moved. 
@@ -6,9 +8,6 @@
 // If the shared_task<>'s reference count reaches zero,
 // the task is destroyed: this will likely lead to undefined behavior
 // if the task is still executing, so don't do this.
-
-#pragma once
-
 #include <variant>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/atomic_state.h"
@@ -529,3 +528,4 @@ public:
     }
 };
 }
+#endif

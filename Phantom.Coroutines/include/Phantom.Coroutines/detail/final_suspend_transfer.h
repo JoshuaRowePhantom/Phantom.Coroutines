@@ -1,9 +1,12 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_FINAL_SUSPEND_TRANSFER_H
+#define PHANTOM_COROUTINES_INCLUDE_FINAL_SUSPEND_TRANSFER_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include <assert.h>
 #include "Phantom.Coroutines/detail/coroutine.h"
 #include "Phantom.Coroutines/detail/config.h"
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -36,3 +39,4 @@ public:
     }
 };
 }
+#endif

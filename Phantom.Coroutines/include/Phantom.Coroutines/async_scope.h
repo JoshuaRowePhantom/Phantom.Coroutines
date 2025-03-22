@@ -1,21 +1,20 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_SCOPE_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_SCOPE_H
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 
 #include <assert.h>
 #include <atomic>
 #include <concepts>
 #include <exception>
 #include <utility>
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "detail/config.h"
 #include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
 #include "policies.h"
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.final_suspend_transfer;
-import Phantom.Coroutines.policies;
-import Phantom.Coroutines.type_traits;
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -245,5 +244,7 @@ public:
 };
 
 }
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_scope;
 }
+#endif

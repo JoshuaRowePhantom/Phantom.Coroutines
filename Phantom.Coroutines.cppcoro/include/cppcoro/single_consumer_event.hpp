@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_CORO_SINGLE_CONSUMER_EVENT_HPP
+#define PHANTOM_COROUTINES_INCLUDE_CORO_SINGLE_CONSUMER_EVENT_HPP
 
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 
@@ -8,3 +9,4 @@ using single_consumer_event = ::Phantom::Coroutines::async_manual_reset_event<
     ::Phantom::Coroutines::single_awaiter
 >;
 }
+#endif

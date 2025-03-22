@@ -1,6 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_TAGGED_POINTER_H
+#define PHANTOM_COROUTINES_INCLUDE_TAGGED_POINTER_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include <assert.h>
 #include <bit>
 #include <concepts>
@@ -8,6 +8,8 @@
 #include <type_traits>
 #include "detail/config.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -88,3 +90,4 @@ public:
 };
 
 }
+#endif

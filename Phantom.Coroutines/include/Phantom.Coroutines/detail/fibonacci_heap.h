@@ -1,11 +1,13 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_FIBONACCI_HEAP_H
+#define PHANTOM_COROUTINES_INCLUDE_FIBONACCI_HEAP_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include <array>
 #include <initializer_list>
 #include <limits>
 #include "config.h"
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -270,3 +272,4 @@ public:
 
 }
 }
+#endif

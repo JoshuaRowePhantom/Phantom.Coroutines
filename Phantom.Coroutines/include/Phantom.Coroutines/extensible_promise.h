@@ -1,5 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_EXTENSIBLE_PROMISE_H
+#define PHANTOM_COROUTINES_INCLUDE_EXTENSIBLE_PROMISE_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include <concepts>
 #include <tuple>
 #include <type_traits>
@@ -7,6 +8,8 @@
 #include "Phantom.Coroutines/detail/scope_guard.h"
 #include "type_traits.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -508,3 +511,4 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::derived_promise;
 
 }
+#endif

@@ -1,6 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_GENERATOR_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_GENERATOR_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include "detail/config.h"
 #include "awaiter_wrapper.h"
 #include "extensible_promise.h"
@@ -11,6 +11,7 @@
 #include <type_traits>
 #endif
 
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -438,3 +439,4 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_generator;
 
 }
+#endif

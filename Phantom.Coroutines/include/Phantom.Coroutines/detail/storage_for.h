@@ -5,6 +5,8 @@
 #include "../type_traits.h"
 #endif
 
+#include "assert_is_configured_module.h"
+
 namespace Phantom::Coroutines::detail
 {
 

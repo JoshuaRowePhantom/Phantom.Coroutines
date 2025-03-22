@@ -1,7 +1,11 @@
 #include <gtest/gtest.h>
 #include "async_test.h"
 #include "Phantom.Coroutines/async_atomic.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_scope;
+#else
 #include "Phantom.Coroutines/async_scope.h"
+#endif
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/task.h"
 

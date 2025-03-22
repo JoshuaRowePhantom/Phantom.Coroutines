@@ -1,5 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_AWAITER_WRAPPER_H
+#define PHANTOM_COROUTINES_INCLUDE_AWAITER_WRAPPER_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include <optional>
 #include "detail/config.h"
 #include "extensible_promise.h"
@@ -240,3 +241,4 @@ public:
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::awaiter_wrapper;
 }
+#endif

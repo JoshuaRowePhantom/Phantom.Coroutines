@@ -85,6 +85,7 @@ target_compile_definitions(
     PRIVATE
     PHANTOM_COROUTINES_TESTING_MODULES
     PHANTOM_COROUTINES_COMPILING_MODULES
+    PHANTOM_COROUTINES_IS_COMPILED_MODULE=0
 )
 
 target_link_libraries(
@@ -95,6 +96,11 @@ target_link_libraries(
     GTest::gtest
     GTest::gtest_main
 )
+
+set_target_properties(
+    Phantom.Coroutines.Modules.Test
+    PROPERTIES
+    CXX_SCAN_FOR_MODULES true)
 
 enable_testing()
 

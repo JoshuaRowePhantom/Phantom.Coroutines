@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_SEQUENCE_BARRIER_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_SEQUENCE_BARRIER_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "Phantom.Coroutines/detail/atomic_state.h"
 #include "Phantom.Coroutines/detail/coroutine.h"
@@ -409,3 +409,4 @@ public:
 
 using detail::async_sequence_barrier;
 }
+#endif

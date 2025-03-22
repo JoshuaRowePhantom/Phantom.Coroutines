@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_DIRECT_INITIALIZED_OPTIONAL_H
+#define PHANTOM_COROUTINES_INCLUDE_DIRECT_INITIALIZED_OPTIONAL_H
 #include <concepts>
 
 namespace Phantom::Coroutines
@@ -169,3 +170,4 @@ public:
 };
 
 }
+#endif

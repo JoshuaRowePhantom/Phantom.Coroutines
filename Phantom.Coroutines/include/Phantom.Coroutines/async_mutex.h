@@ -1,6 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_MUTEX_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_MUTEX_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include <concepts>
 #include "detail/config.h"
 #include "detail/atomic_state.h"
@@ -10,6 +10,8 @@
 #include "awaiter_list.h"
 #include <type_traits>
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -316,3 +318,4 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_async_mutex_policy;
 
 }
+#endif

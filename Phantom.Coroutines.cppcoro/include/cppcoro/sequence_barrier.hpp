@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_CORO_SEQUENCE_BARRIER_HPP
+#define PHANTOM_COROUTINES_INCLUDE_CORO_SEQUENCE_BARRIER_HPP
 
 #include "Phantom.Coroutines/async_sequence_barrier.h"
 #include "task.hpp"
@@ -28,3 +29,4 @@ public:
 };
 
 }
+#endif

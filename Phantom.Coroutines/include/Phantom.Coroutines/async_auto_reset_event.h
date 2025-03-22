@@ -1,5 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_AUTO_RESET_EVENT_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_AUTO_RESET_EVENT_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 
 #include <algorithm>
 #include <atomic>
@@ -9,6 +10,8 @@
 #include "policies.h"
 #include "type_traits.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -406,3 +409,4 @@ public:
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_auto_reset_event;
 }
+#endif

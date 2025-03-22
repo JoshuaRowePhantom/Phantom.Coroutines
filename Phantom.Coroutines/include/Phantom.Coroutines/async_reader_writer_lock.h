@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_READER_WRITER_LOCK_H
+#define PHANTOM_COROUTINES_INCLUDE_ASYNC_READER_WRITER_LOCK_H
 
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/config.h"
@@ -7,6 +8,8 @@
 #include "policies.h"
 #include "tagged_pointer.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -580,3 +583,4 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_async_reader_writer_lock;
 
 }
+#endif

@@ -1,7 +1,10 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_IMMOVABLE_OBJECT_H
+#define PHANTOM_COROUTINES_INCLUDE_IMMOVABLE_OBJECT_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include "config.h"
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -29,3 +32,4 @@ private:
         ) = delete;
 };
 }
+#endif

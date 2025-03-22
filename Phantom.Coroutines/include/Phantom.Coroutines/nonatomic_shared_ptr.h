@@ -1,10 +1,13 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_NONATOMIC_SHARED_PTR_H
+#define PHANTOM_COROUTINES_INCLUDE_NONATOMIC_SHARED_PTR_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include <assert.h>
 #include <optional>
 #include <utility>
 #include "detail/config.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -306,3 +309,4 @@ requires std::constructible_from<T, decltype(args)...>
 }
 
 }
+#endif

@@ -1,11 +1,13 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_SCOPE_GUARD_H
+#define PHANTOM_COROUTINES_INCLUDE_SCOPE_GUARD_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include <concepts>
 #include <type_traits>
 #include "config.h"
 #include "immovable_object.h"
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -43,3 +45,4 @@ template<
 
 }
 }
+#endif

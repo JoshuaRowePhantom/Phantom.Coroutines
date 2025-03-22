@@ -1,9 +1,12 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_REUSABLE_CONSECUTIVE_GLOBAL_ID_H
+#define PHANTOM_COROUTINES_INCLUDE_REUSABLE_CONSECUTIVE_GLOBAL_ID_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include <atomic>
 #include <cstddef>
 #include "detail/config.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -143,3 +146,4 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::reusable_consecutive_global_id_default_increment;
 
 }
+#endif

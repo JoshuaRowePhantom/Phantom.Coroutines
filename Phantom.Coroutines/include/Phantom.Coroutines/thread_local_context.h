@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_THREAD_LOCAL_CONTEXT_H
+#define PHANTOM_COROUTINES_INCLUDE_THREAD_LOCAL_CONTEXT_H
 #include <concepts>
 #include <optional>
 
@@ -69,3 +70,4 @@ public:
 };
 
 }
+#endif

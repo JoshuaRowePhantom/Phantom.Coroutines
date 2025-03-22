@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef PHANTOM_COROUTINES_INCLUDE_EXPECTED_EARLY_TERMINATION_H
+#define PHANTOM_COROUTINES_INCLUDE_EXPECTED_EARLY_TERMINATION_H
 #include "early_termination_task.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "type_traits.h"
@@ -151,3 +151,4 @@ using detail::expected_early_termination_result;
 using detail::expected_early_termination_transformer;
 
 }
+#endif

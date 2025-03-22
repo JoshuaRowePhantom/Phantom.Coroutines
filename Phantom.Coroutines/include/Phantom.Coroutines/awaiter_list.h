@@ -1,6 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_AWAITER_LIST_H
+#define PHANTOM_COROUTINES_INCLUDE_AWAITER_LIST_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include <assert.h>
 #include <future>
 #include <mutex>
@@ -187,3 +187,4 @@ inline void resume_from_destruction_of_awaitable_object(
     assert(false);
 }
 }
+#endif

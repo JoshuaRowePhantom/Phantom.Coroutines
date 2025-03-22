@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_AWAIT_NONE_AWAIT_TRANSFORM_H
+#define PHANTOM_COROUTINES_INCLUDE_AWAIT_NONE_AWAIT_TRANSFORM_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "type_traits.h"
 #else
@@ -24,3 +25,4 @@ public:
 using detail::await_none_await_transform;
 
 }
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_EARLY_TERMINATION_TASK_H
+#define PHANTOM_COROUTINES_INCLUDE_EARLY_TERMINATION_TASK_H
 
 #include <concepts>
 #include <exception>
@@ -817,3 +818,4 @@ using detail::early_termination_awaiter;
 using detail::early_termination_synchronous_awaiter;
 using detail::early_termination_result;
 }
+#endif

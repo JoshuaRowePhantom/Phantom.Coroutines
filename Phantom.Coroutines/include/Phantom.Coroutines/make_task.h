@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef PHANTOM_COROUTINES_INCLUDE_MAKE_TASK_H
+#define PHANTOM_COROUTINES_INCLUDE_MAKE_TASK_H
 #include "task.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "type_traits.h"
@@ -36,3 +36,4 @@ template<
 }
 
 }
+#endif

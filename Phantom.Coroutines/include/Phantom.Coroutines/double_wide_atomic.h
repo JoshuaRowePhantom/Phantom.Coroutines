@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_DOUBLE_WIDE_ATOMIC_H
+#define PHANTOM_COROUTINES_INCLUDE_DOUBLE_WIDE_ATOMIC_H
 
 #include <algorithm>
 #include <atomic>
@@ -137,3 +138,4 @@ public:
 
 }
 
+#endif

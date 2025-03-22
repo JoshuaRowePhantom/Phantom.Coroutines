@@ -1,6 +1,10 @@
 #include <algorithm>
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_scope;
+#else
 #include "Phantom.Coroutines/async_scope.h"
+#endif
 #include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/thread_pool_scheduler.h"

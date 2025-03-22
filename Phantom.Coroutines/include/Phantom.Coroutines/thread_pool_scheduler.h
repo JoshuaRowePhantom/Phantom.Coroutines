@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef PHANTOM_COROUTINES_INCLUDE_THREAD_POOL_SCHEDULER_H
+#define PHANTOM_COROUTINES_INCLUDE_THREAD_POOL_SCHEDULER_H
 #include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "Phantom.Coroutines/detail/coroutine.h"
@@ -809,3 +809,4 @@ public:
 
 using detail::thread_pool_scheduler;
 }
+#endif

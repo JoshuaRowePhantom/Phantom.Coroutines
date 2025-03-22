@@ -1,6 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_READ_COPY_UPDATE_H
+#define PHANTOM_COROUTINES_INCLUDE_READ_COPY_UPDATE_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include <atomic>
 #include <concepts>
 #include <memory>
@@ -14,6 +14,8 @@
 #include "nonatomic_shared_ptr.h"
 #include "thread_local_storage.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -538,3 +540,4 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::read_copy_update_section;
 
 }
+#endif

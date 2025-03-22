@@ -1,10 +1,12 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_POLICIES_H
+#define PHANTOM_COROUTINES_INCLUDE_POLICIES_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include<concepts>
 #include "detail/config.h"
 #include "type_traits.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -278,3 +280,4 @@ template<
 >;
 
 }
+#endif

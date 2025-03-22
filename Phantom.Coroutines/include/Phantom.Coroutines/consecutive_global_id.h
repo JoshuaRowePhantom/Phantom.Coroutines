@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_CONSECUTIVE_GLOBAL_ID_H
+#define PHANTOM_COROUTINES_INCLUDE_CONSECUTIVE_GLOBAL_ID_H
 
 #include <atomic>
 #include <cstddef>
@@ -49,3 +50,4 @@ public:
 
 }
 }
+#endif

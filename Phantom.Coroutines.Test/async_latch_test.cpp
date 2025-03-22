@@ -1,10 +1,12 @@
+#include "Phantom.Coroutines/detail/config.h"
 #include "async_test.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_latch;
+import Phantom.Coroutines.async_scope;
 #else
 #include "Phantom.Coroutines/async_latch.h"
-#endif
 #include "Phantom.Coroutines/async_scope.h"
+#endif
 #include "Phantom.Coroutines/task.h"
 
 namespace Phantom::Coroutines

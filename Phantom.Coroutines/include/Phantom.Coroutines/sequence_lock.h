@@ -1,10 +1,13 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_SEQUENCE_LOCK_H
+#define PHANTOM_COROUTINES_INCLUDE_SEQUENCE_LOCK_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include <assert.h>
 #include <atomic>
 #include <cstddef>
 #include <type_traits>
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -135,3 +138,4 @@ public:
     }
 };
 }
+#endif

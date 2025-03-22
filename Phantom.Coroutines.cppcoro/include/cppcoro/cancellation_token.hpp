@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_CORO_CANCELLATION_TOKEN_HPP
+#define PHANTOM_COROUTINES_INCLUDE_CORO_CANCELLATION_TOKEN_HPP
 
 #include <stop_token>
 #include "operation_cancelled.hpp"
@@ -40,3 +41,4 @@ public:
 };
 
 }
+#endif

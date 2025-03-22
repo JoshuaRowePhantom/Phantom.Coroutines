@@ -1,5 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_CORE_TASK_H
+#define PHANTOM_COROUTINES_INCLUDE_CORE_TASK_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include "detail/variant_result_storage.h"
 #include <concepts>
 #include <exception>
@@ -13,6 +14,8 @@
 #include "policies.h"
 #include "type_traits.h"
 #endif
+
+#include "assert_is_configured_module.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -429,3 +432,4 @@ template<typename Promise>
 core_task(coroutine_handle<Promise>) -> core_task<Promise>;
 
 }
+#endif

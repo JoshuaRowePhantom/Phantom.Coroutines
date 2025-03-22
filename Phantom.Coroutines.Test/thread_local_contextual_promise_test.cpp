@@ -2,12 +2,13 @@
 #include "Phantom.Coroutines/thread_local_contextual_promise.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_manual_reset_event;
+import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.Test.lifetime_tracker;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
+#include "Phantom.Coroutines/async_scope.h"
 #include "lifetime_tracker.h"
 #endif
-#include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/task.h"
 
 namespace Phantom::Coroutines

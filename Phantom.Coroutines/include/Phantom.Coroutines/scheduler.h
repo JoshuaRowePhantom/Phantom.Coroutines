@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_SCHEDULER_H
+#define PHANTOM_COROUTINES_INCLUDE_SCHEDULER_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "type_traits.h"
 #else
@@ -22,3 +23,4 @@ template<
 using detail::is_scheduler;
 
 }
+#endif

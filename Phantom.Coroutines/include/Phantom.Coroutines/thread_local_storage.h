@@ -1,6 +1,6 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_THREAD_LOCAL_STORAGE_H
+#define PHANTOM_COROUTINES_INCLUDE_THREAD_LOCAL_STORAGE_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
-
 #include <concepts>
 #include <functional>
 #include <memory>
@@ -12,6 +12,8 @@
 #include "detail/consecutive_thread_id.h"
 #include "reusable_consecutive_global_id.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -406,3 +408,4 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::thread_local_storage;
 
 }
+#endif

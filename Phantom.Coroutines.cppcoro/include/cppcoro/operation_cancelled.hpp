@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_CORO_OPERATION_CANCELLED_HPP
+#define PHANTOM_COROUTINES_INCLUDE_CORO_OPERATION_CANCELLED_HPP
 
 #include<exception>
 
@@ -17,3 +18,4 @@ public:
 };
 
 }
+#endif

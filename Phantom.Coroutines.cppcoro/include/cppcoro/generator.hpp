@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_CORO_GENERATOR_HPP
+#define PHANTOM_COROUTINES_INCLUDE_CORO_GENERATOR_HPP
 
 #include "Phantom.Coroutines/generator.h"
 
@@ -9,3 +10,4 @@ template<
 >
 using generator = ::Phantom::Coroutines::generator<T>;
 }
+#endif

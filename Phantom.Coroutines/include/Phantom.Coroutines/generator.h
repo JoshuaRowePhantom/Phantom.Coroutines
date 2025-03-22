@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef PHANTOM_COROUTINES_INCLUDE_GENERATOR_H
+#define PHANTOM_COROUTINES_INCLUDE_GENERATOR_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "Phantom.Coroutines/detail/coroutine.h"
 #include "detail/immovable_object.h"
@@ -367,3 +367,4 @@ using detail::generator;
 using detail::GeneratorTraits;
 
 }
+#endif

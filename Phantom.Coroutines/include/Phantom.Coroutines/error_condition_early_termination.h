@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_ERROR_CONDITION_EARLY_TERMINATION_H
+#define PHANTOM_COROUTINES_INCLUDE_ERROR_CONDITION_EARLY_TERMINATION_H
 
 #include "early_termination_task.h"
 #include <system_error>
@@ -116,3 +117,4 @@ class error_condition_early_termination_await_transformer
 
 }
 }
+#endif

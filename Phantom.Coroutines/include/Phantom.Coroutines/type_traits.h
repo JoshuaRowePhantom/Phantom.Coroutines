@@ -1,11 +1,14 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_TYPE_TRAITS_H
+#define PHANTOM_COROUTINES_INCLUDE_TYPE_TRAITS_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#pragma once
 #include <optional>
 #include <tuple>
 #include <type_traits>
 #include "detail/config.h"
 #include "detail/coroutine.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -597,3 +600,4 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_get_return_object_on_allocation_failure;
 
 } // namespace Phantom::Coroutines
+#endif

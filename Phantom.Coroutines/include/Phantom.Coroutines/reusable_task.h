@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PHANTOM_COROUTINES_INCLUDE_RESUSABLE_TASK_H
+#define PHANTOM_COROUTINES_INCLUDE_RESUSABLE_TASK_H
 
 #include <concepts>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
@@ -95,3 +96,5 @@ using detail::make_reusable_task_from_value;
 using detail::make_reusable_task_from_void;
 
 }
+
+#endif
