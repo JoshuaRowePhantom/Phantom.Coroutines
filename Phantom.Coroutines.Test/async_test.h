@@ -2,8 +2,11 @@
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_TEST_H_H
 
 #include <gtest/gtest.h>
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.reusable_task;
+#else
 #include "Phantom.Coroutines/reusable_task.h"
-
+#endif
 
 namespace Phantom::Coroutines::Test
 {

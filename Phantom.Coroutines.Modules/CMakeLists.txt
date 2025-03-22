@@ -53,8 +53,10 @@ target_sources(
     "nonatomic_shared_ptr.ixx"
     "Phantom.Coroutines.ixx" 
     "policies.ixx"
+    "promise_allocator.ixx" 
     "read_copy_update.ixx"
     "reusable_consecutive_global_id.ixx"
+    "reusable_task.ixx"
     "scope_guard.ixx"
     "sequence_lock.ixx"
     "storage_for.ixx"
@@ -62,7 +64,7 @@ target_sources(
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- "promise_allocator.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

@@ -5,6 +5,7 @@
 import Phantom.Coroutines.async_auto_reset_event;
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.reusable_task;
 import Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.Test.lifetime_tracker;
 import Phantom.Coroutines.Test.pmr_task;
@@ -13,10 +14,10 @@ import Phantom.Coroutines.Test.pmr_task;
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/type_traits.h"
+#include "Phantom.Coroutines/reusable_task.h"
 #include "lifetime_tracker.h"
 #include "pmr_task.h"
 #endif
-#include "Phantom.Coroutines/reusable_task.h"
 #include "Phantom.Coroutines/suspend_result.h"
 #include "async_test.h"
 
@@ -230,7 +231,7 @@ TEST(reusable_task_test, reusable_task_destroys_coroutine_if_destroyed_while_sus
         auto awaiter = std::move(myreusable_task).operator co_await();
 
         auto coroutine = awaiter.await_suspend(
-            std::noop_coroutine()
+            noop_coroutine()
         );
 
         // This will reach the first suspend point.

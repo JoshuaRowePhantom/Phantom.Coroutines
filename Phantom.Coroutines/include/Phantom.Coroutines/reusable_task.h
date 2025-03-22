@@ -1,14 +1,13 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_RESUSABLE_TASK_H
 #define PHANTOM_COROUTINES_INCLUDE_RESUSABLE_TASK_H
-
-#include <concepts>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <concepts>
 #include "detail/core_task.h"
 #include "policies.h"
 #else
-import Phantom.Coroutines.core_task;
-import Phantom.Coroutines.policies;
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines::detail
 {
@@ -89,10 +88,15 @@ template<
 
 namespace Phantom::Coroutines
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_reusable_task;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::reusable_task_promise;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::reusable_task;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::make_reusable_task_from_value;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::make_reusable_task_from_void;
 
 }
