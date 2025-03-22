@@ -1,14 +1,19 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_CONSECUTIVE_GLOBAL_ID_H
 #define PHANTOM_COROUTINES_INCLUDE_CONSECUTIVE_GLOBAL_ID_H
 
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <atomic>
 #include <cstddef>
+#endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Label,
     typename Value = std::size_t

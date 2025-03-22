@@ -52,7 +52,7 @@ target_sources(
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
-)
+ "consecutive_global_id.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules
