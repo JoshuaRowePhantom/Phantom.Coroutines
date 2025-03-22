@@ -1,4 +1,8 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "contextual_promise.h"
+#else
+import Phantom.Coroutines.contextual_promise;
+#endif
 #include "thread_local_context.h"
 
 namespace Phantom::Coroutines

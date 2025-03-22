@@ -33,6 +33,8 @@ target_sources(
     "awaiter_list.ixx"
     "awaiter_wrapper.ixx"
     "consecutive_thread_id.ixx"
+    "consecutive_global_id.ixx" 
+    "contextual_promise.ixx"
     "core_task.ixx"
     "coroutine.ixx" 
     "extensible_promise.ixx"
@@ -52,7 +54,7 @@ target_sources(
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- "consecutive_global_id.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

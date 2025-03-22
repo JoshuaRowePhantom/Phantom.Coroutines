@@ -1,10 +1,9 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "awaiter_wrapper.h"
 #include "extensible_promise.h"
-#else
-import Phantom.Coroutines.awaiter_wrapper;
-import Phantom.Coroutines.extensible_promise;
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -178,7 +177,9 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_contextual_promise;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::contextual_promise;
 
 }
