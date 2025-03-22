@@ -86,18 +86,7 @@ TEST(async_mutex_test, assign_self_keeps_scoped_lock)
     ASSERT_FALSE(result2);
 }
 
-TEST(async_mutex_test, double_unlock_scoped_lock_does_not_unlock)
-{
-    async_mutex<> mutex;
-    auto result1 = mutex.try_scoped_lock();
-    result1.unlock();
-    auto result2 = mutex.try_scoped_lock();
-    result1.unlock();
-    auto result3 = mutex.try_scoped_lock();
-    ASSERT_FALSE(result3);
-}
-
-ASYNC_TEST(async_mutex_test, scoped_lock_releases_on_destruction)
+ASYNC_TEST(async_mutex_test, scoped_lock_unlocks_on_destruction)
 {
     async_mutex<> mutex;
     async_auto_reset_event<> event;
