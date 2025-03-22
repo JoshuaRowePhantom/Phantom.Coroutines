@@ -60,12 +60,14 @@ target_sources(
     "scheduler.ixx"
     "scope_guard.ixx"
     "sequence_lock.ixx"
+    "sharding.ixx"
+    "shared_task.ixx"
     "storage_for.ixx"
     "tagged_pointer.ixx" 
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- "sharding.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

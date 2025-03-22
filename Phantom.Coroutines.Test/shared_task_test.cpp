@@ -5,19 +5,20 @@
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.shared_task;
 import Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.Test.lifetime_tracker;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
+#include "Phantom.Coroutines/shared_task.h"
 #include "Phantom.Coroutines/type_traits.h"
 #include "lifetime_tracker.h"
 #endif
-#include "Phantom.Coroutines/shared_task.h"
 #include "Phantom.Coroutines/sync_wait.h"
 
 
-namespace Phantom::Coroutines::detail
+namespace Phantom::Coroutines
 {
 
 static_assert(detail::is_awaiter<shared_task_awaiter<shared_task_promise<void>>>);
@@ -274,7 +275,7 @@ TEST(shared_task_test, Task_does_destroy_coroutine_if_destroyed_while_suspended)
         auto awaiter = myTask.operator co_await();
 
         auto coroutine = awaiter.await_suspend(
-            std::noop_coroutine()
+            noop_coroutine()
         );
 
         // This will reach the first suspend point.

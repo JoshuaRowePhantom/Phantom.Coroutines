@@ -1,10 +1,11 @@
 #include <gtest/gtest.h>
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_manual_reset_event;
+import Phantom.Coroutines.shared_task;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
-#endif
 #include "Phantom.Coroutines/shared_task.h"
+#endif
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 #include "detail/awaiters.h"

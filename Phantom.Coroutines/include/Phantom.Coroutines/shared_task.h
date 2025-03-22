@@ -8,8 +8,11 @@
 // If the shared_task<>'s reference count reaches zero,
 // the task is destroyed: this will likely lead to undefined behavior
 // if the task is still executing, so don't do this.
-#include <variant>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <assert.h>
+#include <atomic>
+#include <optional>
+#include <variant>
 #include "detail/atomic_state.h"
 #include "detail/final_suspend_transfer.h"
 #include "detail/variant_result_storage.h"
@@ -18,34 +21,31 @@
 #include "type_traits.h"
 #include "detail/coroutine.h"
 #include "detail/immovable_object.h"
-#else
-import Phantom.Coroutines.atomic_state;
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.extensible_promise;
-import Phantom.Coroutines.final_suspend_transfer;
-import Phantom.Coroutines.immovable_object;
-import Phantom.Coroutines.policies;
-import Phantom.Coroutines.type_traits;
-import Phantom.Coroutines.variant_result_storage;
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class basic_shared_task;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     is_continuation Continuation
 > class basic_shared_task_promise;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > concept is_shared_task_promise_policy =
 is_continuation_type_policy<Policy>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     is_shared_task_promise_policy ... Policies
@@ -57,6 +57,7 @@ using shared_task_promise = basic_shared_task_promise<
         continuation_type<coroutine_handle<>>>
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result = void,
     is_shared_task_promise_policy ... Policies
@@ -77,6 +78,7 @@ template<
     Continuation m_continuation;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class shared_task_awaiter;
@@ -260,6 +262,7 @@ template<
     typename Promise
 > shared_task_awaiter(coroutine_handle<Promise>) -> shared_task_awaiter<Promise>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > struct shared_task_promise_final_suspend_awaiter
