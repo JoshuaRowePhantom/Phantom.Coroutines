@@ -1,10 +1,11 @@
 #pragma once
-#include "async_reader_writer_lock.h"
 #include "direct_initialized_optional.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "async_reader_writer_lock.h"
 #include "detail/immovable_object.h"
 #include "Phantom.Coroutines/detail/scope_guard.h"
 #else
+import Phantom.Coroutines.async_reader_writer_lock;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.scope_guard;
 #endif

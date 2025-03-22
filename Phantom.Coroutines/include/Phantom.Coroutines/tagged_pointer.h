@@ -1,7 +1,13 @@
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #pragma once
 
+#include <assert.h>
+#include <bit>
+#include <concepts>
 #include <cstdint>
 #include <type_traits>
+#include "detail/config.h"
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -10,14 +16,34 @@ template<
     typename Value,
     unsigned short BitCount,
     typename Tag = uintptr_t
->
-    requires
-    (BitCount < std::bit_width(alignof(Value)))
-        || std::same_as<void, Value>
-        &&
+> constexpr bool is_valid_tagged_pointer = 
+    (
+        BitCount < std::bit_width(alignof(Value))
+        // true 
+        || 
+        std::same_as<void, Value>
+    )
+    &&
+    (
         std::is_integral_v<Tag>
+        ||
+        std::is_enum_v<Tag>
+    );
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Value,
+    unsigned short BitCount,
+    typename Tag = uintptr_t
+>
 class tagged_pointer
 {
+    static_assert(is_valid_tagged_pointer<
+        Value,
+        BitCount,
+        Tag
+    >);
+
     static constexpr uintptr_t mask = (1 << BitCount) - 1;
 
     uintptr_t m_value;

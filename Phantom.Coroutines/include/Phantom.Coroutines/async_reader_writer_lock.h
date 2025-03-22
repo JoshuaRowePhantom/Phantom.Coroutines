@@ -1,16 +1,12 @@
 #pragma once
 
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "detail/config.h"
 #include "awaiter_list.h"
-#include "detail/immovable_object.h"
-#include "policies.h"
-#else
-import Phantom.Coroutines.awaiter_list;
-import Phantom.Coroutines.immovable_object;
-import Phantom.Coroutines.policies;
-#endif
 #include "double_wide_atomic.h"
+#include "policies.h"
 #include "tagged_pointer.h"
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -64,16 +60,11 @@ public:
     using write_lock = std::unique_lock<writer_lock>;
 
 private:
-    reader_lock m_reader = { *this };
-    writer_lock m_writer = { *this };
-
     enum class operation_type
     {
         read,
         write
     };
-
-    class operation;
 
     enum QueueState : uintptr_t
     {
@@ -85,33 +76,47 @@ private:
         IsResumingMask = 2,
     };
 
+    struct alignas(16) operation_node
+    { 
+        operation_node* m_next;
+        Continuation m_continuation;
+        operation_type m_operationType;
+    };
+
+    class operation;
+
     struct state
     {
-        tagged_pointer<operation, 2, QueueState> m_queue = { nullptr, NotResuming_NoPending };
+        tagged_pointer<operation_node, 2, QueueState> m_queue = { nullptr, NotResuming_NoPending };
         intptr_t m_readerLockCount = 0;
     };
 
     static constexpr intptr_t WriteLockAcquiredLockCount = intptr_t(-1);
 
     std::atomic<double_wide_value<state>> m_state;
-    operation* m_pending = nullptr;
-    operation** m_pendingTail = &m_pending;
+    operation_node* m_pending = nullptr;
+    operation_node** m_pendingTail = &m_pending;
     
     class operation
+        :
+    public operation_node
     {
-        friend class basic_async_reader_writer_lock;
+    protected:
         basic_async_reader_writer_lock& m_lock;
-        operation_type m_operationType;
-        operation* m_next;
-        Continuation m_continuation;
+        using operation_node::m_next;
+        using operation_node::m_continuation;
+        using operation_node::m_operationType;
+    private:
+        friend class basic_async_reader_writer_lock;
 
         operation(
             basic_async_reader_writer_lock& lock,
             operation_type operationType
         ) :
-            m_lock{ lock },
-            m_operationType{ operationType }
-        {}
+            m_lock{ lock }
+        {
+            m_operationType = operationType;
+        }
 
     public:
         bool await_ready() const noexcept
@@ -190,7 +195,7 @@ private:
     {
         double_wide_value previousState = m_state.load_inconsistent();
         QueueState previousQueueState;
-        operation* queue;
+        operation_node* queue;
         intptr_t readerCount;
         bool resumeLocks;
 
@@ -227,8 +232,8 @@ private:
         }
 
         intptr_t locksToResumeCount = 0;
-        operation* locksToResume = nullptr;
-        operation* lastLockToResume = nullptr;
+        operation_node* locksToResume = nullptr;
+        operation_node* lastLockToResume = nullptr;
 
         queue = previousState->m_queue.value();
 
@@ -237,7 +242,7 @@ private:
 
         // Move all the queue items to the pending list,
         // reversing the queue in the process.
-        operation* previous = nullptr;
+        operation_node* previous = nullptr;
 
         auto newPendingTail = queue ? &queue->m_next : m_pendingTail;
         while (queue)
@@ -341,7 +346,7 @@ private:
         assert(!resumedState->m_queue.value() || resumedState->m_readerLockCount == WriteLockAcquiredLockCount);
 
         // Add all the entries to the thread-local resuming list.
-        static thread_local operation* tls_resumingList = nullptr;
+        static thread_local operation_node* tls_resumingList = nullptr;
         static thread_local bool tls_resuming = false;
 
         bool alreadyResuming = tls_resuming;
@@ -428,7 +433,9 @@ private:
     };
 
 public:
-    basic_async_reader_writer_lock()
+    basic_async_reader_writer_lock() : 
+        m_reader{ *this },
+        m_writer{ *this }
     {
     }
 
@@ -558,10 +565,18 @@ public:
     {
         return m_writer;
     }
+
+private:
+    reader_lock m_reader;
+    writer_lock m_writer;
 };
 
 }
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_reader_writer_lock;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_async_reader_writer_lock_policy;
+PHANTOM_COROUTINES_MODULE_EXPORT
+using detail::basic_async_reader_writer_lock;
 
 }

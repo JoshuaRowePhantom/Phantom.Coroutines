@@ -21,7 +21,7 @@ TEST(double_wide_atomic_test, Can_load_and_store)
 {
     std::atomic<double_wide_value<TestDoubleWide>> atomic;
     EXPECT_EQ(TestDoubleWide{}, atomic.load());
-    atomic.store({ { 1, 2  } });
+    atomic.store({ 1, 2  });
     EXPECT_EQ(atomic.load(), (TestDoubleWide { 1, 2 } ));
 }
 
