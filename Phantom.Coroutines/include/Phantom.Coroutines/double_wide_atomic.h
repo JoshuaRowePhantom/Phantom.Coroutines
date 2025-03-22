@@ -1,9 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <atomic>
-#include <intrin.h>
-#include <type_traits>
 #include <concepts>
+#include <type_traits>
 
 namespace Phantom::Coroutines
 {
@@ -16,31 +16,29 @@ template<
     typename T
 > concept is_double_wide_value =
 std::is_trivially_copy_assignable_v<T>
-&& sizeof(T) <= 16
-&& alignof(T) <= 16;
+&& sizeof(T) <= 16;
 }
 
 template<
     detail::is_double_wide_value Value
 >
-class alignas(16) double_wide_value
+struct double_wide_value
 {
-    friend struct ::std::atomic<::Phantom::Coroutines::double_wide_value<Value>>;
-
-    union
-    {
-        Value m_value;
-        __int64 rawValue[2];
-    };
-
-public:
-    double_wide_value(
-        Value value = {})
-        : m_value { value }
-    {}
+    alignas(std::max(alignof(Value), size_t(16)))
+    Value m_value;
 
     operator Value() const { return m_value; }
     auto operator->(this auto&& self) { return &self.m_value; }
+    double_wide_value& operator=(Value&& value)
+    {
+        m_value = std::move(value);
+        return *this;
+    }
+    double_wide_value& operator=(const Value& value)
+    {
+        m_value = value;
+        return *this;
+    }
 };
 
 }
@@ -48,12 +46,14 @@ public:
 namespace std
 {
 template<
-    ::Phantom::Coroutines::detail::is_double_wide_value T
+    typename T
 > struct atomic<::Phantom::Coroutines::double_wide_value<T>>
 {
 public:
     using value_type = ::Phantom::Coroutines::double_wide_value<T>;
-    value_type m_value;
+    mutable value_type m_value;
+
+    using atomic_ref_type = std::atomic_ref<value_type>;
 
 public:
     atomic(
@@ -69,7 +69,8 @@ public:
         std::memory_order = std::memory_order_seq_cst
     ) noexcept
     {
-        return compare_exchange_strong(
+        atomic_ref_type ref(m_value);
+        return ref.compare_exchange_weak(
             expected,
             desired);
     }
@@ -81,11 +82,10 @@ public:
         std::memory_order = std::memory_order_seq_cst
     ) noexcept
     {
-        return ::_InterlockedCompareExchange128(
-            m_value.rawValue,
-            desired.rawValue[1],
-            desired.rawValue[0],
-            expected.rawValue);
+        atomic_ref_type ref(m_value);
+        return ref.compare_exchange_strong(
+            expected,
+            desired);
     }
 
     value_type exchange(
@@ -93,12 +93,9 @@ public:
         std::memory_order = std::memory_order_seq_cst
     ) noexcept
     {
-        auto expected = load_inconsistent();
-        while (!compare_exchange_weak(
-            expected,
-            desired
-        ));
-        return expected;
+        atomic_ref_type ref(m_value);
+        return ref.exchange(
+            desired);
     }
 
     value_type load_inconsistent(
@@ -116,23 +113,23 @@ public:
     }
 
     value_type load(
-        std::memory_order = std::memory_order_seq_cst
+        std::memory_order order = std::memory_order_seq_cst
     ) const noexcept
     {
-        auto value = load_inconsistent();
-        while (!const_cast<atomic*>(this)->compare_exchange_weak(
-            value,
-            value
-        ));
-        return value;
+        atomic_ref_type ref(m_value);
+        return ref.load(order);
     }
 
     void store(
         value_type value,
-        std::memory_order = std::memory_order_seq_cst
+        std::memory_order order = std::memory_order_seq_cst
     ) noexcept
     {
-        exchange(value);
+        atomic_ref_type ref(m_value);
+        return ref.store(
+            value,
+            order);
+
     }
 };
 
