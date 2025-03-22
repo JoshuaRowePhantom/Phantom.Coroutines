@@ -78,7 +78,7 @@ target_sources(
     TYPE CXX_MODULES
     FILES
     "lifetime_tracker.ixx"
-)
+ "pmr_task.ixx")
 
 target_compile_definitions(
     Phantom.Coroutines.Modules.Test

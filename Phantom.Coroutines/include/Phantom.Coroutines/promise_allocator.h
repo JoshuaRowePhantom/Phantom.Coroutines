@@ -1,14 +1,17 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_PROMISE_ALLOCATOR_H
 #define PHANTOM_COROUTINES_INCLUDE_PROMISE_ALLOCATOR_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <memory>
 #include "extensible_promise.h"
-#else
-import Phantom.Coroutines.extensible_promise;
+#include "type_traits.h"
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
     typename Allocator
@@ -105,24 +108,20 @@ private:
 
     static void* allocate(
         size_t size,
-        auto&,
         auto&... args
     )
-        requires requires
     {
-        { allocate(size, args...) };
-    }
-    {
-        return allocate(size, args...);
-    }
-
-    static void* allocate(
-        size_t size,
-        Allocator& arg,
-        auto&...
-    )
-    {
-        return allocate(size, arg);
+        auto tiedArgs = std::tie(args...);
+        if constexpr (detail::tuple_has_element_v<decltype(tiedArgs), Allocator&>)
+        {
+            return allocate(
+                size,
+                get<Allocator&>(tiedArgs));
+        }
+        else
+        {
+            return allocate(size);
+        }
     }
 
 public:

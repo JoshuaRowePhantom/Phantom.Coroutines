@@ -1,3 +1,5 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_LIFETIME_TRACKER_H
+#define PHANTOM_COROUTINES_INCLUDE_LIFETIME_TRACKER_H
 #ifndef PHANTOM_COROUTINES_TESTING_MODULES
 #include "Phantom.Coroutines/detail/config.h"
 #include <assert.h>
@@ -136,3 +138,4 @@ inline lifetime_statistics::operator lifetime_tracker()
 }
 
 }
+#endif

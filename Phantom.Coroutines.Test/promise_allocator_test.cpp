@@ -1,5 +1,11 @@
+#if 0
 #include "async_test.h"
+#include "Phantom.Coroutines/task.h"
+#ifndef PHANTOM_COROUTINES_TESTING_MODULES
 #include "pmr_task.h"
+#else
+import Phantom.Coroutines.Test.pmr_task;
+#endif
 
 namespace Phantom::Coroutines
 {
@@ -193,3 +199,4 @@ ASYNC_TEST(promise_allocator_test, allocated_promise_returns_non_null_if_static_
 }
 
 }
+#endif

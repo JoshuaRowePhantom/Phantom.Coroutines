@@ -1,18 +1,24 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_PMR_TASK_H
 #define PHANTOM_COROUTINES_INCLUDE_PMR_TASK_H
-#include "Phantom.Coroutines/promise_allocator.h"
-#include "Phantom.Coroutines/task.h"
-#include "Phantom.Coroutines/reusable_task.h"
+#ifndef PHANTOM_COROUTINES_TESTING_MODULES
+#include <memory>
 #include <memory_resource>
+#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/promise_allocator.h"
+#include "Phantom.Coroutines/reusable_task.h"
+#include "Phantom.Coroutines/task.h"
+#endif
 
 namespace Phantom::Coroutines::Test
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct memory_tracker_data
 {
     std::atomic<size_t> m_allocatedMemory = 0;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class memory_tracker :
     public std::pmr::memory_resource
 {
@@ -44,6 +50,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result = void
 > using pmr_task = basic_task<
@@ -53,6 +60,7 @@ template<
     >
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result = void
 > using pmr_reusable_task = basic_reusable_task<

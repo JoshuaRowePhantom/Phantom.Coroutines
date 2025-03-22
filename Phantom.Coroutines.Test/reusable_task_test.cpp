@@ -7,17 +7,18 @@ import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.Test.lifetime_tracker;
+import Phantom.Coroutines.Test.pmr_task;
 #else
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
-#include "lifetime_tracker.h"
 #include "Phantom.Coroutines/type_traits.h"
+#include "lifetime_tracker.h"
+#include "pmr_task.h"
 #endif
 #include "Phantom.Coroutines/reusable_task.h"
 #include "Phantom.Coroutines/suspend_result.h"
 #include "async_test.h"
-#include "pmr_task.h"
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
@@ -496,7 +497,6 @@ ASYNC_TEST(reusable_task_test, DISABLED_can_elide_allocations)
     EXPECT_EQ(innerAllocation, outerAllocation);
 #endif
 }
-
 
 ASYNC_TEST(reusable_task_test, destroys_coroutine_when_awaited_as_rvalue)
 {
