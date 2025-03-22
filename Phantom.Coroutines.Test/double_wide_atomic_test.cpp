@@ -1,5 +1,9 @@
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.double_wide_atomic;
+#else
 #include "Phantom.Coroutines/double_wide_atomic.h"
+#endif
 
 namespace Phantom::Coroutines
 {

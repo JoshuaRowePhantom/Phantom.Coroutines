@@ -1,6 +1,5 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_READER_WRITER_LOCK_H
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_READER_WRITER_LOCK_H
-
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/config.h"
 #include "awaiter_list.h"
@@ -96,7 +95,7 @@ private:
 
     static constexpr intptr_t WriteLockAcquiredLockCount = intptr_t(-1);
 
-    std::atomic<double_wide_value<state>> m_state;
+    double_wide_atomic<double_wide_value<state>> m_state;
     operation_node* m_pending = nullptr;
     operation_node** m_pendingTail = &m_pending;
     

@@ -1,7 +1,6 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_AUTO_RESET_EVENT_H
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_AUTO_RESET_EVENT_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-
 #include <algorithm>
 #include <atomic>
 #include "detail/config.h"
@@ -65,7 +64,7 @@ template<
 
     // Awaiters that have been pulled from the m_state variable
     // and that should be resumed before those in the m_state variable.
-    std::atomic<double_wide_value<state_type>> m_state;
+    double_wide_atomic<double_wide_value<state_type>> m_state;
     std::atomic<awaiter*> m_pendingAwaiters = nullptr;
     awaiter* m_unservicedAwaiters = nullptr;
     awaiter** m_unservicedAwaitersTail = &m_unservicedAwaiters;

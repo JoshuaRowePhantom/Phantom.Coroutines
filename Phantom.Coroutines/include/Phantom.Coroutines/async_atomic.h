@@ -4,12 +4,13 @@
 #include <concepts>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/immovable_object.h"
+#include "double_wide_atomic.h"
 #include "type_traits.h"
 #else
+import Phantom.Coroutines.double_wide_atomic;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.type_traits;
 #endif
-#include "double_wide_atomic.h"
 
 namespace Phantom::Coroutines
 {
@@ -31,7 +32,7 @@ private immovable_object
         awaiter* m_awaiters;
     };
     using double_wide_atomic_value = double_wide_value<atomic_value>;
-    std::atomic<double_wide_atomic_value> m_doubleWideAtomic;
+    double_wide_atomic<double_wide_atomic_value> m_doubleWideAtomic;
 
     void signal_awaiters(
         Value newValue)

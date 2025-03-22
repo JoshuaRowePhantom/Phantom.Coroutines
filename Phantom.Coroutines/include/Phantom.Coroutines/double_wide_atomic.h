@@ -1,10 +1,13 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_DOUBLE_WIDE_ATOMIC_H
 #define PHANTOM_COROUTINES_INCLUDE_DOUBLE_WIDE_ATOMIC_H
-
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <algorithm>
 #include <atomic>
 #include <concepts>
 #include <type_traits>
+#endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -13,6 +16,7 @@ namespace Phantom::Coroutines
 
 namespace detail
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_double_wide_value =
@@ -20,6 +24,7 @@ std::is_trivially_copy_assignable_v<T>
 && sizeof(T) <= 16;
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     detail::is_double_wide_value Value
 >
@@ -42,13 +47,19 @@ struct double_wide_value
     }
 };
 
-}
-
-namespace std
-{
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
-> struct atomic<::Phantom::Coroutines::double_wide_value<T>>
+> struct double_wide_atomic
+{
+    static_assert(always_false<T>, "double_wide_atomic should be used only on double_wide_value");
+};
+
+template<
+    typename T
+> struct double_wide_atomic<
+    ::Phantom::Coroutines::double_wide_value<T>
+>
 {
 public:
     using value_type = ::Phantom::Coroutines::double_wide_value<T>;
@@ -57,11 +68,12 @@ public:
     using atomic_ref_type = std::atomic_ref<value_type>;
 
 public:
-    atomic(
+    double_wide_atomic(
         T value = { }
     ) noexcept
         : m_value{ value }
-    {}
+    {
+    }
 
     bool compare_exchange_weak(
         value_type& expected,
@@ -134,8 +146,8 @@ public:
     }
 };
 
-#endif
-
 }
+
+#endif
 
 #endif

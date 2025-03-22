@@ -37,6 +37,8 @@ target_sources(
     "contextual_promise.ixx"
     "core_task.ixx"
     "coroutine.ixx" 
+    "direct_initialized_optional.ixx"
+    "double_wide_atomic.ixx"
     "extensible_promise.ixx"
     "fibonacci_heap.ixx" 
     "final_suspend_transfer.ixx"
@@ -54,7 +56,7 @@ target_sources(
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- "direct_initialized_optional.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules
