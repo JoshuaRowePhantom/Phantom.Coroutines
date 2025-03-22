@@ -1,16 +1,18 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_EXPECTED_EARLY_TERMINATION_H
 #define PHANTOM_COROUTINES_INCLUDE_EXPECTED_EARLY_TERMINATION_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <concepts>
+#include <expected>
+#include <utility>
+#include <type_traits>
 #include "early_termination_task.h"
 #include "type_traits.h"
 #else
 import Phantom.Coroutines.early_termination_task;
 import Phantom.Coroutines.type_traits;
 #endif
-#include <concepts>
-#include <expected>
-#include <utility>
-#include <type_traits>
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -148,7 +150,9 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::expected_early_termination_result;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::expected_early_termination_transformer;
 
 }
