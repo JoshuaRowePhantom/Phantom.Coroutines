@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.suspend_result;
+#else
 #include "Phantom.Coroutines/suspend_result.h"
+#endif
 #include "Phantom.Coroutines/task.h"
 #include "detail/awaiters.h"
 

@@ -1,15 +1,13 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_SUSPEND_RESULT_H
 #define PHANTOM_COROUTINES_INCLUDE_SUSPEND_RESULT_H
-#include <type_traits>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <type_traits>
 #include "awaiter_wrapper.h"
 #include "detail/coroutine.h"
 #include "type_traits.h"
-#else
-import Phantom.Coroutines.awaiter_wrapper;
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.type_traits;
 #endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -130,6 +128,7 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::suspend_result;
 
 }

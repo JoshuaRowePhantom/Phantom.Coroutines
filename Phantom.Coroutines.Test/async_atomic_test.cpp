@@ -3,10 +3,11 @@
 #include "Phantom.Coroutines/async_atomic.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.suspend_result;
 #else
 #include "Phantom.Coroutines/async_scope.h"
-#endif
 #include "Phantom.Coroutines/suspend_result.h"
+#endif
 #include "Phantom.Coroutines/task.h"
 
 namespace Phantom::Coroutines
