@@ -1,14 +1,18 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_THREAD_LOCAL_CONTEXT_H
 #define PHANTOM_COROUTINES_INCLUDE_THREAD_LOCAL_CONTEXT_H
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
 #include <optional>
 #include "detail/config.h"
+#endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
+PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ThreadLocalContext
 > concept is_thread_local_context = requires (typename ThreadLocalContext::value_type value)
@@ -18,6 +22,7 @@ template<
     { ThreadLocalContext::current() } -> std::convertible_to<typename ThreadLocalContext::value_type>;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value
 > class thread_local_context
@@ -35,6 +40,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_thread_local_context ThreadLocalContext
 > class thread_local_context_scope
