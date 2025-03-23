@@ -22,6 +22,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_await_cancellation_policy AwaitCancellationPolicy,
     is_continuation Continuation,
@@ -31,6 +32,7 @@ template<
 >
 class basic_async_scope;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_async_scope_policy =
@@ -42,6 +44,7 @@ is_concrete_policy<T, await_is_not_cancellable>
 || is_concrete_policy<T, fail_on_use_after_join>
 ;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_async_scope_policy ... Policy
 > using async_scope = basic_async_scope<

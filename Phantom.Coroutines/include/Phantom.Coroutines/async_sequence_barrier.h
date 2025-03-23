@@ -21,12 +21,14 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value,
     typename Less,
     typename Continuation
 > class basic_async_sequence_barrier;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > concept is_async_sequence_barrier_policy =
@@ -36,6 +38,7 @@ is_continuation_type_policy<Policy>
 || is_concrete_policy<Policy, awaiter_cardinality_policy>
 || is_concrete_policy<Policy, await_is_not_cancellable>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value = size_t,
     typename Comparer = std::less<Value>,
@@ -47,6 +50,7 @@ basic_async_sequence_barrier<
     select_continuation_type<Policies..., default_continuation_type>
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value,
     typename Comparer,
@@ -80,9 +84,9 @@ private:
     class awaiter
     {
         template<
-            typename Value,
-            typename Less,
-            typename Continuation
+            typename,
+            typename,
+            typename
         > friend class basic_async_sequence_barrier;
 
         value_type m_lowestUnpublishedValue;

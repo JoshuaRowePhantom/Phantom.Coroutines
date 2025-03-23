@@ -7,12 +7,12 @@
 #include <variant>
 #include "config.h"
 #include "coroutine.h"
-#include "extensible_promise.h"
+#include "../extensible_promise.h"
 #include "final_suspend_transfer.h"
 #include "immovable_object.h"
 #include "non_copyable.h"
-#include "policies.h"
-#include "type_traits.h"
+#include "../policies.h"
+#include "../type_traits.h"
 #include "variant_result_storage.h"
 #endif
 
@@ -26,7 +26,7 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     is_continuation Continuation,
-    template<typename Result> typename PromiseBase
+    template<typename> typename PromiseBase
 > class core_task_promise;
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -49,7 +49,7 @@ public:
     void return_variant_result(
         this auto& self,
         Result value
-    ) requires !std::same_as<void, Result>
+    ) requires (!std::same_as<void, Result>)
     {
         self.m_result.emplace<self.result_index>(std::move(value));
     }
@@ -199,7 +199,7 @@ protected:
 template<
     typename Promise
 >
-    requires !Promise::is_reusable
+    requires (!Promise::is_reusable)
 class core_task_awaiter_result_base<
     Promise
 >
@@ -277,7 +277,7 @@ public:
 template<
     typename Result,
     is_continuation Continuation,
-    template<typename Result> typename PromiseBase
+    template<typename> typename PromiseBase
 > class core_task_promise
     :
     public extensible_promise,
@@ -409,9 +409,10 @@ public:
     > auto operator co_await(
         this Self&& self
         ) noexcept
-        requires
-    !std::is_lvalue_reference_v<Self>
-        || is_reusable
+        requires (
+            !std::is_lvalue_reference_v<Self>
+            || is_reusable
+        )
     {
         struct [[nodiscard]] awaiter : core_task_awaiter<Promise>
         {

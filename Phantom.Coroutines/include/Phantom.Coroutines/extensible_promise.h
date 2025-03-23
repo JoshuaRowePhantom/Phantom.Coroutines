@@ -19,6 +19,7 @@ namespace detail
 
 // An extensible_promise is a promise type that can
 // be extended or wrapped by other promise types.
+PHANTOM_COROUTINES_MODULE_EXPORT
 class extensible_promise
 {
 public:
@@ -32,6 +33,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_extensible_promise =
@@ -210,6 +212,7 @@ public:
     using AwaitTransformBases::await_transform...;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_extensible_promise BasePromise,
     typename ... Bases
@@ -229,15 +232,18 @@ class derived_promise :
     using derived_promise::derived_promise_impl::derived_promise_impl;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class extensible_promise_handle;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename PromiseHandle
 > class extended_promise_handle;
 
 // Detect is a type is an extensible awaitable.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename PromiseHandle
 > concept is_extensible_promise_handle = 
@@ -284,6 +290,7 @@ template<
 // an extensible promise. They don't strictly need to be awaitable,
 // but the intention is that most extensible_promise_handle objects
 // will at some point be transformed into an awaitable object.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class extensible_promise_handle
@@ -356,6 +363,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename PromiseHandle
 > class extended_promise_handle
@@ -374,7 +382,7 @@ template<
     private value_storage<PromiseHandle>
 {
     template<
-        typename PromiseHandle
+        typename
     > friend class extended_promise_handle;
 
 public:

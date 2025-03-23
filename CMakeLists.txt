@@ -19,7 +19,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-fno-ms-compatibility)
 endif()
 
 add_subdirectory(Phantom.Coroutines)

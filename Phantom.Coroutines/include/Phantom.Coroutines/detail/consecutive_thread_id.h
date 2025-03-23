@@ -1,6 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_CONSECUTIVE_THREAD_ID_H
 #define PHANTOM_COROUTINES_INCLUDE_CONSECUTIVE_THREAD_ID_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <cstdlib>
 #include "../reusable_consecutive_global_id.h"
 #endif
 

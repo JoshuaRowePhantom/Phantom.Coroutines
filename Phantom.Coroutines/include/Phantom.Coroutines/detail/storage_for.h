@@ -1,7 +1,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <algorithm>
 #include <type_traits>
-#include "detail/immovable_object.h"
+#include "immovable_object.h"
 #include "../type_traits.h"
 #endif
 

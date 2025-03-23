@@ -133,7 +133,7 @@ template<
     public awaiter_wrapper_methods<awaiter_type<Awaitable>, awaiter_wrapper<Awaitable>>
 {
     template<
-        is_awaitable Awaitable
+        is_awaitable
     > friend class awaiter_wrapper;
 
     template<
@@ -183,7 +183,7 @@ private:
         }
         else if constexpr (is_extended_promise_handle<awaiter_type>)
         {
-            std::ignore = awaiter();
+            std::ignore = self.awaiter();
             return awaiterRetriever(*self.awaiter_wrapper::m_awaiter);
         }
         else
@@ -225,7 +225,7 @@ public:
     {
         return self.awaiter_wrapper::retrieve_from_extended_promise_handle(
             [](auto&& awaiter) -> decltype(auto) { return awaiter.handle(); },
-            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper::awaiter_wrapper_storage<Awaitable>::handle(); }
+            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper::template awaiter_wrapper_storage<Awaitable>::handle(); }
         );
     }
 
@@ -235,7 +235,7 @@ public:
     {
         return self.awaiter_wrapper::retrieve_from_extended_promise_handle(
             [](auto&& awaiter) -> decltype(auto) { return awaiter.promise(); },
-            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper::awaiter_wrapper_storage<Awaitable>::promise(); }
+            [](auto& self) -> decltype(auto) { return self.awaiter_wrapper::template awaiter_wrapper_storage<Awaitable>::promise(); }
         );
     }
 };

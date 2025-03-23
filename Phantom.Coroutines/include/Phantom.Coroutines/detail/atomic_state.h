@@ -464,10 +464,12 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAtomicState
 > class state;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TRepresentation,
     StateType...TStates
@@ -596,6 +598,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename...TStates
 > using atomic_state = basic_atomic_state<void*, TStates...>;
