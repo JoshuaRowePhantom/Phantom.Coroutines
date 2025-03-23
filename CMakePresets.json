@@ -7,12 +7,16 @@
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
     },
     {
-      "name": "windows-base",
+      "name": "msvc-windows-base",
       "hidden": true,
       "inherits": "vcpkg",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "installDir": "${sourceDir}/out/install/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -20,9 +24,9 @@
       }
     },
     {
-      "name": "x64-debug",
-      "displayName": "x64 Debug",
-      "inherits": "windows-base",
+      "name": "msvc-windows-x64-debug",
+      "displayName": "Msvc Windows x64 Debug",
+      "inherits": "msvc-windows-base",
       "architecture": {
         "value": "x64",
         "strategy": "external"
@@ -32,9 +36,9 @@
       }
     },
     {
-      "name": "x64-release",
-      "displayName": "x64 Release",
-      "inherits": "x64-debug",
+      "name": "msvc-windows-x64-release",
+      "displayName": "Msvc Windows x64 Release",
+      "inherits": "msvc-windows-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       }
