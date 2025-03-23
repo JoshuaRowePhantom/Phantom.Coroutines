@@ -76,7 +76,7 @@ target_sources(
     "thread_pool_scheduler.ixx"
     "type_traits.ixx"
     "variant_result_storage.ixx" 
-)
+ "async_atomic.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules
