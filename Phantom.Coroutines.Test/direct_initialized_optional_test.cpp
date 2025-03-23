@@ -1,8 +1,11 @@
 #include "async_test.h"
-#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+#if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
+import Phantom.Coroutines;
+import Phantom.Coroutines.Test.lifetime_tracker;
+#elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.direct_initialized_optional;
 import Phantom.Coroutines.Test.lifetime_tracker;
-#else
+#elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/direct_initialized_optional.h"
 #include "lifetime_tracker.h"
 #endif

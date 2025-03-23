@@ -1,11 +1,14 @@
 #include "async_test.h"
-#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+#if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
+import Phantom.Coroutines;
+import Phantom.Coroutines.Test.lifetime_tracker;
+#elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.async_promise;
 import Phantom.Coroutines.suspend_result;
 import Phantom.Coroutines.sync_wait;
 import Phantom.Coroutines.task;
 import Phantom.Coroutines.Test.lifetime_tracker;
-#else
+#elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/async_promise.h"
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"

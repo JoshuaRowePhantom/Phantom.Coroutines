@@ -1,12 +1,15 @@
 #include "async_test.h"
 #include <expected>
-#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+#if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
+import Phantom.Coroutines;
+import Phantom.Coroutines.Test.lifetime_tracker;
+#elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.early_termination_task;
 import Phantom.Coroutines.error_condition_early_termination;
 import Phantom.Coroutines.expected_early_termination;
 import Phantom.Coroutines.task;
 import Phantom.Coroutines.Test.lifetime_tracker;
-#else
+#elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/early_termination_task.h"
 #include "Phantom.Coroutines/error_condition_early_termination.h"
 #include "Phantom.Coroutines/expected_early_termination.h"

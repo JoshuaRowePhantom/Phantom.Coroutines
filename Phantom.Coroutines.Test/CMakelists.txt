@@ -58,6 +58,12 @@ add_executable(
     ${PhantomCoroutinesTestSources}
 )
 
+target_compile_definitions(
+    Phantom.Coroutines.Test
+    PRIVATE
+    PHANTOM_COROUTINES_TESTING_HEADERS
+)
+
 target_link_libraries(
     Phantom.Coroutines.Test
     PUBLIC
@@ -78,7 +84,8 @@ target_sources(
     TYPE CXX_MODULES
     FILES
     "lifetime_tracker.ixx"
- "pmr_task.ixx")
+    "pmr_task.ixx"
+)
 
 target_compile_definitions(
     Phantom.Coroutines.Modules.Test
@@ -102,6 +109,43 @@ set_target_properties(
     PROPERTIES
     CXX_SCAN_FOR_MODULES true)
 
+add_executable(
+    Phantom.Coroutines.SingleModule.Test
+    ${PhantomCoroutinesTestSources}
+)
+
+target_sources(
+    Phantom.Coroutines.SingleModule.Test
+    PUBLIC
+    FILE_SET CXX_MODULES
+    TYPE CXX_MODULES
+    FILES
+    "lifetime_tracker.ixx"
+    "pmr_task.ixx"
+)
+
+target_compile_definitions(
+    Phantom.Coroutines.SingleModule.Test
+    PRIVATE
+    PHANTOM_COROUTINES_TESTING_SINGLE_MODULE
+    PHANTOM_COROUTINES_COMPILING_MODULES
+    PHANTOM_COROUTINES_IS_COMPILED_MODULE=0
+)
+
+target_link_libraries(
+    Phantom.Coroutines.SingleModule.Test
+    PUBLIC
+    Phantom.Coroutines
+    Phantom.Coroutines.Modules
+    GTest::gtest
+    GTest::gtest_main
+)
+
+set_target_properties(
+    Phantom.Coroutines.SingleModule.Test
+    PROPERTIES
+    CXX_SCAN_FOR_MODULES true)
+
 enable_testing()
 
 gtest_discover_tests(
@@ -110,4 +154,8 @@ gtest_discover_tests(
 
 gtest_discover_tests(
     Phantom.Coroutines.Modules.Test
+    EXTRA_ARGS "--gtest_break_on_failure")
+    
+gtest_discover_tests(
+    Phantom.Coroutines.SingleModule.Test
     EXTRA_ARGS "--gtest_break_on_failure")

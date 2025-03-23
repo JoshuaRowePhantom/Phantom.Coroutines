@@ -1,10 +1,13 @@
 #include "async_test.h"
-#ifndef PHANTOM_COROUTINES_TESTING_MODULES
-#include "Phantom.Coroutines/task.h"
-#include "pmr_task.h"
-#else
+#if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
+import Phantom.Coroutines;
+import Phantom.Coroutines.Test.pmr_task;
+#elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.task;
 import Phantom.Coroutines.Test.pmr_task;
+#elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
+#include "Phantom.Coroutines/task.h"
+#include "pmr_task.h"
 #endif
 
 namespace Phantom::Coroutines

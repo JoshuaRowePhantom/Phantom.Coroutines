@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
 #include <thread>
 
-#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+#if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
+import Phantom.Coroutines;
+import Phantom.Coroutines.Test.lifetime_tracker;
+#elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.nonatomic_shared_ptr;
 import Phantom.Coroutines.Test.lifetime_tracker;
-#else
+#elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "lifetime_tracker.h"
 #include "Phantom.Coroutines/nonatomic_shared_ptr.h"
 #endif

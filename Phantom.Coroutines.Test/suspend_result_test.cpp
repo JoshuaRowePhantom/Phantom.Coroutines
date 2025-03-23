@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 #include "async_test.h"
-#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+#if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
+import Phantom.Coroutines;
+#elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.suspend_result;
 import Phantom.Coroutines.task;
-#else
+#elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/task.h"
 #endif

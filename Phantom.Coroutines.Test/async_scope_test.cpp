@@ -1,13 +1,15 @@
 #include <gtest/gtest.h>
 #include "async_test.h"
-#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+#if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
+import Phantom.Coroutines;
+#elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.async_sequence_barrier;
 import Phantom.Coroutines.reusable_task;
 import Phantom.Coroutines.sync_wait;
 import Phantom.Coroutines.task;
-#else
+#elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/async_sequence_barrier.h"

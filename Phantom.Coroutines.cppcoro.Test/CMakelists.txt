@@ -21,6 +21,12 @@ add_executable(
     "cppcoro_task_test.cpp"
 )
 
+target_compile_definitions(
+    Phantom.Coroutines.cppcoro.Test
+    PRIVATE
+    PHANTOM_COROUTINES_TESTING_HEADERS
+)
+
 target_link_libraries(
     Phantom.Coroutines.cppcoro.Test
     PUBLIC

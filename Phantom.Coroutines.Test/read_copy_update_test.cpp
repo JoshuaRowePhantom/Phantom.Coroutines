@@ -3,10 +3,13 @@
 #include <optional>
 #include <shared_mutex>
 
-#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+#if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
+import Phantom.Coroutines;
+import Phantom.Coroutines.Test.lifetime_tracker;
+#elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.Test.lifetime_tracker;
 import Phantom.Coroutines.read_copy_update;
-#else
+#elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/read_copy_update.h"
 #include "lifetime_tracker.h"
 #endif

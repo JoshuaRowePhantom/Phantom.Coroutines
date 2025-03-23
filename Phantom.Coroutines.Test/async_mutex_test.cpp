@@ -1,11 +1,13 @@
 #include <chrono>
-#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+#if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
+import Phantom.Coroutines;
+#elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.async_auto_reset_event;
 import Phantom.Coroutines.async_mutex;
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.sync_wait;
 import Phantom.Coroutines.task;
-#else
+#elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_mutex.h"
 #include "Phantom.Coroutines/async_scope.h"
