@@ -2,6 +2,7 @@
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.async_sequence_barrier;
 import Phantom.Coroutines.shared_task;
 import Phantom.Coroutines.static_thread_pool;
 import Phantom.Coroutines.suspend_result;
@@ -10,13 +11,13 @@ import Phantom.Coroutines.task;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
+#include "Phantom.Coroutines/async_sequence_barrier.h"
 #include "Phantom.Coroutines/shared_task.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 #endif
-#include "Phantom.Coroutines/async_sequence_barrier.h"
 #include <random>
 
 using namespace Phantom::Coroutines;

@@ -1,7 +1,11 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_SEQUENCE_BARRIER_H
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_SEQUENCE_BARRIER_H
-#include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <assert.h>
+#include <atomic>
+#include <concepts>
+#include <limits>
+#include "detail/config.h"
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
 #include "detail/fibonacci_heap.h"
@@ -14,10 +18,9 @@ import Phantom.Coroutines.fibonacci_heap;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.policies;
 #endif
-#include <concepts>
-#include <limits>
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
+PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {
@@ -65,11 +68,6 @@ private:
 
     class awaiter;
     struct awaiter_heap_builder;
-
-    atomic_value_type m_lowestUnpublishedValue;
-    std::atomic<awaiter*> m_queuedAwaiters;
-    std::atomic<awaiter*> m_awaitersHeap;
-    awaiter_heap_builder m_heapBuilder;
 
     static constexpr size_t maximumAwaiterDegree = std::numeric_limits<size_t>::digits;
     typedef size_t degree_type;
@@ -407,9 +405,17 @@ public:
             std::memory_order_acquire
         ) - 1;
     }
+
+private:
+    atomic_value_type m_lowestUnpublishedValue;
+    std::atomic<awaiter*> m_queuedAwaiters;
+    std::atomic<awaiter*> m_awaitersHeap;
+    awaiter_heap_builder m_heapBuilder;
+
 };
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::async_sequence_barrier;
 }
 #endif
