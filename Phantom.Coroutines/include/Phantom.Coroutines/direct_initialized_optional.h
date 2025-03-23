@@ -4,7 +4,8 @@
 #include <concepts>
 #endif
 
-#include "detail/assert_is_configured_module.h"
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
+PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {

@@ -1,16 +1,15 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_TASK_H
 #define PHANTOM_COROUTINES_INCLUDE_TASK_H
-
-#include <concepts>
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <concepts>
+#include "detail/config.h"
 #include "detail/core_task.h"
 #include "detail/coroutine.h"
 #include "policies.h"
-#else
-import Phantom.Coroutines.core_task;
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.policies;
 #endif
+
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
+PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines::detail
 {
@@ -48,8 +47,11 @@ template<
 
 namespace Phantom::Coroutines
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::basic_task;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::task;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::task_promise;
 
 }

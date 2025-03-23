@@ -1,11 +1,13 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_MAKE_TASK_H
 #define PHANTOM_COROUTINES_INCLUDE_MAKE_TASK_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <type_traits>
 #include "task.h"
 #include "type_traits.h"
 #endif
 
-#include "detail/assert_is_configured_module.h"
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
+PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {

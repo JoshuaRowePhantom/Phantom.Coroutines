@@ -1,9 +1,12 @@
+#include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "contextual_promise.h"
 #else
 import Phantom.Coroutines.contextual_promise;
 #endif
 #include "thread_local_context.h"
+
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
 
 namespace Phantom::Coroutines
 {

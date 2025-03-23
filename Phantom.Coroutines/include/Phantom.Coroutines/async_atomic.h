@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_ATOMIC_H
 #include <atomic>
 #include <concepts>
+#include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/immovable_object.h"
 #include "double_wide_atomic.h"
@@ -11,6 +12,8 @@ import Phantom.Coroutines.double_wide_atomic;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.type_traits;
 #endif
+
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
 
 namespace Phantom::Coroutines
 {

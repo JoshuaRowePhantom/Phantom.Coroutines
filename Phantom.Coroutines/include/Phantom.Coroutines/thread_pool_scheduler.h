@@ -6,12 +6,14 @@
 #include "policies.h"
 #include "read_copy_update.h"
 #include "scheduler.h"
+#include "task.h"
 #include "type_traits.h"
 #else
 import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.policies;
 import Phantom.Coroutines.read_copy_update;
 import Phantom.Coroutines.scheduler;
+import Phantom.Coroutines.task;
 import Phantom.Coroutines.type_traits;
 #endif
 #include <assert.h>
@@ -22,7 +24,6 @@ import Phantom.Coroutines.type_traits;
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
-#include "task.h"
 
 namespace Phantom::Coroutines
 {

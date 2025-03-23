@@ -2,10 +2,11 @@
 #include "async_test.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.suspend_result;
+import Phantom.Coroutines.task;
 #else
 #include "Phantom.Coroutines/suspend_result.h"
-#endif
 #include "Phantom.Coroutines/task.h"
+#endif
 #include "detail/awaiters.h"
 
 namespace Phantom::Coroutines

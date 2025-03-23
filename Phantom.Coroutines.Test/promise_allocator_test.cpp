@@ -1,9 +1,9 @@
-#if 0
 #include "async_test.h"
-#include "Phantom.Coroutines/task.h"
 #ifndef PHANTOM_COROUTINES_TESTING_MODULES
+#include "Phantom.Coroutines/task.h"
 #include "pmr_task.h"
 #else
+import Phantom.Coroutines.task;
 import Phantom.Coroutines.Test.pmr_task;
 #endif
 
@@ -199,4 +199,3 @@ ASYNC_TEST(promise_allocator_test, allocated_promise_returns_non_null_if_static_
 }
 
 }
-#endif

@@ -49,4 +49,6 @@
 #endif
 #endif
 
+#define PHANTOM_COROUTINES_IS_CONFIGURED 1
+
 #endif

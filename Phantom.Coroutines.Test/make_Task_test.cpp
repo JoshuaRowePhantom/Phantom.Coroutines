@@ -3,12 +3,13 @@
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.make_task;
 import Phantom.Coroutines.shared_task;
+import Phantom.Coroutines.task;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/make_task.h"
 #include "Phantom.Coroutines/shared_task.h"
-#endif
 #include "Phantom.Coroutines/task.h"
+#endif
 
 namespace Phantom::Coroutines
 {

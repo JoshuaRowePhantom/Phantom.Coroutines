@@ -4,13 +4,14 @@ import Phantom.Coroutines.async_auto_reset_event;
 import Phantom.Coroutines.async_mutex;
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.sync_wait;
+import Phantom.Coroutines.task;
 #else
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_mutex.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/sync_wait.h"
-#endif
 #include "Phantom.Coroutines/task.h"
+#endif
 #include "async_test.h"
 
 namespace Phantom::Coroutines

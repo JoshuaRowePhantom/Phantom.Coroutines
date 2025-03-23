@@ -6,14 +6,15 @@ import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.static_thread_pool;
 import Phantom.Coroutines.suspend_result;
 import Phantom.Coroutines.sync_wait;
+import Phantom.Coroutines.task;
 #else
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
-#endif
 #include "Phantom.Coroutines/task.h"
+#endif
 
 namespace Phantom::Coroutines
 {

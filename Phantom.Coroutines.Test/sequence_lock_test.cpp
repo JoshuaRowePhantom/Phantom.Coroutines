@@ -7,14 +7,15 @@ import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.sequence_lock;
 import Phantom.Coroutines.static_thread_pool;
 import Phantom.Coroutines.sync_wait;
+import Phantom.Coroutines.task;
 #else
 #include "Phantom.Coroutines/async_mutex.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/sequence_lock.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/sync_wait.h"
-#endif
 #include "Phantom.Coroutines/task.h"
+#endif
 
 namespace Phantom::Coroutines
 {

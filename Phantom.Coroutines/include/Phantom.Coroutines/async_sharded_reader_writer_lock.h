@@ -1,5 +1,6 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_SHARDED_READER_WRITER_LOCK_H
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_SHARDED_READER_WRITER_LOCK_H
+#include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include "detail/immovable_object.h"
 #include "detail/scope_guard.h"
@@ -13,6 +14,8 @@ import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.scope_guard;
 import Phantom.Coroutines.sharding;
 #endif
+
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
 
 namespace Phantom::Coroutines
 {

@@ -2,6 +2,9 @@
 #define PHANTOM_COROUTINES_INCLUDE_THREAD_LOCAL_CONTEXT_H
 #include <concepts>
 #include <optional>
+#include "detail/config.h"
+
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
 
 namespace Phantom::Coroutines
 {

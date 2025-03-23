@@ -1,8 +1,9 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_SEQUENCE_BARRIER_H
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_SEQUENCE_BARRIER_H
+#include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/atomic_state.h"
-#include "Phantom.Coroutines/detail/coroutine.h"
+#include "detail/atomic_state.h"
+#include "detail/coroutine.h"
 #include "detail/fibonacci_heap.h"
 #include "detail/immovable_object.h"
 #include "policies.h"
@@ -15,6 +16,8 @@ import Phantom.Coroutines.policies;
 #endif
 #include <concepts>
 #include <limits>
+
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
 
 namespace Phantom::Coroutines
 {

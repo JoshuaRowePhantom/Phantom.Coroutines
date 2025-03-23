@@ -4,11 +4,12 @@
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.suspend_result;
+import Phantom.Coroutines.task;
 #else
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/suspend_result.h"
-#endif
 #include "Phantom.Coroutines/task.h"
+#endif
 
 namespace Phantom::Coroutines
 {

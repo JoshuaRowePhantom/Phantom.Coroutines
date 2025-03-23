@@ -10,6 +10,9 @@
 #include "policies.h"
 #endif
 
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
+PHANTOM_COROUTINES_ASSERT_IS_MODULE;
+
 namespace Phantom::Coroutines
 {
 

@@ -6,13 +6,14 @@ import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.reusable_task;
 import Phantom.Coroutines.sync_wait;
+import Phantom.Coroutines.task;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/reusable_task.h"
 #include "Phantom.Coroutines/sync_wait.h"
-#endif
 #include "Phantom.Coroutines/task.h"
+#endif
 
 using namespace Phantom::Coroutines;
 

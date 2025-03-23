@@ -4,13 +4,16 @@ import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.suspend_result;
 import Phantom.Coroutines.sync_wait;
+import Phantom.Coroutines.task;
+import Phantom.Coroutines.type_traits;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
-#endif
 #include "Phantom.Coroutines/task.h"
+#include "Phantom.Coroutines/type_traits.h"
+#endif
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;
