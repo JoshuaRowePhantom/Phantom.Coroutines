@@ -11,12 +11,6 @@
 #include "detail/fibonacci_heap.h"
 #include "detail/immovable_object.h"
 #include "policies.h"
-#else
-import Phantom.Coroutines.atomic_state;
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.fibonacci_heap;
-import Phantom.Coroutines.immovable_object;
-import Phantom.Coroutines.policies;
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);

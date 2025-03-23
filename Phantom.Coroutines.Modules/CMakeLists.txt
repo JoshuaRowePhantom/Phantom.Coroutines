@@ -28,6 +28,7 @@ target_sources(
     "async_reader_writer_lock.ixx" 
     "async_scope.ixx" 
     "async_sequence_barrier.ixx"
+    "async_sharded_reader_writer_lock.ixx"
     "atomic_state.ixx"
     "await_all_await_transform.ixx"
     "await_none_await_transform.ixx"
@@ -72,7 +73,7 @@ target_sources(
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
-  )
+   )
 
 target_link_libraries(
     Phantom.Coroutines.Modules

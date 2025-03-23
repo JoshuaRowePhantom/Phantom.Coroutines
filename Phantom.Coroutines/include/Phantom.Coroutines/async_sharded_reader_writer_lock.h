@@ -1,21 +1,20 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_SHARDED_READER_WRITER_LOCK_H
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_SHARDED_READER_WRITER_LOCK_H
-#include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <mutex>
+#include <type_traits>
+#include "detail/config.h"
 #include "detail/immovable_object.h"
 #include "detail/scope_guard.h"
 #include "async_reader_writer_lock.h"
 #include "direct_initialized_optional.h"
+#include "policies.h"
 #include "sharding.h"
-#else
-import Phantom.Coroutines.async_reader_writer_lock;
-import Phantom.Coroutines.direct_initialized_optional;
-import Phantom.Coroutines.immovable_object;
-import Phantom.Coroutines.scope_guard;
-import Phantom.Coroutines.sharding;
+#include "type_traits.h"
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
+PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {
@@ -25,6 +24,7 @@ namespace detail
 class basic_async_sharded_reader_writer_lock_continuation;
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_await_cancellation_policy AwaitCancellationPolicy,
     is_continuation Continuation,
@@ -32,6 +32,7 @@ template<
 >
 class basic_async_sharded_reader_writer_lock;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_basic_async_sharded_reader_writer_lock_policy =
@@ -50,6 +51,7 @@ async_reader_writer_lock<
     Policy...
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_basic_async_sharded_reader_writer_lock_policy ... Policy
 > using async_sharded_reader_writer_lock = basic_async_sharded_reader_writer_lock<
@@ -92,6 +94,7 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_await_cancellation_policy AwaitCancellationPolicy,
     is_continuation Continuation,

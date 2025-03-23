@@ -1,5 +1,9 @@
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.async_sharded_reader_writer_lock;
+#else
 #include "Phantom.Coroutines/async_sharded_reader_writer_lock.h"
+#endif
 
 namespace Phantom::Coroutines
 {
