@@ -71,10 +71,12 @@ target_sources(
     "tagged_pointer.ixx" 
     "task.ixx"
     "thread_local_context.ixx"
+    "thread_local_contextual_promise.ixx"
     "thread_local_storage.ixx" 
+    "thread_pool_scheduler.ixx"
     "type_traits.ixx"
     "variant_result_storage.ixx" 
-     "thread_local_contextual_promise.ixx")
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

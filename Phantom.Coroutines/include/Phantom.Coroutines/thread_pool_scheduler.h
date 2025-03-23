@@ -1,21 +1,6 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_THREAD_POOL_SCHEDULER_H
 #define PHANTOM_COROUTINES_INCLUDE_THREAD_POOL_SCHEDULER_H
-#include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "detail/coroutine.h"
-#include "policies.h"
-#include "read_copy_update.h"
-#include "scheduler.h"
-#include "task.h"
-#include "type_traits.h"
-#else
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.policies;
-import Phantom.Coroutines.read_copy_update;
-import Phantom.Coroutines.scheduler;
-import Phantom.Coroutines.task;
-import Phantom.Coroutines.type_traits;
-#endif
 #include <assert.h>
 #include <algorithm>
 #include <atomic>
@@ -24,6 +9,17 @@ import Phantom.Coroutines.type_traits;
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
+#include "detail/config.h"
+#include "detail/coroutine.h"
+#include "policies.h"
+#include "read_copy_update.h"
+#include "scheduler.h"
+#include "task.h"
+#include "type_traits.h"
+#endif
+
+static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
+PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {
@@ -810,6 +806,7 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::thread_pool_scheduler;
 }
 #endif

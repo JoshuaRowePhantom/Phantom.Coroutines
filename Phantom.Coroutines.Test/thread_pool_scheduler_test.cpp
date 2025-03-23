@@ -2,16 +2,19 @@
 #include "async_test.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.scheduler;
 import Phantom.Coroutines.static_thread_pool;
 import Phantom.Coroutines.sync_wait;
 import Phantom.Coroutines.task;
+import Phantom.Coroutines.thread_pool_scheduler;
 #else
 #include "Phantom.Coroutines/async_scope.h"
+#include "Phantom.Coroutines/scheduler.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
-#endif
 #include "Phantom.Coroutines/thread_pool_scheduler.h"
+#endif
 #include <barrier>
 #include <thread>
 
