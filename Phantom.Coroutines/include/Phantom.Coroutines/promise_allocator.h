@@ -113,7 +113,7 @@ private:
     )
     {
         auto tiedArgs = std::tie(args...);
-        if constexpr (detail::tuple_has_element_v<decltype(tiedArgs), Allocator&>)
+        if constexpr (detail::tuple_has_element_v<Allocator&, decltype(tiedArgs)>)
         {
             return allocate(
                 size,
@@ -130,12 +130,16 @@ public:
     using derived_promise<Promise>::derived_promise;
 
     static void* operator new(
+        size_t size
+        )
+    {
+        return allocate(size);
+    }
+
+    static void* operator new(
         size_t size,
         auto&... args
-        ) requires requires
-    {
-        { allocate(size, args...) };
-    }
+        )
     {
         return allocate(size, args...);
     }
