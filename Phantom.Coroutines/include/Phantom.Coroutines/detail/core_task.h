@@ -130,7 +130,7 @@ public:
     decltype(auto) resume_value(
         this auto&& self)
     {
-        return self.resume_variant_result<result_index>(
+        return self.template resume_variant_result<result_index>(
             std::forward<decltype(self)>(self).m_result);
     }
 
@@ -274,6 +274,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     is_continuation Continuation,

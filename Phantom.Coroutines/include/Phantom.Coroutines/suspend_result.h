@@ -15,6 +15,42 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
+class suspend_result
+{
+    template<
+        is_awaitable Awaitable
+    > friend class suspend_result_awaiter;
+
+    bool m_didSuspend = false;
+
+public:
+    bool did_suspend() const
+    {
+        return m_didSuspend;
+    }
+
+    template<
+        is_awaitable Awaitable
+    > auto operator <<(
+        Awaitable&& awaitable
+        )
+    {
+        return suspend_result_awaiter<
+            Awaitable&&
+        >(
+            *this,
+            std::forward<Awaitable>(awaitable)
+        );
+    }
+
+    void reset()
+    {
+        m_didSuspend = false;
+    }
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_awaitable Awaitable
 >
@@ -89,40 +125,6 @@ public:
     ) noexcept(noexcept(this->awaiter().await_resume()))
     {
         return (this->awaiter().await_resume());
-    }
-};
-
-class suspend_result
-{
-    template<
-        is_awaitable Awaitable
-    > friend class suspend_result_awaiter;
-
-    bool m_didSuspend = false;
-
-public:
-    bool did_suspend() const
-    {
-        return m_didSuspend;
-    }
-
-    template<
-        is_awaitable Awaitable
-    > auto operator <<(
-        Awaitable&& awaitable
-        )
-    {
-        return suspend_result_awaiter<
-            Awaitable&&
-        >(
-            *this,
-            std::forward<Awaitable>(awaitable)
-            );
-    }
-
-    void reset()
-    {
-        m_didSuspend = false;
     }
 };
 

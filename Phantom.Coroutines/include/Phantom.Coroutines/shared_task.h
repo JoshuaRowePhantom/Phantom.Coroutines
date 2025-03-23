@@ -218,7 +218,7 @@ template<
     > friend class basic_shared_task_promise;
 
     template<
-        typename Promise
+        typename
     > friend struct shared_task_promise_final_suspend_awaiter;
 
     using typename shared_task_awaiter::extensible_promise_handle::coroutine_handle_type;
@@ -432,12 +432,12 @@ private:
             self.m_state,
             [&awaiter](auto state) -> std::optional<state_type>
             {
-                if (state.is<Completed>())
+                if (state.template is<Completed>())
                 {
                     return {};
                 }
 
-                awaiter.m_nextAwaiter = state.as<Running>();
+                awaiter.m_nextAwaiter = state.template as<Running>();
                 return static_cast<awaiter_list_entry*>(&awaiter);
             },
             // We don't need strong memory order to initially load the value

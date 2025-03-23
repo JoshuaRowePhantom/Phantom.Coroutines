@@ -1,4 +1,5 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <utility>
 #include "detail/config.h"
 #include "detail/immovable_object.h"
 #include "detail/storage_for.h"
@@ -16,11 +17,13 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value,
     is_template_instantiation<basic_async_manual_reset_event> Event
 > class basic_async_promise;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value,
     is_async_manual_reset_event_policy... Policy
@@ -59,7 +62,7 @@ template<
 
         Value& await_resume() const noexcept
         {
-            return m_promise.basic_async_promise::as<Value>();
+            return m_promise.basic_async_promise::template as<Value>();
         }
     };
 
@@ -82,7 +85,7 @@ public:
     {
         if (m_event.is_set())
         {
-            this->destroy<Value>();
+            this->template destroy<Value>();
         }
     }
 
@@ -102,7 +105,7 @@ public:
     {
         assert(!self.basic_async_promise::m_event.is_set());
 
-        auto& result = self.basic_async_promise::storage_for::emplace<Value>(
+        auto& result = self.basic_async_promise::storage_for::template emplace<Value>(
             std::forward<Args>(args)...
         );
 

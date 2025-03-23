@@ -15,6 +15,11 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    is_awaitable Awaitable
+> class awaiter_wrapper;
+
 template<
     typename Value
 > class awaiter_wrapper_storage

@@ -18,6 +18,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value,
     is_continuation Continuation
@@ -238,6 +239,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Value
 > using async_atomic = basic_async_atomic<

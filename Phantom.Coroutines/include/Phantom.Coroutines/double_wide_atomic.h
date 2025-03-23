@@ -54,7 +54,7 @@ template<
     typename T
 > struct double_wide_atomic
 {
-    static_assert(always_false<T>, "double_wide_atomic should be used only on double_wide_value");
+    static_assert(detail::always_false<T>, "double_wide_atomic should be used only on double_wide_value");
 };
 
 template<

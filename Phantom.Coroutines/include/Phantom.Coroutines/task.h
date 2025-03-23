@@ -14,6 +14,7 @@ PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 namespace Phantom::Coroutines::detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > concept is_task_policy =
@@ -22,6 +23,7 @@ is_continuation_type_policy<Policy>
 || is_concrete_policy<Policy, noop_on_destroy>
 || is_concrete_policy<Policy, await_is_not_cancellable>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     is_task_policy ... Policies
@@ -34,10 +36,12 @@ using task_promise = core_task_promise<
     core_non_reusable_task_promise_base
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > using basic_task = core_task<Promise>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result = void,
     is_task_policy... Policies

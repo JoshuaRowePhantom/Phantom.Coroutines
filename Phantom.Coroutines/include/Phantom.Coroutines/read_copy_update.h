@@ -413,7 +413,7 @@ public:
         const Value& operator=(
             auto&& value
             )
-            requires std::constructible_from<Value, decltype(value)...>
+            requires std::constructible_from<Value, decltype(value)>
         {
             return emplace(
                 std::forward<decltype(value)>(value)

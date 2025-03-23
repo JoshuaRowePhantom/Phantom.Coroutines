@@ -19,6 +19,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_await_cancellation_policy AwaitCancellationPolicy,
     is_continuation Continuation,
@@ -28,6 +29,7 @@ template<
 >
 class basic_async_mutex;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_async_mutex_policy =
@@ -41,6 +43,7 @@ is_concrete_policy<T, await_is_not_cancellable>
 || is_continuation_type_policy<T>
 || is_ordering_policy<T>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_async_mutex_policy ... Policy
 > using async_mutex = basic_async_mutex<
@@ -107,7 +110,7 @@ public:
                     return LockedNoWaitersState;
                 }
 
-                this->set_next(previousState.as<LockedState>());
+                this->set_next(previousState.template as<LockedState>());
                 return this;
             };
 
@@ -238,9 +241,9 @@ public:
             lock_operation* awaiters;
             do
             {
-                if (previousState.is<LockedState>())
+                if (previousState.template is<LockedState>())
                 {
-                    awaiters = previousState.as<LockedState>();
+                    awaiters = previousState.template as<LockedState>();
                 }
                 else
                 {
@@ -284,7 +287,7 @@ public:
     = default;
 
     ~basic_async_mutex()
-        requires !std::derived_from<AwaitResultOnDestructionPolicy, noop_on_destroy>
+        requires (!std::derived_from<AwaitResultOnDestructionPolicy, noop_on_destroy>)
     {
         invoke_on_awaiters(
             m_awaiters,
@@ -298,10 +301,10 @@ public:
             DestroyedState{},
             std::memory_order_acquire);
 
-        if (previousState.is<LockedState>())
+        if (previousState.template is<LockedState>())
         {
             invoke_on_awaiters(
-                previousState.as<LockedState>(),
+                previousState.template as<LockedState>(),
                 [](auto awaiter)
                 {
                     awaiter->resume_on_mutex_destruction();

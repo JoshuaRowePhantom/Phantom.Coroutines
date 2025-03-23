@@ -1,6 +1,9 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <concepts>
+#include <utility>
 #include "awaiter_wrapper.h"
 #include "extensible_promise.h"
+#include "type_traits.h"
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
@@ -11,6 +14,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > concept is_contextual_promise = requires (Promise promise)
@@ -20,6 +24,7 @@ template<
     noexcept(promise.leave());
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_extensible_promise BasePromise
 > class contextual_promise

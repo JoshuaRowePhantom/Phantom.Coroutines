@@ -13,6 +13,7 @@ PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 namespace Phantom::Coroutines::detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > concept is_reusable_task_policy =
@@ -21,6 +22,7 @@ is_continuation_type_policy<Policy>
 || is_concrete_policy<Policy, noop_on_destroy>
 || is_concrete_policy<Policy, await_is_not_cancellable>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     is_reusable_task_policy ... Policies
@@ -35,10 +37,12 @@ using reusable_task_promise = core_task_promise<
     core_reusable_task_promise_base
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > using basic_reusable_task = core_task<Promise>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result = void,
     is_reusable_task_policy... Policies
@@ -47,6 +51,7 @@ template<
 // Make a reusable_task from a value. The resulting
 // task will already be completed, and can be used and reused
 // as many times as desired, including by multiple threads.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     typename Task = reusable_task<Result>
@@ -69,6 +74,7 @@ template<
 // Make a completed reusable_task that returns void. The resulting
 // task will already be completed, and can be used and reused
 // as many times as desired, including by multiple threads.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Task = reusable_task<>
 > Task make_reusable_task_from_void()

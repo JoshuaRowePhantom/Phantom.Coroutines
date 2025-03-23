@@ -18,6 +18,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_concrete_policy<await_is_not_cancellable> AwaitCancellationPolicy,
     is_continuation Continuation,
@@ -26,6 +27,7 @@ template<
 >
 class basic_async_auto_reset_event;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_async_auto_reset_event_policy =
@@ -39,6 +41,7 @@ is_concrete_policy<T, await_is_not_cancellable>
 || is_awaiter_cardinality_policy<T>
 || is_continuation_type_policy<T>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_async_auto_reset_event_policy ... Policy
 > using async_auto_reset_event = basic_async_auto_reset_event<
@@ -48,6 +51,7 @@ template<
     select_await_result_on_destruction_policy<Policy..., noop_on_destroy>
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_concrete_policy<await_is_not_cancellable> AwaitCancellationPolicy,
     is_continuation Continuation,

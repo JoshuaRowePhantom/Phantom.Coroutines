@@ -16,6 +16,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_await_cancellation_policy AwaitCancellationPolicy,
     is_continuation Continuation,
@@ -24,6 +25,7 @@ template<
 >
 class basic_async_reader_writer_lock;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_async_reader_writer_lock_policy =
@@ -36,6 +38,7 @@ is_concrete_policy<T, await_is_not_cancellable>
 || is_concrete_policy<T, fifo_ordering>
 || is_concrete_policy<T, no_ordering_preference>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_async_reader_writer_lock_policy... Policies
 > using async_reader_writer_lock = basic_async_reader_writer_lock<
@@ -45,6 +48,7 @@ template<
     select_ordering_policy<Policies..., fifo_ordering>
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_await_cancellation_policy AwaitCancellationPolicy,
     is_continuation Continuation,

@@ -1,5 +1,6 @@
 module;
 #include <assert.h>
+#include <utility>
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.async_promise;
 import Phantom.Coroutines.async_manual_reset_event;

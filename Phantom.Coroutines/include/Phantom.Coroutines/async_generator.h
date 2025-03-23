@@ -159,7 +159,7 @@ template<
     using enum async_generator_current_value_index;
 
     template<
-        is_derived_instantiation<basic_async_generator> Generator
+        is_derived_instantiation<basic_async_generator>
     > friend class async_generator_begin_awaiter;
 
     using promise_type = typename Generator::promise_type;
