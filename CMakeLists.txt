@@ -7,7 +7,7 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 set(CMAKE_CXX_STANDARD 23)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/W4>)
 
-if (MSVC)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
     add_compile_definitions(PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE=1)
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -16,6 +16,10 @@ if (MSVC)
     endif()
 
     string(REPLACE "/Ob1" "/Ob3" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-fno-ms-compatibility)
 endif()
 
 add_subdirectory(Phantom.Coroutines)

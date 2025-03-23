@@ -75,7 +75,7 @@ template<
 class nonatomic_shared_ptr
 {
     template<
-        typename T
+        typename
     >
     friend class nonatomic_shared_ptr;
 
@@ -83,11 +83,11 @@ class nonatomic_shared_ptr
     T* m_value = nullptr;
 
     template<
-        typename T
-    > friend nonatomic_shared_ptr<T> make_nonatomic_shared(
+        typename U
+    > friend nonatomic_shared_ptr<U> make_nonatomic_shared(
         auto&&... args
     )
-        requires std::constructible_from<T, decltype(args)...>;
+        requires std::constructible_from<U, decltype(args)...>;
 
     nonatomic_shared_ptr(
         detail::nonatomic_shared_ptr_embedded_value_control_block<T>* controlBlock

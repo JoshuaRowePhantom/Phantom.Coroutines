@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_DIRECT_INITIALIZED_OPTIONAL_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
+#include <type_traits>
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
@@ -15,7 +16,10 @@ template<
     typename T
 > class direct_initialized_optional
 {
-    char alignas(alignof(T)) value[sizeof(T)];
+    union
+    {
+        T value;
+    };
     bool hasValue = false;
 
 public:
@@ -35,7 +39,7 @@ public:
     {
         if (other.hasValue)
         {
-            new (value) T(*other);
+            new (std::addressof(value)) T(*other);
             hasValue = true;
         }
     }
@@ -46,7 +50,7 @@ public:
     {
         if (other.hasValue)
         {
-            new (value) T(*other);
+            new (std::addressof(value)) T(*other);
             hasValue = true;
         }
     }
@@ -56,12 +60,12 @@ public:
         direct_initialized_optional&& other
     )
         noexcept(noexcept(
-            new (value) T(std::move(*other))
+            new (std::addressof(value)) T(std::move(*other))
         ))
     {
         if (other.hasValue)
         {
-            new (value) T(std::move(*other));
+            new (std::addressof(value)) T(std::move(*other));
             hasValue = true;
         }
     }
@@ -80,7 +84,7 @@ public:
             reset();
             if (other.hasValue)
             {
-                new (value) T(*other);
+                new (std::addressof(value)) T(*other);
                 hasValue = true;
             }
         }
@@ -101,7 +105,7 @@ public:
             reset();
             if (other.hasValue)
             {
-                new (value) T(std::move(*other));
+                new (std::addressof(value)) T(std::move(*other));
                 hasValue = true;
             }
         }
@@ -116,22 +120,22 @@ public:
     void emplace(
         auto&&... args
     ) noexcept(noexcept(
-        new (value) T(std::forward<decltype(args)>(args)...)
+        new (std::addressof(value)) T(std::forward<decltype(args)>(args)...)
         ))
     {
         reset();
-        new (value) T(std::forward<decltype(args)>(args)...);
+        new (std::addressof(value)) T(std::forward<decltype(args)>(args)...);
         hasValue = true;
     }
     
     void emplace(
         std::invocable<> auto&& initializer
     ) noexcept(noexcept(
-        new (value) T(std::forward<decltype(initializer)>(initializer)())
+        new (std::addressof(value)) T(std::forward<decltype(initializer)>(initializer)())
         ))
     {
         reset();
-        new (value) T(std::forward<decltype(initializer)>(initializer)());
+        new (std::addressof(value)) T(std::forward<decltype(initializer)>(initializer)());
         hasValue = true;
     }
 
@@ -147,29 +151,29 @@ public:
 
     auto& operator*() noexcept
     {
-        return *reinterpret_cast<T*>(value);
+        return value;
     }
 
     const T& operator*() const noexcept
     {
-        return *reinterpret_cast<const T*>(value);
+        return value;
     }
 
     auto operator->() noexcept
     {
-        return reinterpret_cast<T*>(value);
+        return std::addressof(value);
     }
 
     auto operator->() const noexcept
     {
-        return reinterpret_cast<const T*>(value);
+        return std::addressof(value);
     }
 
     void reset() noexcept
     {
         if (hasValue)
         {
-            (**this).~T();
+            value.~T();
             hasValue = false;
         }
     }

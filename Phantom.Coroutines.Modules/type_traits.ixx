@@ -1,4 +1,5 @@
 module;
+#include <coroutine>
 #include <optional>
 #include <tuple>
 #include <type_traits>

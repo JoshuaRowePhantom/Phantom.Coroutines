@@ -5,6 +5,7 @@
 #include <atomic>
 #include <concepts>
 #include <type_traits>
+#include "type_traits.h"
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);

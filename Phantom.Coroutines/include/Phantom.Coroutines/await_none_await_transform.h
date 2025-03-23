@@ -15,6 +15,7 @@ namespace detail
 {
 // This utility class can be used by a promise type
 // to disable co_await on all inherently awaitable types.
+PHANTOM_COROUTINES_MODULE_EXPORT
 class await_none_await_transform
 {
 public:

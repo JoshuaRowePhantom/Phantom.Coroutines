@@ -156,15 +156,20 @@ template<
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T = void
-> struct continuation_type : 
+> struct continuation_type;
+
+template<> struct continuation_type<void>
+{};
+
+template<
+    typename T
+> struct continuation_type :
     concrete_policy,
-    continuation_type<>
+    continuation_type<void>
 {
     using type = T;
 };
 
-template<> struct continuation_type<void>
-{};
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 using default_continuation_type = continuation_type<coroutine_handle<>>;
@@ -216,17 +221,21 @@ template<
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T = void
+> struct base_promise_type;
+
+template<>
+struct base_promise_type<void>
+{};
+
+template<
+    typename T
 > struct base_promise_type
-    : 
+    :
     concrete_policy,
     base_promise_type<>
 {
     using type = T;
 };
-
-template<>
-struct base_promise_type<void>
-{};
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<

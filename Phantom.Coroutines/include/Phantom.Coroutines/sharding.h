@@ -75,7 +75,7 @@ decltype(auto) create_shards(
     Args&&... args
 )
 {
-    return t.create_shards<I>(
+    return t.template create_shards<I>(
         std::forward<Args>(args)...);
 }
 
@@ -90,7 +90,7 @@ decltype(auto) create_cache_aligned_shards(
     Args&&... args
 )
 {
-    return t.create_cache_aligned_shards<I>(
+    return t.template create_cache_aligned_shards<I>(
         std::forward<Args>(args)...);
 }
 
@@ -143,7 +143,7 @@ struct static_shard_numbering
 
     template<
         typename I,
-        typename ItemConstructor = = decltype([](auto) { return I{}; })
+        typename ItemConstructor = decltype([](auto) { return I{}; })
     >
     static constexpr std::array<I, Shards> create_shards(
         ItemConstructor && itemConstructor = {})

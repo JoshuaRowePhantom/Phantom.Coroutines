@@ -16,6 +16,7 @@ namespace detail
 {
 using std::coroutine_traits;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TPromise = void
 >
@@ -25,6 +26,7 @@ using suspend_always = std::suspend_always;
 
 using suspend_never = std::suspend_never;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 inline auto noop_coroutine()
 {
     return std::noop_coroutine();

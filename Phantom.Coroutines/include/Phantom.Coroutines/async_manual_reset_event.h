@@ -97,7 +97,7 @@ template<
                     return SignalledState{};
                 }
 
-                m_nextAwaiter = previousState.as<WaitingCoroutineState>();
+                m_nextAwaiter = previousState.template as<WaitingCoroutineState>();
                 m_continuation = continuation;
                 return this;
             };
@@ -145,11 +145,11 @@ public:
     void set() noexcept
     {
         auto previousState = m_state.exchange(SignalledState{});
-        if (previousState.is<SignalledState>())
+        if (previousState.template is<SignalledState>())
         {
             return;
         }
-        auto signalledAwaiter = previousState.as<WaitingCoroutineState>();
+        auto signalledAwaiter = previousState.template as<WaitingCoroutineState>();
         while (signalledAwaiter)
         {
             auto nextAwaiter = signalledAwaiter->m_nextAwaiter;

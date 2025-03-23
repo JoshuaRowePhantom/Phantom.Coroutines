@@ -86,7 +86,7 @@ public:
     template<
         typename Value
     >
-    [[msvc::intrinsic]]
+    PHANTOM_COROUTINES_MSVC_INSTRINSIC
     Value&& await_transform(
         Value&& awaitable
     ) noexcept
@@ -126,9 +126,9 @@ public:
         typename ... Args
     > derived_promise_base(
         Args&&...
-    ) requires
+    ) requires (
         !std::constructible_from<Base, Args&&...>
-        && std::constructible_from<Base>
+        && std::constructible_from<Base>)
         :
     Base()
     {}

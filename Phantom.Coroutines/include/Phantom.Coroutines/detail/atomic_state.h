@@ -48,8 +48,8 @@ template<
     typename TStateSetType = TLabel,
     // The traits for converting a state object value to an underlying representation and back.
     template<
-        typename TStateSetType, 
-        typename TRepresentation
+        typename, 
+        typename
     > typename TStateSetTraits = StateSetTraits
 > class StateSet
 {
@@ -616,8 +616,8 @@ private BasicAtomicStateHandlers<
 {
     // Allow basic_atomic_state access to private members.
     template<
-        typename TRepresentation,
-        StateType...TStates
+        typename,
+        StateType...
     > friend class basic_atomic_state;
 
     typedef basic_atomic_state<TRepresentation, TStates...> atomic_state;

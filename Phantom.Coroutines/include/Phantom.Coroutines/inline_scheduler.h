@@ -13,6 +13,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class inline_scheduler
 {
 public:

@@ -139,7 +139,7 @@ private immovable_object
             }
         }
 
-        [[msvc::forceinline]]
+        PHANTOM_COROUTINES_MSVC_FORCEINLINE
         bool refresh_thread_local_reference() noexcept
         {
             if (!need_refresh()) [[likely]]
@@ -149,7 +149,7 @@ private immovable_object
             return force_refresh_thread_local_reference();
         }
 
-        [[msvc::forceinline]]
+        PHANTOM_COROUTINES_MSVC_FORCEINLINE
         bool force_refresh_thread_local_reference() noexcept
         {
             m_threadState.m_sequenceNumber = m_section.m_sequenceNumber.load(

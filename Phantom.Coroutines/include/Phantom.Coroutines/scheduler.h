@@ -12,6 +12,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_scheduler = requires (T t)

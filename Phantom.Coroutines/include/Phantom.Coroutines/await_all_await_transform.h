@@ -1,6 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_AWAIT_ALL_AWAIT_TRANSFORM_H
 #define PHANTOM_COROUTINES_INCLUDE_AWAIT_ALL_AWAIT_TRANSFORM_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <utility>
 #include "type_traits.h"
 #endif
 
@@ -14,6 +15,7 @@ namespace detail
 // This utility class can be used by a promise type
 // that declares an await_transform method to enable
 // awaiting on all other types that are inherently awaitable.
+PHANTOM_COROUTINES_MODULE_EXPORT
 class await_all_await_transform
 {
 public:

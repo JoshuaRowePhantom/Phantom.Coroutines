@@ -17,6 +17,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Traits
 > concept GeneratorTraits = requires
@@ -27,20 +28,22 @@ template<
     typename Traits::result_type;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     GeneratorTraits Traits
 > class basic_generator;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     GeneratorTraits Traits
 > class basic_generator_promise
 {
     template<
-        GeneratorTraits Traits
+        GeneratorTraits
     > friend class basic_generator_iterator;
 
     template<
-        GeneratorTraits Traits
+        GeneratorTraits
     > friend class basic_generator;
 
     using promise_type = typename Traits::promise_type;
@@ -116,12 +119,12 @@ public:
 
     void return_void()
     {
-        m_currentValue.emplace<EmptyIndex>();
+        m_currentValue.template emplace<EmptyIndex>();
     }
 
     void unhandled_exception()
     {
-        m_currentValue.emplace<ExceptionIndex>(
+        m_currentValue.template emplace<ExceptionIndex>(
             std::current_exception());
     }
 
@@ -131,6 +134,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     GeneratorTraits Traits
 > class basic_generator_iterator
@@ -166,7 +170,7 @@ public:
 
     basic_generator_iterator& operator++()
     {
-        std::coroutine_handle<promise_type>::from_promise(*m_promise).resume();
+        coroutine_handle<promise_type>::from_promise(*m_promise).resume();
 
         if (m_promise->m_currentValue.index() == basic_promise_type::ExceptionIndex)
         {
@@ -217,12 +221,13 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     GeneratorTraits Traits
 > class basic_generator
 {
     template<
-        GeneratorTraits Traits
+        GeneratorTraits
     > friend class basic_generator_iterator;
     
     using basic_promise_type = basic_generator_promise<Traits>;
@@ -305,18 +310,22 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TResult
 > class generator;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TResult
 > class generator_promise;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TResult
 > class generator_iterator;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TResult
 > struct generator_traits
@@ -327,6 +336,7 @@ template<
     typedef TResult result_type;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TResult
 > class generator

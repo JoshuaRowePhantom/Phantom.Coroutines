@@ -14,6 +14,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct reusable_consecutive_global_id_default_increment
 {
     template<typename T>
@@ -23,6 +24,7 @@ struct reusable_consecutive_global_id_default_increment
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Label,
     typename Value = std::size_t,

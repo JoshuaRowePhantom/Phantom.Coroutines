@@ -1,18 +1,19 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_CORE_TASK_H
 #define PHANTOM_COROUTINES_INCLUDE_CORE_TASK_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "detail/variant_result_storage.h"
 #include <concepts>
 #include <exception>
 #include <type_traits>
 #include <variant>
-#include "detail/coroutine.h"
+#include "config.h"
+#include "coroutine.h"
 #include "extensible_promise.h"
-#include "detail/final_suspend_transfer.h"
-#include "detail/immovable_object.h"
-#include "detail/non_copyable.h"
+#include "final_suspend_transfer.h"
+#include "immovable_object.h"
+#include "non_copyable.h"
 #include "policies.h"
 #include "type_traits.h"
+#include "variant_result_storage.h"
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);

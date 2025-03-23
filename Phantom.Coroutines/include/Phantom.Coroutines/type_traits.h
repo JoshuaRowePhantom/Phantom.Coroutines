@@ -1,6 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_TYPE_TRAITS_H
 #define PHANTOM_COROUTINES_INCLUDE_TYPE_TRAITS_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <coroutine>
 #include <optional>
 #include <tuple>
 #include <type_traits>
