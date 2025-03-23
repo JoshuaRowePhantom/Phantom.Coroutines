@@ -1,13 +1,14 @@
 #include "async_test.h"
 #include "Phantom.Coroutines/task.h"
-#include "Phantom.Coroutines/sync_wait.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_promise;
 import Phantom.Coroutines.suspend_result;
+import Phantom.Coroutines.sync_wait;
 import Phantom.Coroutines.Test.lifetime_tracker;
 #else
 #include "Phantom.Coroutines/async_promise.h"
 #include "Phantom.Coroutines/suspend_result.h"
+#include "Phantom.Coroutines/sync_wait.h"
 #include "lifetime_tracker.h"
 #endif
 #include <string>

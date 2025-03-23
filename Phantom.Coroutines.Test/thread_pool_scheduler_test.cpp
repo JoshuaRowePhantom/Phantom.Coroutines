@@ -3,13 +3,14 @@
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.static_thread_pool;
+import Phantom.Coroutines.sync_wait;
 #else
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/static_thread_pool.h"
+#include "Phantom.Coroutines/sync_wait.h"
 #endif
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/thread_pool_scheduler.h"
-#include "Phantom.Coroutines/sync_wait.h"
 #include <barrier>
 #include <thread>
 

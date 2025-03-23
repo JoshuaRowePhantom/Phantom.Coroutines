@@ -65,11 +65,12 @@ target_sources(
     "static_thread_pool.ixx"
     "storage_for.ixx"
     "suspend_result.ixx"
+    "sync_wait.ixx"
     "tagged_pointer.ixx" 
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- )
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

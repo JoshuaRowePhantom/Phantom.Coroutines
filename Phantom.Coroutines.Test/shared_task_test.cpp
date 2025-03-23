@@ -6,16 +6,18 @@
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.shared_task;
+import Phantom.Coroutines.sync_wait;
 import Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.Test.lifetime_tracker;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/shared_task.h"
+#include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/type_traits.h"
 #include "lifetime_tracker.h"
 #endif
-#include "Phantom.Coroutines/sync_wait.h"
+#include "Phantom.Coroutines/task.h"
 
 
 namespace Phantom::Coroutines

@@ -2,14 +2,16 @@
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.shared_task;
+import Phantom.Coroutines.sync_wait;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/shared_task.h"
-#endif
 #include "Phantom.Coroutines/sync_wait.h"
+#endif
 #include "Phantom.Coroutines/task.h"
 #include "detail/awaiters.h"
 #include <chrono>
+#include <future>
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;

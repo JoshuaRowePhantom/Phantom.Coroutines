@@ -15,9 +15,9 @@ template<
 >
 struct typed_awaiter
 {
-    bool await_ready();
-    TSuspendResult await_suspend(coroutine_handle<>);
-    TResumeResult await_resume();
+    bool await_ready() { std::unreachable(); }
+    TSuspendResult await_suspend(coroutine_handle<>) { std::unreachable(); }
+    TResumeResult await_resume() { std::unreachable(); }
 };
 
 template<
@@ -26,8 +26,8 @@ template<
     typename TRValueResultResult = TResumeResult
 > struct typed_awaitable
 {
-    typed_awaiter<TResumeResult, TSuspendResult> operator co_await() &;
-    typed_awaiter<TRValueResultResult, TSuspendResult> operator co_await() &&;
+    typed_awaiter<TResumeResult, TSuspendResult> operator co_await()& { std::unreachable(); }
+    typed_awaiter<TRValueResultResult, TSuspendResult> operator co_await() && { std::unreachable(); }
 };
 
 struct not_awaitable

@@ -1,20 +1,19 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_SYNC_WAIT_H
 #define PHANTOM_COROUTINES_INCLUDE_SYNC_WAIT_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/coroutine.h"
-#include "type_traits.h"
-#else
-import Phantom.Coroutines.coroutine;
-import Phantom.Coroutines.type_traits;
-#endif
-#include "detail/config.h"
 #include <assert.h>
 #include <exception>
 #include <future>
+#include "detail/config.h"
+#include "detail/coroutine.h"
+#include "type_traits.h"
 #ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
 #include "task.h"
 #include <optional>
 #endif
+#endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -195,7 +194,9 @@ template<
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::as_future;
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::sync_wait;
 
 }

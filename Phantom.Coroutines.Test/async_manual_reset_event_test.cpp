@@ -3,12 +3,13 @@
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
 import Phantom.Coroutines.suspend_result;
+import Phantom.Coroutines.sync_wait;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/suspend_result.h"
-#endif
 #include "Phantom.Coroutines/sync_wait.h"
+#endif
 #include "Phantom.Coroutines/task.h"
 
 using namespace Phantom::Coroutines;
