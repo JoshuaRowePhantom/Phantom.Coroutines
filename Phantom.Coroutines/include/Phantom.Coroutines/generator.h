@@ -81,7 +81,7 @@ public:
         Value&& value
     )
     {
-        m_currentValue.emplace<ValueIndex>(
+        m_currentValue.template emplace<ValueIndex>(
             std::forward<Value>(value));
         return suspend_always{};
     }
@@ -105,7 +105,7 @@ public:
         std::remove_reference_t<result_type>&& value
     )
     {
-        m_currentValue.emplace<ValueRefIndex>(
+        m_currentValue.template emplace<ValueRefIndex>(
             static_cast<std::add_lvalue_reference_t<result_type>>(
                 value));
         return suspend_always{};

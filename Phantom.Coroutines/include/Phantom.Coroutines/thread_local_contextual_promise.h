@@ -2,6 +2,7 @@
 #include <optional>
 #include "detail/config.h"
 #include "contextual_promise.h"
+#include "extensible_promise.h"
 #include "thread_local_context.h"
 #endif
 
@@ -13,6 +14,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_thread_local_context ThreadLocalContext,
     typename BasePromise

@@ -1,6 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_CORE_TASK_H
 #define PHANTOM_COROUTINES_INCLUDE_CORE_TASK_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <coroutine>
 #include <concepts>
 #include <exception>
 #include <type_traits>
@@ -92,14 +93,14 @@ public:
 
     void unhandled_exception()
     {
-        m_result.emplace<exception_index>(
+        m_result.template emplace<exception_index>(
             std::current_exception());
     }
 
     void return_exception(
         std::exception_ptr exception)
     {
-        m_result.emplace<exception_index>(
+        m_result.template emplace<exception_index>(
             exception);
     }
 
@@ -107,7 +108,7 @@ public:
         auto&& value
     )
     {
-        m_result.emplace<result_index>(
+        m_result.template emplace<result_index>(
             std::forward<decltype(value)>(value));
     }
 
@@ -434,6 +435,9 @@ public:
 
 template<typename Promise>
 core_task(coroutine_handle<Promise>) -> core_task<Promise>;
+
+template<typename Promise>
+core_task(Promise&) -> core_task<Promise>;
 
 }
 #endif

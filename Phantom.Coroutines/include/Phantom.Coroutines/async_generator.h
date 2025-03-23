@@ -1,14 +1,15 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_GENERATOR_H
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_GENERATOR_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "detail/config.h"
-#include "awaiter_wrapper.h"
-#include "extensible_promise.h"
-#include "task.h"
 #include <concepts>
 #include <exception>
 #include <variant>
 #include <type_traits>
+#include "detail/config.h"
+#include "awaiter_wrapper.h"
+#include "extensible_promise.h"
+#include "task.h"
+#include "type_traits.h"
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
@@ -19,11 +20,13 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_async_generator_policy =
 is_base_promise_type_policy<T>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > class basic_async_generator;
@@ -46,9 +49,9 @@ public:
         return false; 
     }
 
-    std::coroutine_handle<> await_suspend(
+    coroutine_handle<> await_suspend(
         this auto& self,
-        std::coroutine_handle<>
+        coroutine_handle<>
     )
     {
         return self.promise().continuation();
@@ -71,6 +74,12 @@ enum class async_generator_current_value_index : size_t
     ValueIndex = 2,
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    is_derived_instantiation<basic_async_generator> Generator
+> class async_generator_iterator;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     typename BasePromise
@@ -215,7 +224,7 @@ public:
         auto continuation,
         auto&&... args)
     {
-        self.currentValue().emplace<size_t(EmptyIndex)>();
+        self.currentValue().emplace<size_t(EmptyIndex)>(std::monostate {});
 
         return self.awaiter().await_suspend(
             continuation,
@@ -300,7 +309,7 @@ public:
     auto operator++(
         this auto&& self)
     {
-        self.promise().m_currentValue.emplace<size_t(EmptyIndex)>();
+        self.promise().m_currentValue.emplace<size_t(EmptyIndex)>(std::monostate {});
         return async_generator_increment_awaiter
         { 
             *self.m_generator,
@@ -420,6 +429,7 @@ template<
     select_base_promise_type<Policies..., base_promise_type<task_promise<void>>>
 >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result,
     typename ... Policies

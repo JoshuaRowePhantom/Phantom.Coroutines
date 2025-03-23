@@ -26,17 +26,20 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_continuation Continuation
 >
 class basic_thread_pool_scheduler;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Policy
 > concept is_thread_pool_scheduler_policy
 =
 is_continuation_type_policy<Policy>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_thread_pool_scheduler_policy ... Policy
 > using thread_pool_scheduler = basic_thread_pool_scheduler<

@@ -90,7 +90,7 @@ template<
     :
     public extensible_promise_handle<Promise>
 {
-    using basic_shared_task::extensible_promise_handle::coroutine_handle_type;
+    using typename basic_shared_task::extensible_promise_handle::coroutine_handle_type;
 
     template<
         typename Result,
@@ -332,6 +332,10 @@ template<
 > shared_task_promise_final_suspend_awaiter(coroutine_handle<Promise>) -> shared_task_promise_final_suspend_awaiter<Promise>;
 
 template<
+    typename Promise
+> shared_task_promise_final_suspend_awaiter(Promise&) -> shared_task_promise_final_suspend_awaiter<Promise>;
+
+template<
     typename Result,
     is_continuation Continuation
 > class basic_shared_task_promise
@@ -516,7 +520,7 @@ public:
         this auto& self
     ) noexcept
     {
-        self.m_resultVariant.emplace<ExceptionIndex>(
+        self.m_resultVariant.template emplace<ExceptionIndex>(
             std::current_exception());
     }
 
@@ -524,10 +528,10 @@ public:
         this auto& self,
         auto&& result
     ) noexcept(noexcept(
-        self.m_resultVariant.emplace<ResultIndex>(
+        self.m_resultVariant.template emplace<ResultIndex>(
             std::forward<decltype(result)>(result))))
     {
-        self.m_resultVariant.emplace<ResultIndex>(
+        self.m_resultVariant.template emplace<ResultIndex>(
             std::forward<decltype(result)>(result));
     }
 };

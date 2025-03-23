@@ -35,14 +35,14 @@ struct test_variant_storage
         result_variant_member_type&& value
     )
     {
-        m_result.emplace<1>(std::forward<decltype(value)>(value));
+        m_result.template emplace<1>(std::forward<decltype(value)>(value));
     }
 
     decltype(auto) await_resume(
         this auto&& self
     )
     {
-        return variant_result_storage<Value>::resume_variant_result<1>(
+        return variant_result_storage<Value>::template resume_variant_result<1>(
             std::forward_like<decltype(self)>(self.m_result));
     }
 };

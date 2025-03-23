@@ -4,6 +4,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <assert.h>
 #include <concepts>
+#include <coroutine>
 #include <exception>
 #include <optional>
 #include <tuple>
@@ -417,6 +418,11 @@ template<
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
+    typename BasePromise
+> class basic_early_termination_promise;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
     typename CalledPromise
 > class basic_error_handling_early_termination_task_awaiter
     :
@@ -647,7 +653,7 @@ public:
 
 private:
     template<
-        typename BasePromise
+        typename
     > friend class basic_early_termination_promise;
 
     template<
@@ -803,6 +809,7 @@ public:
     using Promise::await_transform;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Policies
 > using early_termination_promise = 
@@ -817,6 +824,7 @@ template<
         >::tuple_type
     >;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ErrorResult,
     typename ... Policies

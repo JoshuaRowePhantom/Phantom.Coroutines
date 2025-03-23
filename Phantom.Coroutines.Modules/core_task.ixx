@@ -1,4 +1,5 @@
 module;
+#include <coroutine>
 #include <concepts>
 #include <exception>
 #include <type_traits>
