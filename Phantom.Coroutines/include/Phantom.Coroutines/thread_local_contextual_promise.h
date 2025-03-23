@@ -1,13 +1,12 @@
-#include "detail/config.h"
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <optional>
+#include "detail/config.h"
 #include "contextual_promise.h"
 #include "thread_local_context.h"
-#else
-import Phantom.Coroutines.contextual_promise;
-import Phantom.Coroutines.thread_local_context;
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
+PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {
@@ -66,5 +65,6 @@ public:
 };
 
 }
+PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::thread_local_contextual_promise;
 }

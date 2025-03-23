@@ -74,7 +74,7 @@ target_sources(
     "thread_local_storage.ixx" 
     "type_traits.ixx"
     "variant_result_storage.ixx" 
-    )
+     "thread_local_contextual_promise.ixx")
 
 target_link_libraries(
     Phantom.Coroutines.Modules
