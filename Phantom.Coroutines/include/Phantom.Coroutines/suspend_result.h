@@ -16,6 +16,12 @@ namespace detail
 {
 
 PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    is_awaitable Awaitable
+>
+class suspend_result_awaiter;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
 class suspend_result
 {
     template<

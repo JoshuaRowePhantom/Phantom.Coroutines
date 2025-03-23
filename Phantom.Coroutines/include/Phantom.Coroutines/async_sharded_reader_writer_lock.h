@@ -116,7 +116,7 @@ class basic_async_sharded_reader_writer_lock
         :
         private detail::basic_async_sharded_reader_writer_lock_operation_base
     {
-        friend class reader_lock;
+        friend class basic_async_sharded_reader_writer_lock;
 
         using operation_type = decltype(
             std::declval<typename async_reader_writer_lock_type::reader_lock&>().scoped_lock_async()
@@ -249,7 +249,7 @@ class basic_async_sharded_reader_writer_lock
         private detail::basic_async_sharded_reader_writer_lock_operation_base,
         private write_lock_operation_acquired_locks<is_cancellable>
     {
-        friend class writer_lock;
+        friend class basic_async_sharded_reader_writer_lock;
 
         using typename write_lock_operation_acquired_locks<is_cancellable>::operation_type;
         using write_lock_operation_acquired_locks<is_cancellable>::acquire_lock_operation;
@@ -476,6 +476,8 @@ private:
         :
         public write_lock_operation
     {
+        friend class basic_async_sharded_reader_writer_lock::writer_lock;
+
         using write_lock_operation::m_lock;
     public:
         using write_lock_operation::write_lock_operation;

@@ -20,6 +20,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class expected_early_termination_result
     :
     public early_termination_result
@@ -90,6 +91,7 @@ public:
     }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 class expected_early_termination_transformer
     :
     public early_termination_transformer

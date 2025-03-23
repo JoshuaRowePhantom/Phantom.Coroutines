@@ -120,6 +120,7 @@ requires is_awaitable<std::invoke_result_t<TInvocable>>
 }
 
 // Given a lambda returning an awaitable object, return an std::future representing it.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     std::invocable TInvocable
 > auto as_future(
@@ -138,6 +139,7 @@ requires is_awaitable<std::invoke_result_t<TInvocable>>
 }
 
 // Given an awaitable object, return an std::future representing it.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_awaitable TAwaitable
 > auto as_future(
@@ -153,6 +155,7 @@ template<
 }
 
 // Synchronously wait for the result of an awaitable object and return its result.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_awaitable TAwaitable
 > decltype(auto) sync_wait(

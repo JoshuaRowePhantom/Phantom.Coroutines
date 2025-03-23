@@ -3,8 +3,10 @@
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.awaiter_list;
+import Phantom.Coroutines.policies;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/awaiter_list.h"
+#include "Phantom.Coroutines/policies.h"
 #endif
 
 namespace Phantom::Coroutines

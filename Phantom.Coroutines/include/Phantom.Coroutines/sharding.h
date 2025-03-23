@@ -146,7 +146,7 @@ struct static_shard_numbering
         typename ItemConstructor = decltype([](auto) { return I{}; })
     >
     static constexpr std::array<I, Shards> create_shards(
-        ItemConstructor && itemConstructor = {})
+        ItemConstructor itemConstructor = {})
     {
         auto builder = [&]<size_t ... Indices>(std::index_sequence<Indices...>)->std::array<I, Shards>
         {
@@ -158,10 +158,10 @@ struct static_shard_numbering
     
     template<
         typename I,
-        typename ItemConstructor = decltype([](auto) { return I{}; })
+        typename ItemConstructor 
     >
     static constexpr cache_aligned_array<I, Shards> create_cache_aligned_shards(
-        ItemConstructor&& itemConstructor = {})
+        ItemConstructor itemConstructor)
     {
         auto builder = [&]<size_t ... Indices>(std::index_sequence<Indices...>) -> cache_aligned_array<I, Shards>
         {
@@ -169,6 +169,18 @@ struct static_shard_numbering
         };
 
         return builder(std::index_sequence<shard_count>{});
+    }
+
+    template<
+        typename I
+    >
+    static constexpr cache_aligned_array<I, Shards> create_cache_aligned_shards()
+    {
+        auto createLambda = [](size_t) { return I{}; };
+
+        return create_cache_aligned_shards<I, decltype(createLambda)>(
+            createLambda
+        );
     }
 };
 

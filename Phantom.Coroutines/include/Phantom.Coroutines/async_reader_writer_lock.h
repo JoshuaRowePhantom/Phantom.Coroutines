@@ -136,7 +136,7 @@ private:
         )
         {
             double_wide_value previousState = m_lock.m_state.load_inconsistent();
-            double_wide_value nextState = state{};
+            double_wide_value nextState{ state{} };
             bool suspended;
 
             do
@@ -206,7 +206,7 @@ private:
         intptr_t readerCount;
         bool resumeLocks;
 
-        double_wide_value resumingState = state{};
+        double_wide_value resumingState{ state{} };
         do
         {
             queue = previousState->m_queue.value();
@@ -304,7 +304,7 @@ private:
         // Now locksToResume is a linked list that ends at m_pending
         // containing the awaiters to resume.
         bool needToReReadQueue = false;
-        double_wide_value resumedState = state{};
+        double_wide_value resumedState{ state{} };
         auto endOfUnlockList = m_pending;
         do
         {

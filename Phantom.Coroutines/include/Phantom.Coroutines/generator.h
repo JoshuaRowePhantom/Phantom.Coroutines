@@ -86,16 +86,12 @@ public:
         return suspend_always{};
     }
 
-    template<
-        typename = std::enable_if_t<
-            std::is_reference_v<result_type>
-        >
-    >
     suspend_always yield_value(
         result_type& value
     )
+        requires std::is_reference_v<result_type>
     {
-        m_currentValue.emplace<ValueRefIndex>(
+        m_currentValue.template emplace<ValueRefIndex>(
             static_cast<std::add_lvalue_reference_t<result_type>>(
                 value));
         return suspend_always{};

@@ -17,6 +17,7 @@ namespace Phantom::Coroutines
 namespace detail
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ThreadPoolScheduler = thread_pool_scheduler<>
 >

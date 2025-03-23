@@ -1,3 +1,4 @@
+#include <coroutine>
 #include <functional>
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;

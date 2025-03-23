@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <coroutine>
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)

@@ -462,7 +462,7 @@ template<
     // Propagate the exception to awaiting coroutine.
     virtual void return_unhandled_exception() override
     {
-        this->m_result.emplace<exception_index>(
+        m_result.template emplace<exception_index>(
             std::current_exception());
     }
 
@@ -470,7 +470,7 @@ template<
         result_type&& result
     ) override
     {
-        m_result.emplace<result_index>(
+        m_result.template emplace<result_index>(
             std::forward<result_type>(result));
     }
 
@@ -509,7 +509,7 @@ public:
                 get<exception_index>(self.m_result));
         }
 
-        return variant_result_storage::resume_variant_result<result_index>(
+        return variant_result_storage::template resume_variant_result<result_index>(
             self.m_result);
     }
 };

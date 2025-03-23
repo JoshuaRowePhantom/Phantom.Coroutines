@@ -481,7 +481,7 @@ private:
                 get<ExceptionIndex>(self.m_resultVariant));
         }
 
-        return self.basic_shared_task_promise::variant_result_storage::get_result<ResultIndex>(
+        return self.basic_shared_task_promise::variant_result_storage::template get_result<ResultIndex>(
             self.m_resultVariant);
     }
 

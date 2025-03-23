@@ -8,12 +8,14 @@ import Phantom.Coroutines.early_termination_task;
 import Phantom.Coroutines.error_condition_early_termination;
 import Phantom.Coroutines.expected_early_termination;
 import Phantom.Coroutines.task;
+import Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.Test.lifetime_tracker;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/early_termination_task.h"
 #include "Phantom.Coroutines/error_condition_early_termination.h"
 #include "Phantom.Coroutines/expected_early_termination.h"
 #include "Phantom.Coroutines/task.h"
+#include "Phantom.Coroutines/type_traits.h"
 #include "lifetime_tracker.h"
 #endif
 
