@@ -3,11 +3,12 @@
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_auto_reset_event;
 import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.static_thread_pool;
 #else
 #include "Phantom.Coroutines/async_auto_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
-#endif
 #include "Phantom.Coroutines/static_thread_pool.h"
+#endif
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"

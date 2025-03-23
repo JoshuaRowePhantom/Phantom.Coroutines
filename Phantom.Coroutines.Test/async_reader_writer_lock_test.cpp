@@ -4,12 +4,13 @@
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_reader_writer_lock;
 import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.static_thread_pool;
 #else
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_reader_writer_lock.h"
 #include "Phantom.Coroutines/async_scope.h"
-#endif
 #include "Phantom.Coroutines/static_thread_pool.h"
+#endif
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 

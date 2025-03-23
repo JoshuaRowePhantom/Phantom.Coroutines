@@ -14,7 +14,7 @@ import Phantom.Coroutines.read_copy_update;
 import Phantom.Coroutines.scheduler;
 import Phantom.Coroutines.type_traits;
 #endif
-#include "task.h"
+#include <assert.h>
 #include <algorithm>
 #include <atomic>
 #include <bit>
@@ -22,6 +22,7 @@ import Phantom.Coroutines.type_traits;
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
+#include "task.h"
 
 namespace Phantom::Coroutines
 {

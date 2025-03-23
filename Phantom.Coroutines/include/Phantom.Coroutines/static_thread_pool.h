@@ -1,12 +1,15 @@
+#ifndef PHANTOM_COROUTINES_INCLUDE_STATIC_THREAD_POOL_H
+#define PHANTOM_COROUTINES_INCLUDE_STATIC_THREAD_POOL_H
+#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <latch>
 #include <thread>
 #include <vector>
-#ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include "detail/config.h"
 #include "scheduler.h"
-#else
-import Phantom.Coroutines.scheduler;
-#endif
 #include "thread_pool_scheduler.h"
-#include <latch>
+#endif
+
+#include "detail/assert_is_configured_module.h"
 
 namespace Phantom::Coroutines
 {
@@ -59,5 +62,7 @@ public:
 
 }
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using Phantom::Coroutines::detail::static_thread_pool;
 }
+#endif

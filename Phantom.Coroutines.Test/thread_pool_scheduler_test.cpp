@@ -2,10 +2,11 @@
 #include "async_test.h"
 #ifdef PHANTOM_COROUTINES_TESTING_MODULES
 import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.static_thread_pool;
 #else
 #include "Phantom.Coroutines/async_scope.h"
-#endif
 #include "Phantom.Coroutines/static_thread_pool.h"
+#endif
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/thread_pool_scheduler.h"
 #include "Phantom.Coroutines/sync_wait.h"

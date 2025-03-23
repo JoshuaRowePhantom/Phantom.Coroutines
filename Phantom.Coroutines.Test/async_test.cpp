@@ -1,5 +1,9 @@
 #include "async_test.h"
+#ifdef PHANTOM_COROUTINES_TESTING_MODULES
+import Phantom.Coroutines.static_thread_pool;
+#else
 #include "Phantom.Coroutines/static_thread_pool.h"
+#endif
 #include "Phantom.Coroutines/sync_wait.h"
 
 namespace Phantom::Coroutines::Test
