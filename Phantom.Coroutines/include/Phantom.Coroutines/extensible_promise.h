@@ -397,19 +397,19 @@ protected:
         this auto& self
     )
     {
-        return self.extended_promise_handle::value();
+        return self.template extended_promise_handle<PromiseHandle>::value();
     }
 
     decltype(auto) handle(
         this auto& self)
     {
-        return self.extended_promise_handle::awaitable().handle();
+        return self.template extended_promise_handle<PromiseHandle>::awaitable().handle();
     }
 
     decltype(auto) promise(
         this auto& self)
     {
-        return self.extended_promise_handle::awaitable().promise();
+        return self.template extended_promise_handle<PromiseHandle>::awaitable().promise();
     }
 
     friend auto operator <=> (

@@ -103,7 +103,6 @@ public:
     ) -> test_contextual_promise_awaiter<std::invoke_result_t<AwaiterFunc>>;
 
     test_contextual_promise(
-        auto&&,
         operations_vector& operations
     ) : m_operations { operations }
     {}
@@ -174,7 +173,7 @@ ASYNC_TEST(contextual_promise_test, context_enter_on_initial_suspend_leave_on_fi
     operations_vector operations;
     async_manual_reset_event<> event;
 
-    auto taskLambda = [&](auto&) -> test_contextual_task<>
+    auto taskLambda = [&](operations_vector&) -> test_contextual_task<>
     {
         co_await event;
     };

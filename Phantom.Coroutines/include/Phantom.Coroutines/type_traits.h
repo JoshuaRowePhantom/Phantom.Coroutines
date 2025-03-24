@@ -513,7 +513,7 @@ template<
         std::is_lvalue_reference_v<Owner>
         || std::is_lvalue_reference_v<Value>)
     {
-        return (value);
+        return static_cast<Value&>(value);
     }
     else
     {

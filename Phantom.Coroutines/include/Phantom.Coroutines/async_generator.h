@@ -62,6 +62,14 @@ public:
     }
 };
 
+template<
+    typename Promise
+> async_generator_yield_awaiter(Promise&) -> async_generator_yield_awaiter<Promise>;
+
+template<
+    typename Promise
+> async_generator_yield_awaiter(coroutine_handle<Promise>) -> async_generator_yield_awaiter<Promise>;
+
 PHANTOM_COROUTINES_MODULE_EXPORT
 enum class async_generator_current_value_index : size_t
 {
@@ -224,7 +232,7 @@ public:
         auto continuation,
         auto&&... args)
     {
-        self.currentValue().emplace<size_t(EmptyIndex)>(std::monostate {});
+        self.currentValue().template emplace<size_t(EmptyIndex)>(std::monostate {});
 
         return self.awaiter().await_suspend(
             continuation,
@@ -309,7 +317,7 @@ public:
     auto operator++(
         this auto&& self)
     {
-        self.promise().m_currentValue.emplace<size_t(EmptyIndex)>(std::monostate {});
+        self.promise().m_currentValue.template emplace<size_t(EmptyIndex)>(std::monostate {});
         return async_generator_increment_awaiter
         { 
             *self.m_generator,

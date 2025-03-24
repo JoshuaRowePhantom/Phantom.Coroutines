@@ -38,7 +38,9 @@ public:
 
     template<
         is_awaitable Awaitable
-    > auto operator <<(
+    > suspend_result_awaiter<
+        Awaitable&&
+    > operator <<(
         Awaitable&& awaitable
         )
     {
