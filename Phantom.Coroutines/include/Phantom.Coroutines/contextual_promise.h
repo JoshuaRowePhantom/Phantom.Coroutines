@@ -52,7 +52,7 @@ public derived_promise<BasePromise>
             Enter,
             Leave,
             Promise& promise,
-            std::invocable auto&& awaitableFunc
+            std::invocable<> auto&& awaitableFunc
         ) : 
             awaiter_wrapper<Awaiter>{ std::forward<decltype(awaitableFunc)>(awaitableFunc) },
             extensible_promise_handle<Promise>{ promise }
@@ -114,7 +114,7 @@ public derived_promise<BasePromise>
         typename Enter,
         typename Leave,
         typename Promise,
-        std::invocable AwaitableFunc
+        std::invocable<> AwaitableFunc
     > contextual_promise_awaiter(Enter, Leave, Promise&, AwaitableFunc&&) -> contextual_promise_awaiter<Enter, Leave, Promise, std::invoke_result_t<AwaitableFunc>>;
 
 public:

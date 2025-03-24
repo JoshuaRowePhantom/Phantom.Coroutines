@@ -135,7 +135,7 @@ the backing promise type, which defaults to [```task_promise<Result>```](task.md
 
    ```c++
     decltype(auto) get_result_value(
-        std::invocable iterator
+        std::invocable<> iterator
     );
    ```
 
@@ -148,7 +148,7 @@ the backing promise type, which defaults to [```task_promise<Result>```](task.md
 
    ```c++
     decltype(auto) await_resume_value(
-        std::invocable iterator
+        std::invocable<> iterator
     );
    ```
 

@@ -556,7 +556,7 @@ public:
     value_storage() requires std::is_default_constructible_v<Value> {}
 
     value_storage(
-        std::invocable auto&& invocable
+        std::invocable<> auto&& invocable
     ) requires
         std::same_as<Value, std::invoke_result_t<decltype(invocable)>>
         :

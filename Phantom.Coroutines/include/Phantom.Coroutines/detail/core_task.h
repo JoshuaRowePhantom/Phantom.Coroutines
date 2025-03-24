@@ -137,7 +137,7 @@ public:
 
     decltype(auto) await_resume_value(
         this auto&& self,
-        std::invocable auto&& valueFunction)
+        std::invocable<> auto&& valueFunction)
     {
         if (self.has_exception())
         {
@@ -368,7 +368,7 @@ public:
     }
 
     decltype(auto) get_result_value(
-        std::invocable auto&& expression
+        std::invocable<> auto&& expression
     )
     {
         return std::forward<decltype(expression)>(expression)();

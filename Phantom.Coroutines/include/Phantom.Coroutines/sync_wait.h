@@ -75,7 +75,7 @@ template<
 };
 
 template<
-    std::invocable Invocable
+    std::invocable<> Invocable
 > struct as_future_promise_type<
     Invocable
 > :
@@ -86,7 +86,7 @@ public as_future_promise_type<
 };
 
 template<
-    std::invocable TInvocable,
+    std::invocable<> TInvocable,
     typename promise_type = as_future_promise_type<TInvocable>::promise_type
 >
 as_future_implementation_awaitable
@@ -122,7 +122,7 @@ requires is_awaitable<std::invoke_result_t<TInvocable>>
 // Given a lambda returning an awaitable object, return an std::future representing it.
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    std::invocable TInvocable
+    std::invocable<> TInvocable
 > auto as_future(
     TInvocable&& invocable
 )

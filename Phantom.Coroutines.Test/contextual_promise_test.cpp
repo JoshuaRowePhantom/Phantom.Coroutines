@@ -6,15 +6,19 @@ import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.async_scope;
+import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.contextual_promise;
 import Phantom.Coroutines.extensible_promise;
 import Phantom.Coroutines.task;
+import Phantom.Coroutines.type_traits;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
+#include "Phantom.Coroutines/detail/coroutine.h"
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
 #include "Phantom.Coroutines/contextual_promise.h"
 #include "Phantom.Coroutines/extensible_promise.h"
 #include "Phantom.Coroutines/task.h"
+#include "Phantom.Coroutines/type_traits.h"
 #endif
 
 namespace Phantom::Coroutines::Test
@@ -92,7 +96,7 @@ public:
     };
 
     template<
-        std::invocable AwaiterFunc
+        std::invocable<> AwaiterFunc
     > test_contextual_promise_awaiter(
         test_contextual_promise&, 
         AwaiterFunc

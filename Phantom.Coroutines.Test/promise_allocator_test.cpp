@@ -3,9 +3,13 @@
 import Phantom.Coroutines;
 import Phantom.Coroutines.Test.pmr_task;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
+import Phantom.Coroutines.extensible_promise;
+import Phantom.Coroutines.promise_allocator;
 import Phantom.Coroutines.task;
 import Phantom.Coroutines.Test.pmr_task;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
+#include "Phantom.Coroutines/extensible_promise.h"
+#include "Phantom.Coroutines/promise_allocator.h"
 #include "Phantom.Coroutines/task.h"
 #include "pmr_task.h"
 #endif

@@ -398,7 +398,7 @@ public:
 
 private:
     basic_async_generator(
-        std::invocable auto&& awaitableFunction
+        std::invocable<> auto&& awaitableFunction
     ) :
         basic_async_generator::extended_promise_handle
     {

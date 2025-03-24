@@ -10,6 +10,7 @@ import Phantom.Coroutines.static_thread_pool;
 import Phantom.Coroutines.suspend_result;
 import Phantom.Coroutines.sync_wait;
 import Phantom.Coroutines.task;
+import Phantom.Coroutines.type_traits;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/async_manual_reset_event.h"
 #include "Phantom.Coroutines/async_scope.h"
@@ -19,6 +20,7 @@ import Phantom.Coroutines.task;
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
+#include "Phantom.Coroutines/type_traits.h"
 #endif
 #include <random>
 

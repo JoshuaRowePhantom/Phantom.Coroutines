@@ -203,7 +203,7 @@ public:
     }
 
     explicit awaiter_wrapper(
-        std::invocable auto&& awaitableFunction
+        std::invocable<> auto&& awaitableFunction
     )
         : 
         awaiter_wrapper_storage<Awaitable>

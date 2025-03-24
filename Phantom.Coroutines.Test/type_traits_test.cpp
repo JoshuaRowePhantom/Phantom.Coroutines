@@ -252,7 +252,9 @@ struct assert_forward_owned_expected_result
 
         std::ignore = owner;
 
-        static_assert(std::same_as<decltype(forward_owned<Owner, Value>(std::declval<Value>())), ExpectedResult>);
+        using ActualResult = decltype(forward_owned<Owner, Value>(std::declval<Value>()));
+
+        static_assert(std::same_as<ActualResult, ExpectedResult>);
         auto&& result = forward_owned<Owner, Value>(std::forward<Value>(value));
         EXPECT_EQ(&value, &result);
     }

@@ -2,17 +2,17 @@
   "version": 3,
   "configurePresets": [
     {
-      "name": "vcpkg",
+      "name": "base",
       "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "installDir": "${sourceDir}/out/install/${presetName}",
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
     },
     {
       "name": "msvc-windows-base",
       "hidden": true,
-      "inherits": "vcpkg",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
-      "installDir": "${sourceDir}/out/install/${presetName}",
+      "inherits": "base",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe"
@@ -46,10 +46,7 @@
     {
       "name": "clang-windows-base",
       "hidden": true,
-      "inherits": "vcpkg",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
-      "installDir": "${sourceDir}/out/install/${presetName}",
+      "inherits": "base",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang.exe",
         "CMAKE_CXX_COMPILER": "clang.exe"

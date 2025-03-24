@@ -33,7 +33,7 @@ protected:
     // Construct the wrapper, using the returned
     // awaitable object.
     template<
-        std::invocable AwaitableFunc
+        std::invocable<> AwaitableFunc
     > awaiter_wrapper(
         AwaitableFunc&& awaitableFunc
     ) noexcept(...);
