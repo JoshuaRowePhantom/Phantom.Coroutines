@@ -97,8 +97,11 @@ class nonatomic_shared_ptr
     { }
 
 public:
+    nonatomic_shared_ptr()
+    { }
+
     nonatomic_shared_ptr(
-        std::nullptr_t = nullptr
+        std::nullptr_t
     )
     { }
 
