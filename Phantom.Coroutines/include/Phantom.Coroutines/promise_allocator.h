@@ -131,7 +131,25 @@ public:
 
     static void* operator new(
         size_t size
+        ) noexcept
+        requires has_get_return_object_on_allocation_failure<Promise>
+    {
+        return allocate(size);
+    }
+
+    static void* operator new(
+        size_t size,
+        auto&... args
+        ) noexcept
+        requires has_get_return_object_on_allocation_failure<Promise>
+    {
+        return allocate(size, args...);
+    }
+    
+    static void* operator new(
+        size_t size
         )
+        requires (!has_get_return_object_on_allocation_failure<Promise>)
     {
         return allocate(size);
     }
@@ -140,6 +158,7 @@ public:
         size_t size,
         auto&... args
         )
+        requires (!has_get_return_object_on_allocation_failure<Promise>)
     {
         return allocate(size, args...);
     }

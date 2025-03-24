@@ -222,7 +222,7 @@ protected:
     {
         auto destroyer = self.destroy_on_scope_exit();
         
-        return std::move(self).core_task_awaiter_result_base::core_task_variant_result::await_resume();
+        return std::move(self).template core_task_awaiter_result_base<Promise>::template core_task_variant_result<typename Promise::result_type>::await_resume();
     }
 
     using core_task_awaiter_result_base::single_owner_promise_handle::single_owner_promise_handle;

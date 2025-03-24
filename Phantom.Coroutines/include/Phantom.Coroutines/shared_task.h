@@ -322,8 +322,7 @@ template<
     void await_resume(
     ) const noexcept
     {
-        // This should never be called.
-        assert(false);
+        std::unreachable();
     }
 };
 

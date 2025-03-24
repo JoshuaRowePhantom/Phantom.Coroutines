@@ -568,7 +568,7 @@ template<
         typename CalledPromise::result_type&& value
     ) override
     {
-        m_result.emplace<result_index>(
+        m_result.template emplace<result_index>(
             std::forward<decltype(value)>(value));
     }
 

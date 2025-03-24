@@ -147,13 +147,13 @@ public:
                 || std::is_rvalue_reference_v<Value&&>
             ))
         {
-            self.m_currentValue.emplace<size_t(ValueRefIndex)>(
+            self.m_currentValue.template emplace<size_t(ValueRefIndex)>(
                 static_cast<std::add_lvalue_reference_t<value_type>>(
                     value));
         }
         else
         {
-            self.m_currentValue.emplace<size_t(ValueIndex)>(
+            self.m_currentValue.template emplace<size_t(ValueIndex)>(
                 std::forward<Value>(value));
         }
 
@@ -264,7 +264,7 @@ template<
     :
     public async_generator_increment_awaiter<Generator>
 {
-    using async_generator_begin_awaiter::async_generator_begin_awaiter::async_generator_begin_awaiter;
+    using async_generator_begin_awaiter::async_generator_increment_awaiter::async_generator_increment_awaiter;
 };
 
 template<

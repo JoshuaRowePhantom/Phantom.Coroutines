@@ -354,7 +354,7 @@ public:
         return left.handle() <=> right.handle();
     }
 
-    friend auto operator == (
+    friend bool operator == (
         const extensible_promise_handle& left,
         const extensible_promise_handle& right
         ) noexcept
