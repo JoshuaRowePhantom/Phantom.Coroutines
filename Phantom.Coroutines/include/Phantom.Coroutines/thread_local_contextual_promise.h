@@ -51,8 +51,6 @@ public:
     }
     {}
 
-    using base_promise::base_promise;
-
     void enter()
     {
         m_scope.emplace(std::move(*m_value));

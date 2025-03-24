@@ -194,12 +194,10 @@ class basic_async_scope
     };
 
     future await_impl(
-        std::invocable<> auto&& function
+        std::invocable<> auto function
     )
     {
-        std::remove_reference_t<decltype(function)> movedFunction = std::forward<decltype(function)>(function);
-
-        co_await std::invoke(movedFunction);
+        co_await std::invoke(function);
         if (m_outstandingTasks.fetch_sub(1, std::memory_order_acq_rel) == 1)
         {
             co_await join_resumer{ *this };
