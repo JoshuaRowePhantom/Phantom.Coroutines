@@ -312,6 +312,7 @@ class basic_thread_pool_scheduler
         }
 
         void start_stealing_from(
+            [[maybe_unused]]
             std::unique_lock<std::mutex>& lock,
             size_t tail)
         {
