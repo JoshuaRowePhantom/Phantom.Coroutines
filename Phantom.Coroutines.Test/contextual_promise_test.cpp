@@ -103,8 +103,8 @@ public:
     ) -> test_contextual_promise_awaiter<std::invoke_result_t<AwaiterFunc>>;
 
     test_contextual_promise(
-        operations_vector& operations
-    ) : m_operations { operations }
+        auto&& ... args
+    ) : m_operations { get<operations_vector&>(std::tie(args...)) }
     {}
 
     operations_vector& m_operations;
