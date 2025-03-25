@@ -204,7 +204,7 @@ private immovable_object
         {
             refresh_thread_local_reference();
 
-            bool result = m_reference == m_threadState.m_hardReference;
+            bool result = m_reference != m_threadState.m_hardReference;
             m_reference = m_threadState.m_hardReference;
 
             return result;
