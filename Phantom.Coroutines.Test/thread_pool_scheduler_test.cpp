@@ -120,6 +120,17 @@ TEST(thread_pool_scheduler_test, do_many_work_items_1_thread)
     );
 }
 
+TEST(thread_pool_scheduler_test, create_and_destroy_many_thread_pools)
+{
+    for (auto counter = 0; counter < 1000; ++counter)
+    {
+        thread_pool_scheduler_test_do_many_work_items_test(
+            100,
+            10
+        );
+    }
+}
+
 TEST(thread_pool_scheduler_test, do_many_work_items_concurrent_threads)
 {
     thread_pool_scheduler_test_do_many_work_items_test(
