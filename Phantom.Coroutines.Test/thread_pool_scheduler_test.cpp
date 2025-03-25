@@ -77,22 +77,24 @@ void thread_pool_scheduler_test_do_many_work_items_test(
     async_scope<> scope;
     std::barrier barrier(numberOfThreads);
 
+    auto lambda = [&](size_t counter)->task<>
+    {
+        co_await scheduler.schedule();
+
+        // The first numberOfThreads threads will wait in a blocking
+        // call to ensure that all threads get used.
+        if (counter < numberOfThreads)
+        {
+            barrier.arrive_and_wait();
+        }
+
+        EXPECT_EQ(completedItems[counter], std::thread::id{});
+        completedItems[counter] = std::this_thread::get_id();
+    };
+
     for (size_t counter = 0; counter < numberOfItems; counter++)
     {
-        scope.spawn([&](size_t counter)->task<>
-        {
-            co_await scheduler.schedule();
-
-            // The first numberOfThreads threads will wait in a blocking
-            // call to ensure that all threads get used.
-            if (counter < numberOfThreads)
-            {
-                barrier.arrive_and_wait();
-            }
-
-            EXPECT_EQ(completedItems[counter], std::thread::id{});
-            completedItems[counter] = std::this_thread::get_id();
-        }(counter));
+        scope.spawn(lambda(counter));
     }
 
     sync_wait(scope.join());
