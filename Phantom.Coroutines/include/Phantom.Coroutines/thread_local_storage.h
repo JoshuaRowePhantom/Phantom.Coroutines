@@ -239,50 +239,48 @@ class thread_local_storage
         }
     };
 
-    struct locked_all_threads
+    using all_threads_vector = std::vector<std::shared_ptr<thread_state>>;
+
+    struct all_threads
     {
-        std::unique_lock<std::mutex> lock;
-        std::vector<std::shared_ptr<thread_state>>& vector;
+        all_threads_vector m_vector;
+        std::mutex m_mutex;
     };
 
-    static locked_all_threads get_locked_all_threads()
-    {
-        static std::mutex mutex;
-        static std::vector<std::shared_ptr<thread_state>> allThreads;
+    using shared_all_threads = std::shared_ptr<all_threads>;
 
-        return 
-        {
-            std::unique_lock{ mutex },
-            allThreads
-        };
-    }
-    
+    static inline shared_all_threads g_allThreads = std::make_shared<all_threads>();
+
     [[msvc::noinline]]
     thread_state& get_thread_state_expensive()
     {
         struct global_setter
         {
+            shared_all_threads m_allThreads = g_allThreads;
+
             std::shared_ptr<thread_state> m_threadState
                 = std::make_shared<thread_state>();
 
             global_setter()
             {
-                locked_all_threads allThreads = get_locked_all_threads();
-                allThreads.vector.resize(
+                std::unique_lock lock{ m_allThreads->m_mutex };
+
+                m_allThreads->m_vector.resize(
                     std::max(
-                        allThreads.vector.size(),
+                        m_allThreads->m_vector.size(),
                         m_threadState->thread_id() + 1
                     )
                 );
-                allThreads.vector[
+                m_allThreads->m_vector[
                     m_threadState->thread_id()
                 ] = m_threadState;
             }
 
             ~global_setter()
             {
-                locked_all_threads allThreads = get_locked_all_threads();
-                allThreads.vector[
+                std::unique_lock lock{ m_allThreads->m_mutex };
+
+                m_allThreads->m_vector[
                     m_threadState->thread_id()
                 ] = nullptr;
             }
@@ -305,6 +303,8 @@ class thread_local_storage
     }
 
     const std::function<Value()> m_initializer;
+
+    shared_all_threads m_allThreads = g_allThreads;
 
 public:
     using value_type = Value;
@@ -340,9 +340,9 @@ public:
     {
         // Copy the current set of all threads so that we
         // can release the individual thread values outside of a lock.
-        locked_all_threads lockedAllThreads = get_locked_all_threads();
-        auto allThreads = lockedAllThreads.vector;
-        lockedAllThreads.lock.unlock();
+        std::unique_lock lock { m_allThreads->m_mutex };
+        auto allThreads = m_allThreads->m_vector;
+        lock.unlock();
 
         for (auto& threadState : allThreads)
         {
