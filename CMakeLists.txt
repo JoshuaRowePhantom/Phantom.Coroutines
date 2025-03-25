@@ -16,6 +16,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 
     string(REPLACE "/Ob1" "/Ob3" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+
+    add_compile_options($<$<CONFIG:Debug>:/fsanitize=address>)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
