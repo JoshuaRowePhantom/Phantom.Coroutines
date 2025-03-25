@@ -43,7 +43,7 @@ class reusable_consecutive_global_id
     inline static std::atomic<reusable_id*> m_reusableIds;
     inline static Increment m_increment;
 
-    reusable_id* m_reusableId;
+    reusable_id* m_reusableId = nullptr;
 
 public:
     reusable_consecutive_global_id() noexcept
