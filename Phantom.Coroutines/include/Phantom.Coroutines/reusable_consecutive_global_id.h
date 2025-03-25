@@ -39,8 +39,18 @@ class reusable_consecutive_global_id
         Value m_value;
     };
 
-    inline static std::atomic<Value> m_globalValue = InitialValue;
-    inline static std::atomic<reusable_id*> m_reusableIds;
+    static inline std::atomic<Value>& global_value()
+    {
+        static std::atomic<Value> globalValue = InitialValue;
+        return globalValue;
+    }
+
+    static inline std::atomic<reusable_id*>& reusable_ids()
+    {
+        static std::atomic<reusable_id*> reusableIds;
+        return reusableIds;
+    }
+
     inline static Increment m_increment;
 
     reusable_id* m_reusableId = nullptr;
@@ -48,7 +58,7 @@ class reusable_consecutive_global_id
 public:
     reusable_consecutive_global_id() noexcept
     {
-        auto reusableId = m_reusableIds.load(
+        auto reusableId = reusable_ids().load(
             std::memory_order_acquire
         );
 
@@ -59,12 +69,12 @@ public:
                 m_reusableId = new reusable_id
                 {
                     .m_next = nullptr,
-                    .m_value = m_increment(m_globalValue)
+                    .m_value = m_increment(global_value())
                 };
                 break;
             }
 
-            if (m_reusableIds.compare_exchange_weak(
+            if (reusable_ids().compare_exchange_weak(
                 reusableId,
                 reusableId->m_next,
                 std::memory_order_acquire,
@@ -96,11 +106,11 @@ public:
             return;
         }
 
-        m_reusableId->m_next = m_reusableIds.load(
+        m_reusableId->m_next = reusable_ids().load(
             std::memory_order_relaxed
         );
 
-        while (!m_reusableIds.compare_exchange_weak(
+        while (!reusable_ids().compare_exchange_weak(
             m_reusableId->m_next,
             m_reusableId,
             std::memory_order_release,

@@ -18,6 +18,10 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     string(REPLACE "/Ob1" "/Ob3" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
 
     add_compile_options($<$<CONFIG:Debug>:/fsanitize=address>)
+
+    add_compile_options($<$<CONFIG:RelWithDebInfo>:/GL>)
+    add_link_options($<$<CONFIG:RelWithDebInfo>:/LTCG>)
+    string(REPLACE "/INCREMENTAL" "" CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO ${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO})
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

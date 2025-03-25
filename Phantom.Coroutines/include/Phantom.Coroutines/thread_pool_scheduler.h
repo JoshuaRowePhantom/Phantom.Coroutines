@@ -783,12 +783,29 @@ class basic_thread_pool_scheduler
         return *result;
     }
 
-    std::shared_ptr<thread_state>& get_current_thread_state()
+    std::shared_ptr<thread_state>& get_current_thread_state_expensive()
     {
         auto threadStatesOperation = m_threadStatesSection.update();
         auto& threadState = get_current_thread_state(threadStatesOperation);
 
         return threadState;
+    }
+
+    std::shared_ptr<thread_state>& get_current_thread_state()
+    {
+        // It's likely we're using a single scheduler,
+        // so cache the previous result of looking for thread state for this thread.
+        static thread_local size_t lastThreadPoolSchedulerId = 0;
+        static thread_local std::shared_ptr<thread_state>* lastThreadState = nullptr;
+
+        if (m_threadPoolSchedulerId != lastThreadPoolSchedulerId)
+            [[unlikely]]
+        {
+            lastThreadState = &get_current_thread_state_expensive();
+            lastThreadPoolSchedulerId = m_threadPoolSchedulerId;
+        }
+
+        return *lastThreadState;
     }
 
     void await_suspend(

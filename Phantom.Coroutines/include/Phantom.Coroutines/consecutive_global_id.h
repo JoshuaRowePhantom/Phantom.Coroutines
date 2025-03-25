@@ -21,14 +21,18 @@ template<
 >
 class consecutive_global_id
 {
-    inline static std::atomic<Value> m_globalValue;
+    static std::atomic<Value>& global_value()
+    {
+        static std::atomic<Value> globalValue;
+        return globalValue;
+    }
     Value m_value;
 
 public:
     consecutive_global_id()
         :
         m_value(
-            m_globalValue.fetch_add(1)
+            global_value().fetch_add(1)
         )
     {
     }
