@@ -123,6 +123,9 @@ Idle:
                 await Heads[self] = Tails[self];
                 await Locks[sourceThread] = FALSE;
 
+                \* This is an optimization for state space reduction
+                await Heads[sourceThread] # Tails[sourceThread];
+
                 SourceThread := sourceThread;
                 Locks[sourceThread] := TRUE
             end with;
@@ -136,6 +139,7 @@ Idle:
         Steal_UpdateTail:
             if SourceThreadTail >= SourceThreadHead then
                 Locks[SourceThread] := FALSE;
+                GoIdle();
                 goto Idle;
             else
                 with newTail \in SourceThreadTail + 1 .. SourceThreadHead do
@@ -187,12 +191,12 @@ end process;
 
 end algorithm; *)
 
-\* BEGIN TRANSLATION (chksum(pcal) = "59238abb" /\ chksum(tla) = "c8200e61")
-VARIABLES PendingItems, Queues, Heads, Tails, ProcessedItems, Locks, pc, 
+\* BEGIN TRANSLATION (chksum(pcal) = "a82f425e" /\ chksum(tla) = "34ddb03f")
+VARIABLES pc, PendingItems, Queues, Heads, Tails, ProcessedItems, Locks, 
           ItemToProcess, SourceThread, SourceThreadTail, SourceThreadHead, 
           SourceThreadCopyStart, SourceThreadCopyEnd
 
-vars == << PendingItems, Queues, Heads, Tails, ProcessedItems, Locks, pc, 
+vars == << pc, PendingItems, Queues, Heads, Tails, ProcessedItems, Locks, 
            ItemToProcess, SourceThread, SourceThreadTail, SourceThreadHead, 
            SourceThreadCopyStart, SourceThreadCopyEnd >>
 
@@ -226,6 +230,7 @@ Idle(self) == /\ pc[self] = "Idle"
                  \/ /\ \E sourceThread \in (Threads \ { self }):
                          /\ Heads[self] = Tails[self]
                          /\ Locks[sourceThread] = FALSE
+                         /\ Heads[sourceThread] # Tails[sourceThread]
                          /\ SourceThread' = [SourceThread EXCEPT ![self] = sourceThread]
                          /\ Locks' = [Locks EXCEPT ![sourceThread] = TRUE]
                     /\ pc' = [pc EXCEPT ![self] = "Steal_ReadSourceThreadTail"]
@@ -346,19 +351,25 @@ Steal_ReadSourceThreadHead(self) == /\ pc[self] = "Steal_ReadSourceThreadHead"
 Steal_UpdateTail(self) == /\ pc[self] = "Steal_UpdateTail"
                           /\ IF SourceThreadTail[self] >= SourceThreadHead[self]
                                 THEN /\ Locks' = [Locks EXCEPT ![SourceThread[self]] = FALSE]
+                                     /\ ItemToProcess' = [ItemToProcess EXCEPT ![self] = {}]
+                                     /\ SourceThreadTail' = [SourceThreadTail EXCEPT ![self] = 0]
+                                     /\ SourceThreadHead' = [SourceThreadHead EXCEPT ![self] = 0]
+                                     /\ SourceThreadCopyStart' = [SourceThreadCopyStart EXCEPT ![self] = 0]
+                                     /\ SourceThreadCopyEnd' = [SourceThreadCopyEnd EXCEPT ![self] = 0]
+                                     /\ SourceThread' = [SourceThread EXCEPT ![self] = {}]
                                      /\ pc' = [pc EXCEPT ![self] = "Idle"]
-                                     /\ UNCHANGED << Tails, 
-                                                     SourceThreadCopyEnd >>
+                                     /\ Tails' = Tails
                                 ELSE /\ \E newTail \in SourceThreadTail[self] + 1 .. SourceThreadHead[self]:
                                           /\ Tails' = [Tails EXCEPT ![SourceThread[self]] = newTail]
                                           /\ SourceThreadCopyEnd' = [SourceThreadCopyEnd EXCEPT ![self] = Tails'[SourceThread[self]]]
                                      /\ pc' = [pc EXCEPT ![self] = "Steal_RereadHead"]
-                                     /\ Locks' = Locks
+                                     /\ UNCHANGED << Locks, ItemToProcess, 
+                                                     SourceThread, 
+                                                     SourceThreadTail, 
+                                                     SourceThreadHead, 
+                                                     SourceThreadCopyStart >>
                           /\ UNCHANGED << PendingItems, Queues, Heads, 
-                                          ProcessedItems, ItemToProcess, 
-                                          SourceThread, SourceThreadTail, 
-                                          SourceThreadHead, 
-                                          SourceThreadCopyStart >>
+                                          ProcessedItems >>
 
 Steal_RereadHead(self) == /\ pc[self] = "Steal_RereadHead"
                           /\ SourceThreadHead' = [SourceThreadHead EXCEPT ![self] = Heads[SourceThread[self]]]
