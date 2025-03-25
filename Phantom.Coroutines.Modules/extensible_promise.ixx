@@ -1,5 +1,6 @@
 module;
 #include <concepts>
+#include <exception>
 #include <optional>
 #include <tuple>
 #include <type_traits>

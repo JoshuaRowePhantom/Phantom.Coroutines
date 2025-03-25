@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_AWAITER_LIST_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <assert.h>
+#include <exception>
 #include <future>
 #include <mutex>
 #include <concepts>
