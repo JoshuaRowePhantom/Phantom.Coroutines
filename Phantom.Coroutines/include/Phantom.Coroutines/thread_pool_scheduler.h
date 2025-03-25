@@ -132,7 +132,7 @@ class basic_thread_pool_scheduler
 
         read_copy_update_section<queue> m_queueReadCopyUpdateSection;
 
-        // Align the tail, copy count, and lock into a new cache line.
+        // Align the tail, m_outstandingStealOperations, and m_mutex into a new cache line.
         alignas(std::hardware_destructive_interference_size)
             std::atomic<size_t> m_tail;
         
@@ -149,6 +149,10 @@ class basic_thread_pool_scheduler
 
         // The lock required for stealing and conflict resolution between
         // stealing and enqueuing.
+        // m_mutex protects:
+        //  m_tail
+        //  m_stealingTail
+        //  m_outstandingStealOperations
         std::mutex m_mutex;
 
         void reserve_queue_space(
@@ -201,6 +205,9 @@ class basic_thread_pool_scheduler
         )
         {
             auto queueOperation = m_queueReadCopyUpdateSection.update();
+
+            // Only this thread is allowed to modify m_head, so we can
+            // load using relaxed.
             auto head = m_head.load(std::memory_order_relaxed);
             auto newHead = head + 1;
 
@@ -209,30 +216,41 @@ class basic_thread_pool_scheduler
                 queueOperation);
 
             queueOperation.value()[head] = continuation;
-            m_head.store(newHead, std::memory_order_release);
+
+            // Other threads need to see the value we wrote into the queue,
+            // and also m_sleepingThreadCount synchronizes on m_head.
+            m_head.store(newHead, std::memory_order_seq_cst);
         }
 
         [[nodiscard]] bool try_wake()
         {
-            auto processingState = m_processingState.load(std::memory_order_acquire);
-            
-            bool wasSleeping =
-                processingState == ProcessingState::Sleeping
-                || processingState == ProcessingState::Sleeping_StopRequested;
+            auto previousProcessingState = m_processingState.load(std::memory_order_acquire);
+            ProcessingState nextProcessingState;
 
-            auto nextState = ProcessingState::Processing;
-            if (processingState == ProcessingState::Sleeping_StopRequested)
+            do
             {
-                nextState = ProcessingState::Processing_StopRequested;
-            }
-
-            bool doWakeThread = wasSleeping && m_processingState.compare_exchange_strong(
-                processingState,
-                nextState,
-                std::memory_order_relaxed,
-                std::memory_order_acquire
-            );
+                nextProcessingState = ProcessingState::Processing;
+                if (previousProcessingState == ProcessingState::Stopped)
+                {
+                    nextProcessingState = ProcessingState::Stopped;
+                }
+                if (previousProcessingState == ProcessingState::Sleeping_StopRequested)
+                {
+                    nextProcessingState = ProcessingState::Processing_StopRequested;
+                }
+                if (previousProcessingState == ProcessingState::Processing_StopRequested)
+                {
+                    nextProcessingState = ProcessingState::Processing_StopRequested;
+                }
+            } while (!m_processingState.compare_exchange_strong(
+                previousProcessingState,
+                nextProcessingState,
+                std::memory_order_seq_cst
+            ));
             
+            bool doWakeThread = previousProcessingState == ProcessingState::Sleeping
+                || previousProcessingState == ProcessingState::Sleeping_StopRequested;
+
             if (doWakeThread)
             {
                 m_processingState.notify_all();
@@ -277,7 +295,7 @@ class basic_thread_pool_scheduler
         size_t get_tail_to_reserve_from()
         {
             auto tail = m_tail.load(
-                std::memory_order_acquire
+                std::memory_order_seq_cst
             );
             auto outstandingStealOperations = m_outstandingStealOperations.load(
                 std::memory_order_acquire
@@ -294,8 +312,11 @@ class basic_thread_pool_scheduler
         }
 
         void start_stealing_from(
+            std::unique_lock<std::mutex>& lock,
             size_t tail)
         {
+            assert(lock.owns_lock());
+
             auto outstandingStealOperations = m_outstandingStealOperations.load(
                 std::memory_order_acquire
             );
@@ -334,6 +355,7 @@ class basic_thread_pool_scheduler
             steal_mode stealMode
         )
         {
+        TryAgainInPreciseMode:
 #ifdef PHANTOM_COROUTINES_DEBUG_INSPECT_STEAL
             steal_other = &other;
 #endif
@@ -350,8 +372,8 @@ class basic_thread_pool_scheduler
                 lock.lock();
             }
 
-            auto otherTail = other.m_tail.load(std::memory_order_relaxed);
-            auto otherHead = other.m_head.load(std::memory_order_relaxed);
+            auto otherTail = other.m_tail.load(std::memory_order_seq_cst);
+            auto otherHead = other.m_head.load(std::memory_order_seq_cst);
             if (otherHead <= otherTail)
             {
                 return Continuation{};
@@ -364,8 +386,8 @@ class basic_thread_pool_scheduler
                     return Continuation{};
                 }
 
-                otherHead = other.m_head.load(std::memory_order_relaxed);
-                otherTail = other.m_tail.load(std::memory_order_relaxed);
+                otherHead = other.m_head.load(std::memory_order_seq_cst);
+                otherTail = other.m_tail.load(std::memory_order_seq_cst);
                 if (otherHead <= otherTail)
                 {
                     return Continuation{};
@@ -374,7 +396,9 @@ class basic_thread_pool_scheduler
 
             // We are here, that means we can legitimately steal.
             // We steal half (rounded up) of the items in the source thread.
-            other.start_stealing_from(otherTail);
+            other.start_stealing_from(
+                lock,
+                otherTail);
 
             size_t sizeToSteal = (otherHead - otherTail + 1) / 2;
             auto newOtherTail = otherTail + sizeToSteal;
@@ -389,8 +413,14 @@ class basic_thread_pool_scheduler
             if (newOtherHead <= otherTail)
             {
                 // We have to give back all the items, and do not process anything.
+                // However, if we're in precise mode, it's important that we try
+                // to steal again.
                 other.m_tail.store(otherTail, std::memory_order_seq_cst);
                 other.stop_stealing_from();
+                if (stealMode == steal_mode::Precise)
+                {
+                    goto TryAgainInPreciseMode;
+                }
                 return Continuation{};
             } else if (newOtherHead < newOtherTail)
             {
@@ -443,7 +473,7 @@ class basic_thread_pool_scheduler
             }
 
             // This releases all the copy operations done above.
-            m_head.store(newHead, std::memory_order_release);
+            m_head.store(newHead, std::memory_order_seq_cst);
 
             assert_is_valid((*otherQueueOperation)[otherTail + sizeToSteal - 1]);
             auto itemToProcess = copy_and_invalidate((*otherQueueOperation)[otherTail + sizeToSteal - 1]);
@@ -451,6 +481,23 @@ class basic_thread_pool_scheduler
 
             other.stop_stealing_from();
 
+            // Now, for all the items we've stolen, it's possible
+            // that some other thread B checked this thread A for items to steal,
+            // didn't find any, but because we actually stole all the items
+            // from yet -another- thread C, thread A contains items 
+            // that should cause thread B to wakeup. Thread B will not wake up, though.
+            // This is possible for as many threads as there are items we've stolen.
+            // -One- of the items we stole we guarantee for ourselves,
+            // so we don't have to wake a thread for it.
+            auto sleepingThreads = m_scheduler.m_sleepingThreadCount.load(
+                std::memory_order_relaxed);
+            auto threadsToWake = std::min(sleepingThreads, sizeToSteal - 1);
+            auto threadStatesOperation = m_scheduler.m_threadStatesSection.read();
+            for (auto wakeupThreadCounter = 0; wakeupThreadCounter < threadsToWake; wakeupThreadCounter++)
+            {
+                m_scheduler.wake_one_thread(
+                    threadStatesOperation);
+            }
             return itemToProcess;
         }
 
@@ -458,31 +505,35 @@ class basic_thread_pool_scheduler
         {
             auto threadStatesReadOperation = m_scheduler.m_threadStatesSection.read();
 
-            // First try to acquire something without blocking.
-            for (auto& threadState : threadStatesReadOperation->m_threadStates)
+            do
             {
-                auto remoteItem = try_steal(
-                    **threadState.second,
-                    steal_mode::Approximate
-                );
-                if (remoteItem)
+                // First try to acquire something without blocking.
+                for (auto& threadState : threadStatesReadOperation->m_threadStates)
                 {
-                    return remoteItem;
+                    auto remoteItem = try_steal(
+                        **threadState.second,
+                        steal_mode::Approximate
+                    );
+                    if (remoteItem)
+                    {
+                        return remoteItem;
+                    }
                 }
-            }
 
-            // Now try to acquire something with blocking.
-            for (auto& threadState : threadStatesReadOperation->m_threadStates)
-            {
-                auto remoteItem = try_steal(
-                    **threadState.second,
-                    steal_mode::Precise
-                );
-                if (remoteItem)
+                // Now try to acquire something with blocking.
+                for (auto& threadState : threadStatesReadOperation->m_threadStates)
                 {
-                    return remoteItem;
+                    auto remoteItem = try_steal(
+                        **threadState.second,
+                        steal_mode::Precise
+                    );
+                    if (remoteItem)
+                    {
+                        return remoteItem;
+                    }
                 }
             }
+            while (threadStatesReadOperation.refresh());
 
             return Continuation{};
         }
@@ -493,21 +544,41 @@ class basic_thread_pool_scheduler
                 std::memory_order_acquire
             );
 
+            ProcessingState nextProcessingState;
+
+            do
+            {
+
+                if (previousProcessingState == ProcessingState::Sleeping_StopRequested
+                    || previousProcessingState == ProcessingState::Processing_StopRequested)
+                {
+                    nextProcessingState = previousProcessingState;
+                }
+                else
+                {
+                    nextProcessingState = ProcessingState::Sleeping;
+                }
+
+            } while (!m_processingState.compare_exchange_strong(
+                previousProcessingState,
+                nextProcessingState,
+                std::memory_order_seq_cst
+            ));
+
             if (previousProcessingState == ProcessingState::Sleeping_StopRequested
                 || previousProcessingState == ProcessingState::Processing_StopRequested)
             {
                 return;
             }
 
-            m_processingState.compare_exchange_strong(
-                previousProcessingState,
-                ProcessingState::Sleeping
-            );
+            bool wasSleeping =
+                previousProcessingState == ProcessingState::Sleeping
+                ||
+                previousProcessingState == ProcessingState::Sleeping_StopRequested;
 
-            bool wasSleeping = previousProcessingState == ProcessingState::Sleeping;
             if (!wasSleeping)
             {
-                m_scheduler.m_sleepingThreadCount.fetch_add(1, std::memory_order_release);
+                m_scheduler.m_sleepingThreadCount.fetch_add(1, std::memory_order_relaxed);
             }
         }
         
@@ -547,8 +618,7 @@ class basic_thread_pool_scheduler
                 if (m_processingState.compare_exchange_weak(
                     previousState,
                     nextState,
-                    std::memory_order_release,
-                    std::memory_order_relaxed
+                    std::memory_order_seq_cst
                 ))
                 {
                     break;
@@ -577,6 +647,17 @@ class basic_thread_pool_scheduler
         )
         {
             ++m_scheduler.m_processingThreadCount;
+
+            {
+                ProcessingState expectedProcessingState = ProcessingState::Stopped;
+
+                m_processingState.compare_exchange_strong(
+                    expectedProcessingState,
+                    ProcessingState::Processing,
+                    std::memory_order_seq_cst
+                );
+            }
+
 #if PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING
             bool isFirstTimeSleeping = true;
             Continuation lastContinuation;
@@ -730,7 +811,13 @@ class basic_thread_pool_scheduler
         thread_state* preferredThread = nullptr
     )
     {
-        auto sleepingThreadCount = m_sleepingThreadCount.load(std::memory_order_acquire);
+        // An enqueue operation used seq_cst on m_head.
+        // Before a thread was allowed to sleep, it incremented m_sleepingThreadCount
+        // and then did seq_cst operations on all the m_head items.
+        // Therefore, m_sleepingThreadCount will read a non-zero value
+        // if there is some thread attempting to sleep,
+        // and we do not need to do the compare_exchange.
+        auto sleepingThreadCount = m_sleepingThreadCount.load(std::memory_order_relaxed);
         do
         {
             if (sleepingThreadCount == 0)
@@ -740,7 +827,7 @@ class basic_thread_pool_scheduler
         } while (!m_sleepingThreadCount.compare_exchange_weak(
             sleepingThreadCount,
             sleepingThreadCount - 1,
-            std::memory_order_acquire,
+            std::memory_order_relaxed,
             std::memory_order_relaxed
         ));
 
