@@ -43,7 +43,7 @@ struct test_variant_storage
     )
     {
         return variant_result_storage<Value>::template resume_variant_result<1>(
-            std::forward_like<decltype(self)>(self.m_result));
+            forward_like<decltype(self)>(self.m_result));
     }
 };
 }
