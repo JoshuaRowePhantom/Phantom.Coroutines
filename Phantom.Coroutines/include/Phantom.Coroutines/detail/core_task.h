@@ -183,7 +183,7 @@ protected:
     decltype(auto) result(
         this auto&& self)
     {
-        return self.promise();
+        return std::forward_like<decltype(self)>(self.promise());
     }
 
     void set_promise_variant_result_pointer()
@@ -417,9 +417,19 @@ public:
             || is_reusable
         )
     {
-        return core_task_awaiter<Promise>
+        struct [[nodiscard]] awaiter : core_task_awaiter<Promise>
         {
-            self.handle()
+            using awaiter::core_task_awaiter::core_task_awaiter;
+
+            decltype(auto) await_resume()
+            {
+                return std::forward_like<Self>(*this).core_task_awaiter::await_resume();
+            }
+        };
+
+        return awaiter
+        {
+            std::forward_like<Self>(self.handle())
         };
     }
 };
