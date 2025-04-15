@@ -34,20 +34,20 @@ class atomic_mutex_impl
     atomic_mutex_impl& operator=(atomic_mutex_impl&&) = delete;
 
     mutable std::mutex m_mutex;
-    std::shared_ptr<T> m_value;
+    T m_value;
 
 public:
     template<
         typename... Args
     >
-    requires std::constructible_from<std::shared_ptr<T>, Args...>
+    requires std::constructible_from<T, Args...>
     atomic_mutex_impl(
         Args&& ... args
     ) :
         m_value{ std::forward<Args>(args)... }
     { }
 
-    std::shared_ptr<T> load(
+    T load(
         std::memory_order = std::memory_order_seq_cst
     ) const
     { 
@@ -56,7 +56,7 @@ public:
     }
 
     void store(
-        std::shared_ptr<T> value,
+        T value,
         std::memory_order = std::memory_order_seq_cst
     )
     { 
@@ -64,19 +64,20 @@ public:
         m_value = value;
     }
     
-    std::shared_ptr<T> exchange(
-        std::shared_ptr<T> value,
+    T exchange(
+        T value,
         std::memory_order = std::memory_order_seq_cst
     )
     {
         std::unique_lock lock{ m_mutex };
-        m_value.swap(value);
+        using std::swap;
+        swap(m_value, value);
         return std::move(value);
     }
 
     bool compare_exchange_strong(
-        std::shared_ptr<T>& expected,
-        std::shared_ptr<T> desired,
+        T& expected,
+        T desired,
         std::memory_order = std::memory_order_seq_cst,
         std::memory_order = std::memory_order_seq_cst
     )
@@ -85,16 +86,16 @@ public:
         std::unique_lock lock{ m_mutex };
         if (m_value == expected)
         {
-            m_value.swap(expected);
-            m_value.swap(desired);
+            swap(expected, m_value);
+            swap(m_value, desired);
             return true;
         }
         return false;
     }
 
     bool compare_exchange_weak(
-        std::shared_ptr<T>& expected,
-        std::shared_ptr<T> desired,
+        T& expected,
+        T desired,
         std::memory_order = std::memory_order_seq_cst,
         std::memory_order = std::memory_order_seq_cst
     )

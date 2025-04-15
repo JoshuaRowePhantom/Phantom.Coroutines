@@ -48,7 +48,7 @@ private immovable_object
     };
 
     using soft_reference_type = value_holder*;
-    using hard_reference_type =std::shared_ptr<value_holder> ;
+    using hard_reference_type = std::shared_ptr<value_holder> ;
     using atomic_hard_reference_type = detail::atomic_shared_ptr<value_holder>;
     using sequence_number = size_t;
     using atomic_sequence_number = std::atomic<size_t>;

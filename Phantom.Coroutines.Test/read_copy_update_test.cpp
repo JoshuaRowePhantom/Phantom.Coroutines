@@ -2,6 +2,7 @@
 #include <chrono>
 #include <optional>
 #include <shared_mutex>
+#include <thread>
 
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
