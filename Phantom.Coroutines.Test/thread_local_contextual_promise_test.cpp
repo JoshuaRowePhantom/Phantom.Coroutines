@@ -1,4 +1,5 @@
 #include "async_test.h"
+#include <thread>
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 import Phantom.Coroutines.Test.lifetime_tracker;
