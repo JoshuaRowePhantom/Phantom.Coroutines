@@ -4,8 +4,10 @@ import Phantom.Coroutines;
 import Phantom.Coroutines.Test.lifetime_tracker;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.Test.lifetime_tracker;
+import Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.variant_result_storage;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
+#include "Phantom.Coroutines/type_traits.h"
 #include "Phantom.Coroutines/detail/variant_result_storage.h"
 #include "../lifetime_tracker.h"
 #endif

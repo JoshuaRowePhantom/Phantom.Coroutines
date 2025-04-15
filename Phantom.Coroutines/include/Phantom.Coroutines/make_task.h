@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_MAKE_TASK_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <type_traits>
+#include <utility>
 #include "task.h"
 #include "type_traits.h"
 #endif

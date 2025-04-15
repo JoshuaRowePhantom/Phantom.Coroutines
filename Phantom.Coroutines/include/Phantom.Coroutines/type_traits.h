@@ -536,14 +536,14 @@ constexpr auto&& forward_like(U&& x) noexcept
     if constexpr (std::is_lvalue_reference_v<T&&>)
     {
         if constexpr (is_adding_const)
-            return std::as_const(x);
+            return const_cast<const U&>(x);
         else
             return static_cast<U&>(x);
     }
     else
     {
         if constexpr (is_adding_const)
-            return std::move(std::as_const(x));
+            return std::move(const_cast<const U&>(x));
         else
             return std::move(x);
     }

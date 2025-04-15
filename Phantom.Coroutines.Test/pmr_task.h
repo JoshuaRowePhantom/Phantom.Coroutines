@@ -1,6 +1,8 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_PMR_TASK_H
 #define PHANTOM_COROUTINES_INCLUDE_PMR_TASK_H
 #if defined(PHANTOM_COROUTINES_TESTING_HEADERS)
+#include <atomic>
+#include <cstddef>
 #include <memory>
 #include <memory_resource>
 #include "Phantom.Coroutines/detail/config.h"

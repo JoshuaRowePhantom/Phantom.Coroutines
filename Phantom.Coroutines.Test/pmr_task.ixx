@@ -1,4 +1,6 @@
 module;
+#include <atomic>
+#include <cstddef>
 #include <memory>
 #include <memory_resource>
 #include "Phantom.Coroutines/detail/config.h"
