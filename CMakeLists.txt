@@ -27,10 +27,10 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
+enable_testing()
+
 add_subdirectory(Phantom.Coroutines)
 add_subdirectory(Phantom.Coroutines.Modules)
 add_subdirectory(Phantom.Coroutines.Test)
 add_subdirectory(Phantom.Coroutines.cppcoro)
 add_subdirectory(Phantom.Coroutines.cppcoro.Test)
-
-enable_testing()

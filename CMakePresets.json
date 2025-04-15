@@ -76,6 +76,43 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       }
+    },
+    {
+      "name": "clang-linux-base",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "/usr/bin/clang-20",
+        "CMAKE_CXX_COMPILER": "/usr/bin/clang-20"
+      },
+      "environment": {
+        "CC": "clang-20",
+        "CXX": "clang-20"
+      }
+    },
+    {
+      "name": "clang-linux-x64-debug",
+      "displayName": "CLang Linux x64 Debug",
+      "inherits": "clang-linux-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "clang-linux-x64-release",
+      "displayName": "CLang Linux x64 Release",
+      "inherits": "clang-linux-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
     }
   ]
 }
