@@ -3,6 +3,8 @@ module;
 #include <atomic>
 #include <concepts>
 #include <exception>
+#include <functional>
+#include <tuple>
 #include <utility>
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.async_scope;

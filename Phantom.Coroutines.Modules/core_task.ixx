@@ -3,6 +3,7 @@ module;
 #include <concepts>
 #include <exception>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.core_task;

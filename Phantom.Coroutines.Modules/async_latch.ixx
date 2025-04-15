@@ -1,5 +1,6 @@
 module;
 #include <atomic>
+#include <cstddef>
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.async_latch;
 export import Phantom.Coroutines.async_manual_reset_event;

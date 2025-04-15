@@ -14,8 +14,6 @@ PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 namespace Phantom::Coroutines
 {
 
-#if _MSC_VER && _M_AMD64
-
 namespace detail
 {
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -33,7 +31,7 @@ template<
 struct double_wide_value
 {
     alignas(std::max(alignof(Value), size_t(16)))
-    Value m_value;
+        Value m_value;
 
     operator Value() const { return m_value; }
     auto operator->(this auto&& self) { return &self.m_value; }
@@ -149,7 +147,5 @@ public:
 };
 
 }
-
-#endif
 
 #endif

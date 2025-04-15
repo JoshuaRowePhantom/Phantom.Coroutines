@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_LATCH_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <atomic>
+#include <cstddef>
 #include "async_manual_reset_event.h"
 #include "type_traits.h"
 #endif

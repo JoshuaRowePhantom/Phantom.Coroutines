@@ -560,9 +560,6 @@ public:
         }
     };
 
-    using read_lock = std::unique_lock<reader_lock>;
-    using write_lock = std::unique_lock<writer_lock>;
-
     auto& reader() noexcept
     {
         return m_reader;

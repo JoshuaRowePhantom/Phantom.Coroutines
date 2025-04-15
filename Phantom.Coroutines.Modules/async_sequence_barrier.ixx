@@ -2,6 +2,7 @@ module;
 #include <assert.h>
 #include <atomic>
 #include <concepts>
+#include <functional>
 #include <limits>
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.async_sequence_barrier;

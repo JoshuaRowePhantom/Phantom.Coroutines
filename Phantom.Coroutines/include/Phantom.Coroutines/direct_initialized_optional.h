@@ -3,6 +3,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
 #include <type_traits>
+#include <utility>
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);

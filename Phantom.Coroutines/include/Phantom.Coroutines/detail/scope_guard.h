@@ -3,6 +3,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
 #include <type_traits>
+#include <utility>
 #include "config.h"
 #include "immovable_object.h"
 #endif

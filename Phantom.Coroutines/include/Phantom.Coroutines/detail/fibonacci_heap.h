@@ -2,8 +2,10 @@
 #define PHANTOM_COROUTINES_INCLUDE_FIBONACCI_HEAP_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <array>
+#include <cstdlib>
 #include <initializer_list>
 #include <limits>
+#include <ranges>
 #include "config.h"
 #endif
 

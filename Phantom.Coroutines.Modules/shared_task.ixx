@@ -2,6 +2,8 @@ module;
 #include <assert.h>
 #include <atomic>
 #include <optional>
+#include <tuple>
+#include <utility>
 #include <variant>
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.shared_task;

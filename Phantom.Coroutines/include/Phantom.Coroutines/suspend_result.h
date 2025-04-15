@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_SUSPEND_RESULT_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <type_traits>
+#include <utility>
 #include "awaiter_wrapper.h"
 #include "detail/coroutine.h"
 #include "type_traits.h"

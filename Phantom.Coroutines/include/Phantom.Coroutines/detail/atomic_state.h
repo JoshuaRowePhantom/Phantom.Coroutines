@@ -4,7 +4,9 @@
 #include <atomic>
 #include <assert.h>
 #include <bit>
+#include <cstddef>
 #include <optional>
+#include <tuple>
 #include <type_traits>
 #include "config.h"
 #include "coroutine.h"

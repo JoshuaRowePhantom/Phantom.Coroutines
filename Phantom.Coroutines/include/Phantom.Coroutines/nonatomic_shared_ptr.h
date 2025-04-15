@@ -237,7 +237,7 @@ public:
     }
 
     void reset(
-        nullptr_t
+        std::nullptr_t
     )
     {
         return reset<T>(nullptr);

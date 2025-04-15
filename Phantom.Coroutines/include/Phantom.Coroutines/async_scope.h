@@ -6,6 +6,8 @@
 #include <atomic>
 #include <concepts>
 #include <exception>
+#include <functional>
+#include <tuple>
 #include <utility>
 #include "detail/config.h"
 #include "detail/coroutine.h"

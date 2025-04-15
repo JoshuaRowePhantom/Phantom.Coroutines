@@ -1,6 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_VARIANT_RESULT_STORAGE_H
 #define PHANTOM_COROUTINES_INCLUDE_VARIANT_RESULT_STORAGE_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <cstddef>
 #include <type_traits>
 #include <variant>
 #include "Phantom.Coroutines/type_traits.h"

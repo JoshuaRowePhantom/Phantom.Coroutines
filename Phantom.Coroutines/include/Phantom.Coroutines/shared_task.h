@@ -12,6 +12,8 @@
 #include <assert.h>
 #include <atomic>
 #include <optional>
+#include <tuple>
+#include <utility>
 #include <variant>
 #include "detail/atomic_state.h"
 #include "detail/final_suspend_transfer.h"

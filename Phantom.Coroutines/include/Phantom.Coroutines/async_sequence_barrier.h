@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <atomic>
 #include <concepts>
+#include <functional>
 #include <limits>
 #include "detail/config.h"
 #include "detail/atomic_state.h"
