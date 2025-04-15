@@ -1,4 +1,5 @@
 #include "async_test.h"
+#include <memory_resource>
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 import Phantom.Coroutines.Test.pmr_task;
