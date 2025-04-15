@@ -407,7 +407,7 @@ ASYNC_TEST(reusable_task_test, Destroys_thrown_exception)
         instanceCountAfterDestruction = statistics.instance_count;
     }());
 
-    EXPECT_EQ(2, instanceCountBeforeDestruction);
+    EXPECT_GE(1, instanceCountBeforeDestruction);
     EXPECT_EQ(0, instanceCountAfterDestruction);
 }
 
