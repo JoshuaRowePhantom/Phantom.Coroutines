@@ -523,7 +523,8 @@ template<
     }
 }
 
-#if _MSVC_LANG
+#if __cpp_lib_forward_like
+PHANTOM_COROUTINES_MODULE_EXPORT
 using std::forward_like;
 #else
 // CLang doesn't appear to have forward_like.

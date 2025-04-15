@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include "detail/config.h"
 #include "detail/assert_same_thread.h"
+#include "detail/atomic_shared_ptr.h"
 #include "detail/scope_guard.h"
 #include "detail/immovable_object.h"
 #include "nonatomic_shared_ptr.h"
@@ -48,7 +49,7 @@ private immovable_object
 
     using soft_reference_type = value_holder*;
     using hard_reference_type =std::shared_ptr<value_holder> ;
-    using atomic_hard_reference_type = std::atomic<hard_reference_type>;
+    using atomic_hard_reference_type = detail::atomic_shared_ptr<value_holder>;
     using sequence_number = size_t;
     using atomic_sequence_number = std::atomic<size_t>;
     using nonatomic_indirect_hard_reference_type = nonatomic_shared_ptr<hard_reference_type>;

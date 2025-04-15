@@ -19,6 +19,7 @@ target_sources(
     FILES
     "aligned_array.ixx"
     "assert_same_thread.ixx"
+    "async_atomic.ixx"
     "async_auto_reset_event.ixx"
     "async_generator.ixx" 
     "async_latch.ixx" 
@@ -29,6 +30,7 @@ target_sources(
     "async_scope.ixx" 
     "async_sequence_barrier.ixx"
     "async_sharded_reader_writer_lock.ixx"
+    "atomic_shared_ptr.ixx"
     "atomic_state.ixx"
     "await_all_await_transform.ixx"
     "await_none_await_transform.ixx"
@@ -76,7 +78,7 @@ target_sources(
     "thread_pool_scheduler.ixx"
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- "async_atomic.ixx")
+ )
 
 target_link_libraries(
     Phantom.Coroutines.Modules

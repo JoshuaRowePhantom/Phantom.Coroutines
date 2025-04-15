@@ -9,6 +9,7 @@ module;
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.read_copy_update;
 import Phantom.Coroutines.assert_same_thread;
+import Phantom.Coroutines.atomic_shared_ptr;
 import Phantom.Coroutines.immovable_object;
 import Phantom.Coroutines.nonatomic_shared_ptr;
 import Phantom.Coroutines.scope_guard;

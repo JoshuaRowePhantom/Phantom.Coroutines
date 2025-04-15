@@ -9,6 +9,7 @@
 #include <set>
 #include <type_traits>
 #include <vector>
+#include "detail/atomic_shared_ptr.h"
 #include "detail/config.h"
 #include "detail/consecutive_thread_id.h"
 #include "reusable_consecutive_global_id.h"
@@ -32,7 +33,7 @@ public:
     using vector_ptr = std::shared_ptr<vector>;
 
 private:
-    using atomic_vector_ptr = std::atomic<vector_ptr>;
+    using atomic_vector_ptr = detail::atomic_shared_ptr<vector>;
 
     atomic_vector_ptr m_atomicVector;
 
