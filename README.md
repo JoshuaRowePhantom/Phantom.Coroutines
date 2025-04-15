@@ -1,6 +1,14 @@
 # Phantom.Coroutines
 
-A C++23 coroutine library.
+A extensible C++23 and beyond coroutine library.
+
+## Introduction
+
+Phantom.Coroutines provides many multi-threading and coroutine facilities, with extensibility points
+allowing the creation of new types without having to devolve all the way to the core facilities.
+The included types support behavior modification through derivation and policy specification.
+This allows writing custom behavior (while inheriting existing behavior) where necessary,
+or using different configurations of existing behavior.
 
 ## Goals 
 
@@ -145,3 +153,80 @@ to be one of the most commonly used classes for most code.
 
 Metaprogramming tools for introspection of asynchronous code.
 
+## C++ Modules
+
+You can compile the library with CMake and link against the ```Phantom.Coroutines.Modules``` library target. 
+This library contains many submodules and a single ```Phantom.Coroutines``` module that includes the entire
+content of Phantom.Coroutines. It can be imported with:
+
+```c++
+import Phantom.Coroutines;
+```
+
+## Compiler support
+
+The library has been tested on MSVC and CLang on Windows.
+
+## Example Compositions
+
+For example, to use a custom allocator for a promise type, one can compose an existing promise type:
+
+```c++
+template<
+    typename Result = void
+> using pmr_task = basic_task<
+    promise_allocator<
+        task_promise<Result>,
+        std::pmr::polymorphic_allocator<>
+    >
+>;
+
+pmr_task<> DoMyCoroutine(std::pmr::polymorphic_allocator<>)
+{
+    co_await ...;
+}
+```
+
+To have a promise type that automatically saves and restores thread-local context variables
+at suspend points, one can write:
+
+```c++
+using ActivityIdContext = thread_local_context<ActivityId*, struct CurrentActivityIdLabel>;
+
+template<
+    typename Result = void
+> using ActivityIdTask = basic_task<
+    thread_local_contextual_promise<
+        ActivityIdContext,
+        task_promise<Result>
+    >
+>;
+
+pmr_task<> DoStuffWithActivityId()
+{
+    co_await UseActivityId(ActivityIdContext::current());
+}
+```
+
+To combine both of these ideas, write:
+
+```c++
+using ActivityIdContext = thread_local_context<ActivityId*, struct CurrentActivityIdLabel>;
+
+template<
+    typename Result = void
+> using my_application_task = basic_task<
+    promise_allocator<
+        thread_local_contextual_promise<
+            ActivityIdContext,
+            task_promise<Result>
+        >,
+        std::pmr::polymorphic_allocator<>
+    >
+>;
+
+my_application_task<> DoMyCoroutine(std::pmr::polymorphic_allocator<>)
+{
+    co_await UseActivityId(ActivityIdContext::current());
+}
+```

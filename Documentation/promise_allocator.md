@@ -18,7 +18,7 @@ template<
     typename Promise
 > using polymorphic_allocator_promise = 
     promise_allocator<
-        Promise, 
+        Promise,
         std::pmr::polymorphic_allocator<>
     >;
 
