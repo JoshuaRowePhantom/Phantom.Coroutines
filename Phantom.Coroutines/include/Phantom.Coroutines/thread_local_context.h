@@ -24,7 +24,9 @@ template<
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Value
+    typename Value,
+    // The unique identifying label for the thread local context.
+    typename Label
 > class thread_local_context
 {
 public:

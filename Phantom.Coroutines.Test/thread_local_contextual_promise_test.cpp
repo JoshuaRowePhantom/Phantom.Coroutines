@@ -23,7 +23,7 @@ namespace Phantom::Coroutines
 
 namespace
 {
-using TestContext = thread_local_context<lifetime_tracker*>;
+using TestContext = thread_local_context<lifetime_tracker*, struct TestContextLabel>;
 
 template<
     typename Result = void
