@@ -7,6 +7,7 @@
 #include <bit>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <shared_mutex>
 #include <stop_token>
 #include <unordered_set>

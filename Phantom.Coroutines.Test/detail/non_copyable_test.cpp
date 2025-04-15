@@ -5,8 +5,8 @@ import Phantom.Coroutines.non_copyable;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/detail/non_copyable.h"
 #endif
-
 #include <concepts>
+#include <type_traits>
 
 namespace
 {

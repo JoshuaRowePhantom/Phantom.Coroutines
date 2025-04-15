@@ -1,6 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_THREAD_LOCAL_STORAGE_H
 #define PHANTOM_COROUTINES_INCLUDE_THREAD_LOCAL_STORAGE_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <atomic>
 #include <concepts>
 #include <functional>
 #include <memory>

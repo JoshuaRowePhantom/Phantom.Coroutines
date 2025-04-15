@@ -1,5 +1,6 @@
 module;
 #include <atomic>
+#include <type_traits>
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.atomic_state;

@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_DIRECT_INITIALIZED_OPTIONAL_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
+#include <memory>
 #include <type_traits>
 #include <utility>
 #endif

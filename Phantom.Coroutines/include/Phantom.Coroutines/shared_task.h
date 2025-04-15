@@ -11,6 +11,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <assert.h>
 #include <atomic>
+#include <exception>
 #include <optional>
 #include <tuple>
 #include <utility>

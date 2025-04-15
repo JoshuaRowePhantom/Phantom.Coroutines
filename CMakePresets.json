@@ -83,11 +83,11 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "/usr/bin/clang-21",
-        "CMAKE_CXX_COMPILER": "/usr/bin/clang-21"
+        "CMAKE_CXX_COMPILER": "/usr/bin/clang++-21"
       },
       "environment": {
         "CC": "clang-21",
-        "CXX": "clang-21"
+        "CXX": "clang++-21"
       }
     },
     {

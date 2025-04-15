@@ -1,6 +1,7 @@
 module;
 #include <assert.h>
 #include <atomic>
+#include <exception>
 #include <optional>
 #include <tuple>
 #include <utility>

@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_MANUAL_RESET_EVENT_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <atomic>
+#include <type_traits>
 #include "policies.h"
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"

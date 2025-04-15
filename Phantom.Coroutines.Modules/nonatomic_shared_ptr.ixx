@@ -1,5 +1,6 @@
 module;
 #include <assert.h>
+#include <concepts>
 #include <optional>
 #include <utility>
 #include "Phantom.Coroutines/detail/config.h"

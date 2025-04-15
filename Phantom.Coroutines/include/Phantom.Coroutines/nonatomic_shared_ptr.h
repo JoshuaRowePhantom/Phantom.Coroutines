@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_NONATOMIC_SHARED_PTR_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <assert.h>
+#include <concepts>
 #include <optional>
 #include <utility>
 #include "detail/config.h"

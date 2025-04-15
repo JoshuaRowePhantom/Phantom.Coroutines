@@ -3,6 +3,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <atomic>
 #include <cstddef>
+#include <utility>
 #include "detail/config.h"
 #endif
 

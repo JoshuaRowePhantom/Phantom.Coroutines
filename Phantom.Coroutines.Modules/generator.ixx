@@ -1,6 +1,7 @@
 module;
 #include <concepts>
 #include <exception>
+#include <iterator>
 #include <variant>
 #include <type_traits>
 #include "Phantom.Coroutines/detail/config.h"

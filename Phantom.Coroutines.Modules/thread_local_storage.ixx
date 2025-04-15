@@ -1,4 +1,5 @@
 module;
+#include <atomic>
 #include <concepts>
 #include <functional>
 #include <memory>

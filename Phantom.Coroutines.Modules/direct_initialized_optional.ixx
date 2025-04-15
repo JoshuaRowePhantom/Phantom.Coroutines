@@ -1,5 +1,6 @@
 module;
 #include <concepts>
+#include <memory>
 #include <type_traits>
 #include <utility>
 #include "Phantom.Coroutines/detail/config.h"

@@ -3,6 +3,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
 #include <exception>
+#include <iterator>
 #include <variant>
 #include <type_traits>
 #include "detail/config.h"

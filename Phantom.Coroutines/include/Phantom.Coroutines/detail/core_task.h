@@ -183,7 +183,7 @@ protected:
     decltype(auto) result(
         this auto&& self)
     {
-        return forward_like<decltype(self)>(self.promise());
+        return detail::forward_like<decltype(self)>(self.promise());
     }
 
     void set_promise_variant_result_pointer()
@@ -429,7 +429,7 @@ public:
 
         return awaiter
         {
-            forward_like<Self>(self.handle())
+            detail::forward_like<Self>(self.handle())
         };
     }
 };

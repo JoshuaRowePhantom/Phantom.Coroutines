@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <vector>
 #include "async_test.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
