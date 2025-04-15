@@ -126,7 +126,6 @@ private:
     }
 
 public:
-    using allocator_type = Allocator;
     using derived_promise<Promise>::derived_promise;
 
     static void* operator new(

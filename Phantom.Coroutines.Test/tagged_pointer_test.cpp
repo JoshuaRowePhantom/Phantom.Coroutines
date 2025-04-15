@@ -19,12 +19,10 @@ enum TaggedPointerTag
 };
 
 // Disable warning that structure padded due to alignment specifier
-#pragma warning(push)
-#pragma warning(disable:4324)
+PHANTOM_COROUTINES_MSVC_SUPPRESS_PACKING_ALIGNMENT_WARNING
 struct alignas(8) TaggedPointerStruct
 {
 };
-#pragma warning(pop)
 
 }
 

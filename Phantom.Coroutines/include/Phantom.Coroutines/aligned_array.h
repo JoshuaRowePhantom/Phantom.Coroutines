@@ -34,10 +34,7 @@ struct aligned_array
 
     // This is public to support aggregate initialization.
     // Do not use directly.
-    // Disable warning that structure padded due to alignment specifier
-#if MSVC_VER
-    __pragma(warning(suppress:4324))
-#endif
+    PHANTOM_COROUTINES_MSVC_SUPPRESS_PACKING_ALIGNMENT_WARNING
     struct alignas(Alignment) aligned_value
     {
         T _value;

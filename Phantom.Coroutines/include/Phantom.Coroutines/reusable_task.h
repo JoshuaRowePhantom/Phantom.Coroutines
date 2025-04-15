@@ -2,6 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_RESUSABLE_TASK_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
+#include <utility>
 #include "detail/core_task.h"
 #include "detail/coroutine.h"
 #include "policies.h"

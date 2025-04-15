@@ -54,7 +54,7 @@ template<
 class basic_thread_pool_scheduler
 {
     // Disable warning that structure padded due to alignment specifier
-    __pragma(warning(suppress:4324))
+    PHANTOM_COROUTINES_MSVC_SUPPRESS_PACKING_ALIGNMENT_WARNING
     class thread_state
     {
         class queue

@@ -1,5 +1,6 @@
 module;
 #include <concepts>
+#include <utility>
 #include "Phantom.Coroutines/detail/config.h"
 export module Phantom.Coroutines.reusable_task;
 import Phantom.Coroutines.core_task;
