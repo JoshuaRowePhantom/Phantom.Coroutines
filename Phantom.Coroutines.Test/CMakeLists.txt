@@ -71,10 +71,17 @@ target_link_libraries(
     GTest::gtest_main
 )
 
-add_executable(
-    Phantom.Coroutines.Modules.Test
-    ${PhantomCoroutinesTestSources}
-)
+if(DISABLE_LINK_MODULES)
+    add_library(
+        Phantom.Coroutines.Modules.Test
+        ${PhantomCoroutinesTestSources}
+    )
+else()
+    add_executable(
+        Phantom.Coroutines.Modules.Test
+        ${PhantomCoroutinesTestSources}
+    )
+endif()
 
 target_sources(
     Phantom.Coroutines.Modules.Test
@@ -108,10 +115,17 @@ set_target_properties(
     PROPERTIES
     CXX_SCAN_FOR_MODULES true)
 
-add_executable(
-    Phantom.Coroutines.SingleModule.Test
-    ${PhantomCoroutinesTestSources}
-)
+if(DISABLE_LINK_MODULES)
+    add_library(
+        Phantom.Coroutines.SingleModule.Test
+        ${PhantomCoroutinesTestSources}
+    )
+else()
+    add_executable(
+        Phantom.Coroutines.SingleModule.Test
+        ${PhantomCoroutinesTestSources}
+    )
+endif()
 
 target_sources(
     Phantom.Coroutines.SingleModule.Test
@@ -151,10 +165,17 @@ gtest_discover_tests(
     Phantom.Coroutines.Test
     EXTRA_ARGS "--gtest_break_on_failure")
 
-gtest_discover_tests(
-    Phantom.Coroutines.Modules.Test
-    EXTRA_ARGS "--gtest_break_on_failure")
+if(NOT DISABLE_LINK_MODULES)
+    gtest_discover_tests(
+        Phantom.Coroutines.Modules.Test
+        EXTRA_ARGS "--gtest_break_on_failure")
     
-gtest_discover_tests(
-    Phantom.Coroutines.SingleModule.Test
-    EXTRA_ARGS "--gtest_break_on_failure")
+    gtest_discover_tests(
+        Phantom.Coroutines.SingleModule.Test
+        EXTRA_ARGS "--gtest_break_on_failure")
+endif()
+
+if(DISABLE_COMPILE_MODULES)
+    set_target_properties(Phantom.Coroutines.Modules.Test EXCLUDE_FROM_ALL TRUE)
+    set_target_properties(Phantom.Coroutines.SingleModule.Test EXCLUDE_FROM_ALL TRUE)
+endif()

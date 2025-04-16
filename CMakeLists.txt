@@ -3,6 +3,9 @@ project(Phantom.Coroutines)
 
 find_package(GTest REQUIRED)
 
+option(DISABLE_COMPILE_MODULES "Disable compiling modules and module tests" OFF)
+option(DISABLE_LINK_MODULES "Disable linking module tests" OFF)
+
 set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 set(CMAKE_CXX_STANDARD 23)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/W4>)
@@ -27,6 +30,7 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-stdlib=libc++)
     add_link_options(-stdlib=libc++ -latomic)
+    set(ENABLE_LINK_MODULES OFF)
 endif()
 
 enable_testing()

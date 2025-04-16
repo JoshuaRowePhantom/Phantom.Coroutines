@@ -90,3 +90,7 @@ set_target_properties(
     Phantom.Coroutines.Modules
     PROPERTIES
     CXX_SCAN_FOR_MODULES true)
+
+if(DISABLE_COMPILE_MODULES)
+    set_target_properties(Phantom.Coroutines.Modules EXCLUDE_FROM_ALL TRUE)
+endif()
