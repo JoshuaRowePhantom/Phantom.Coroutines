@@ -86,11 +86,16 @@
         "CMAKE_CXX_COMPILER": "/usr/bin/clang++-21",
         "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg/triplets",
         "VCPKG_TARGET_TRIPLET": "x64-linux-clang-libcxx-21",
-        "DISABLE_LINK_MODULES":  "ON"
+        "DISABLE_LINK_MODULES": "ON"
       },
       "environment": {
         "CC": "clang-21",
         "CXX": "clang++-21"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
       }
     },
     {
