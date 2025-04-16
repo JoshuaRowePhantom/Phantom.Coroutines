@@ -32,10 +32,11 @@ static_assert(std::is_move_assignable_v<async_generator<int>>);
 
 ASYNC_TEST(async_generator_test, Can_enumerate_async_generator_returning_no_elements)
 {
-    auto myGenerator = []()->async_generator<int>
+    auto myGeneratorLambda = []()->async_generator<int>
     {
         co_return;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     for (auto iterator = co_await myGenerator.begin();
         iterator != myGenerator.end();
@@ -59,12 +60,13 @@ ASYNC_TEST(async_generator_test, Can_enumerate_default_constructed_async_generat
 
 ASYNC_TEST(async_generator_test, Can_enumerate_non_empty_iterator)
 {
-    auto myGenerator = []()->async_generator<int>
+    auto myGeneratorLambda = []()->async_generator<int>
     {
         co_yield 1;
         co_yield 2;
         co_yield 3;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = co_await myGenerator.begin();
     EXPECT_EQ(1, *iterator);
@@ -75,13 +77,14 @@ ASYNC_TEST(async_generator_test, Can_enumerate_non_empty_iterator)
 
 ASYNC_TEST(async_generator_test, Can_enumerate_non_empty_iterator_with_co_return)
 {
-    auto myGenerator = []()->async_generator<int>
+    auto myGeneratorLambda = []()->async_generator<int>
     {
         co_yield 1;
         co_yield 2;
         co_return;
         co_yield 3;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = co_await myGenerator.begin();
     EXPECT_EQ(1, *iterator);
@@ -93,10 +96,11 @@ ASYNC_TEST(async_generator_test, Returns_reference_to_copy_for_byval_iterator_re
 {
     std::string original;
 
-    auto myGenerator = [&]()->async_generator<std::string>
+    auto myGeneratorLambda = [&]()->async_generator<std::string>
     {
         co_yield original;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = co_await myGenerator.begin();
     EXPECT_NE(&original, &*iterator);
@@ -106,11 +110,12 @@ ASYNC_TEST(async_generator_test, Returns_reference_to_original_for_byval_iterato
 {
     std::string original;
 
-    auto myGenerator = [&]() -> async_generator<std::string>
+    auto myGeneratorLambda = [&]() -> async_generator<std::string>
     {
         co_yield std::move(original);
         co_return;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = co_await myGenerator.begin();
     EXPECT_EQ(&original, &*iterator);
@@ -120,11 +125,12 @@ ASYNC_TEST(async_generator_test, Returns_reference_to_original_for_byref_iterato
 {
     std::string original;
 
-    auto myGenerator = [&]()->async_generator<std::string&>
+    auto myGeneratorLambda = [&]()->async_generator<std::string&>
     {
         co_yield original;
         co_return;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = co_await myGenerator.begin();
     EXPECT_EQ(&original, &*iterator);
@@ -134,11 +140,12 @@ ASYNC_TEST(async_generator_test, Returns_reference_to_original_for_byref_iterato
 {
     std::string original;
 
-    auto myGenerator = [&]()->async_generator<std::string&>
+    auto myGeneratorLambda = [&]()->async_generator<std::string&>
     {
         co_yield std::move(original);
         co_return;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = co_await myGenerator.begin();
     EXPECT_EQ(&original, &*iterator);
