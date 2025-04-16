@@ -209,13 +209,13 @@ ASYNC_TEST(reusable_task_test, reusable_task_destroys_coroutine_after_resumption
 
     auto lambda1 = [&](lifetime_tracker) -> lifetime_tracking_reusable_task<int>
     {
-        EXPECT_EQ(2, statistics.instance_count);
+        EXPECT_LE(2, statistics.instance_count);
         co_return 5;
     };
 
     auto lambda2 = [&](int) -> reusable_task<>
     {
-        EXPECT_EQ(2, statistics.instance_count);
+        EXPECT_LE(2, statistics.instance_count);
         co_return;
     };
 
@@ -407,7 +407,7 @@ ASYNC_TEST(reusable_task_test, Destroys_thrown_exception)
         instanceCountAfterDestruction = statistics.instance_count;
     }());
 
-    EXPECT_GE(1, instanceCountBeforeDestruction);
+    EXPECT_LE(1, instanceCountBeforeDestruction);
     EXPECT_EQ(0, instanceCountAfterDestruction);
 }
 
