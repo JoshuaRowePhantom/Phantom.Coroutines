@@ -176,6 +176,12 @@ if(NOT DISABLE_LINK_MODULES)
 endif()
 
 if(DISABLE_COMPILE_MODULES)
-    set_target_properties(Phantom.Coroutines.Modules.Test EXCLUDE_FROM_ALL TRUE)
-    set_target_properties(Phantom.Coroutines.SingleModule.Test EXCLUDE_FROM_ALL TRUE)
+    set_target_properties(
+        Phantom.Coroutines.Modules.Test 
+        PROPERTIES
+        EXCLUDE_FROM_ALL TRUE)
+    set_target_properties(
+        Phantom.Coroutines.SingleModule.Test 
+        PROPERTIES
+        EXCLUDE_FROM_ALL TRUE)
 endif()
