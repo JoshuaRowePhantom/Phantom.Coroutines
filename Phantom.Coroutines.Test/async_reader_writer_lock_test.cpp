@@ -168,7 +168,7 @@ TEST(async_reader_writer_lock_test, DISABLED_fifo_ordering_do_many_operations)
         }
 
         co_await scope.join();
-    }());
+    });
 }
 
 ASYNC_TEST(async_reader_writer_lock_test, reader_try_lock_succeeds_if_lock_not_held)

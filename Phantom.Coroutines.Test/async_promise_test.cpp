@@ -30,7 +30,7 @@ TEST(async_promise_test, Set_after_await_causes_await_to_continue)
     auto future = as_future([&]() -> task<std::wstring>
     {
         co_return co_await(suspendResult << promise);
-    }());
+    });
 
     promise.emplace(L"hello world"s);
     ASSERT_EQ(future.get(), L"hello world"s);
@@ -48,7 +48,7 @@ TEST(async_promise_test, Set_before_await_causes_await_to_not_suspend)
     auto future = as_future([&]() -> task<std::wstring>
     {
         co_return co_await(suspendResult << promise);
-    }());
+    });
 
     ASSERT_EQ(future.get(), L"hello world"s);
     ASSERT_EQ(false, suspendResult.did_suspend());

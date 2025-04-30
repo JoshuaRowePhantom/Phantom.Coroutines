@@ -26,7 +26,7 @@ TEST(async_scope_test, Joining_empty_completes_immediately)
     sync_wait([&]() -> task<>
         {
             co_await scope.join();
-        }());
+        });
 }
 
 TEST(async_scope_test, Joining_waits_for_incomplete_tasks)
@@ -46,7 +46,7 @@ TEST(async_scope_test, Joining_waits_for_incomplete_tasks)
         {
             co_await scope.join();
             complete = true;
-        }());
+        });
 
     ASSERT_EQ(false, complete);
     event2.set();
@@ -79,7 +79,7 @@ TEST(async_scope_test, Joining_completes_immediately_if_all_tasks_already_comple
         {
             co_await scope.join();
             complete = true;
-        }());
+        });
 
     ASSERT_EQ(true, complete);
     future.get();
@@ -103,7 +103,7 @@ TEST(async_scope_test, Can_await_non_copyable_task_by_lambda)
         {
             co_await scope.join();
             complete = true;
-        }());
+        });
 
     ASSERT_EQ(false, complete);
     ASSERT_EQ(false, completeTask1);

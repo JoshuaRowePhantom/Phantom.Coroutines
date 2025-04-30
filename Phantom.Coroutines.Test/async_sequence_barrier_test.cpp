@@ -75,7 +75,7 @@ TEST(async_sequence_barrier_test, Publish_resumes_an_awaiter_on_the_dot)
     auto future = as_future([&]() -> task<>
         {
             result = co_await(suspendResult << sequenceBarrier.wait_until_published(1));
-        }());
+        });
 
     EXPECT_TRUE(suspendResult.did_suspend());
     EXPECT_EQ(std::optional<size_t>{}, result);
@@ -98,7 +98,7 @@ TEST(async_sequence_barrier_test, Publish_permits_await_without_suspending_await
     auto future = as_future([&]() -> task<>
         {
             result = co_await(suspendResult << sequenceBarrier.wait_until_published(1));
-        }());
+        });
 
     EXPECT_FALSE(suspendResult.did_suspend());
     EXPECT_EQ(std::optional<size_t>{1}, result);

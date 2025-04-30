@@ -23,7 +23,8 @@ static_assert(std::is_move_assignable_v<generator<int>>);
 
 TEST(generator_test, Can_enumerate_empty_generator)
 {
-    auto myGenerator = []()->generator<int> { co_return; }();
+    auto myGeneratorLambda = []()->generator<int> { co_return; };
+    auto myGenerator = myGeneratorLambda();
     auto count = 0;
 
     for (auto& i : myGenerator)
@@ -61,12 +62,13 @@ TEST(generator_test, Destroys_promise_when_partially_iterated)
 
 TEST(generator_test, Can_enumerate_non_empty_iterator)
 {
-    auto myGenerator = []()->generator<int>
+    auto myGeneratorLambda = []()->generator<int>
     {
         co_yield 1;
         co_yield 2;
         co_yield 3;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = myGenerator.begin();
     ASSERT_EQ(1, *iterator);
@@ -77,13 +79,14 @@ TEST(generator_test, Can_enumerate_non_empty_iterator)
 
 TEST(generator_test, Can_enumerate_non_empty_iterator_with_co_return)
 {
-    auto myGenerator = []()->generator<int>
+    auto myGeneratorLambda = []()->generator<int>
     {
         co_yield 1;
         co_yield 2;
         co_return;
         co_yield 3;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = myGenerator.begin();
     ASSERT_EQ(1, *iterator);
@@ -95,10 +98,11 @@ TEST(generator_test, Returns_reference_to_copy_for_byval_iterator_returning_lval
 {
     std::string original;
 
-    auto myGenerator = [&]()->generator<std::string>
+    auto myGeneratorLambda = [&]()->generator<std::string>
     {
         co_yield original;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = myGenerator.begin();
     ASSERT_NE(&original, &*iterator);
@@ -108,10 +112,11 @@ TEST(generator_test, Returns_reference_to_original_for_byval_iterator_returning_
 {
     std::string original;
 
-    auto myGenerator = [&]()->generator<std::string>
+    auto myGeneratorLambda = [&]()->generator<std::string>
     {
         co_yield std::move(original);
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = myGenerator.begin();
     ASSERT_EQ(&original, &*iterator);
@@ -121,10 +126,11 @@ TEST(generator_test, Returns_reference_to_original_for_byref_iterator_returning_
 {
     std::string original;
 
-    auto myGenerator = [&]()->generator<std::string&>
+    auto myGeneratorLambda = [&]()->generator<std::string&>
     {
         co_yield original;
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = myGenerator.begin();
     ASSERT_EQ(&original, &*iterator);
@@ -134,10 +140,11 @@ TEST(generator_test, Returns_reference_to_original_for_byref_iterator_returning_
 {
     std::string original;
 
-    auto myGenerator = [&]()->generator<std::string&>
+    auto myGeneratorLambda = [&]()->generator<std::string&>
     {
         co_yield std::move(original);
-    }();
+    };
+    auto myGenerator = myGeneratorLambda();
 
     auto iterator = myGenerator.begin();
     ASSERT_EQ(&original, &*iterator);
@@ -147,12 +154,13 @@ TEST(generator_test, Moved_from_generator_via_construction_is_empty)
 {
     std::string original;
 
-    std::optional<generator<int>> myGenerator1 = [&]()->generator<int>
+    auto myGenerator1Lambda = [&]()->generator<int>
     {
         co_yield 1;
         co_yield 2;
         co_yield 3;
-    }();
+    };
+    std::optional<generator<int>> myGenerator1 = myGenerator1Lambda();
 
     auto iterator = myGenerator1->begin();
     auto myGenerator2 = std::move(*myGenerator1);
@@ -173,12 +181,13 @@ TEST(generator_test, Moved_from_generator_via_assignment_is_empty)
 {
     std::string original;
 
-    std::optional<generator<int>> myGenerator1 = [&]()->generator<int>
+    auto myGenerator1Lambda = [&]()->generator<int>
     {
         co_yield 1;
         co_yield 2;
         co_yield 3;
-    }();
+    };
+    std::optional<generator<int>> myGenerator1 = myGenerator1Lambda();
 
     auto iterator = myGenerator1->begin();
     generator<int> myGenerator2;
@@ -200,12 +209,13 @@ TEST(generator_test, Moving_constructing_generator_keeps_iterators_intact)
 {
     std::string original;
 
-    std::optional<generator<int>> myGenerator1 = [&]()->generator<int>
+    auto myGenerator1Lambda = [&]()->generator<int>
     {
         co_yield 1;
         co_yield 2;
         co_yield 3;
-    }();
+    };
+    std::optional<generator<int>> myGenerator1 = myGenerator1Lambda();
 
     auto iterator = myGenerator1->begin();
     ASSERT_EQ(1, *iterator);

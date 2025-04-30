@@ -196,6 +196,48 @@ template<
     }
 }
 
+// Synchronously wait for the result of an awaitable object from a lambda and return its result.
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    std::invocable<> TInvocable
+> auto sync_wait(
+    TInvocable&& invocable
+)
+{
+    typedef decltype(
+        as_future(
+            std::forward<TInvocable>(invocable)
+        ).get()) result_type;
+
+#if PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
+
+    // Bug https://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
+
+    if constexpr (
+        !std::is_void_v<result_type>
+        &&
+        !std::is_reference_v<result_type>
+        &&
+        !std::is_trivially_constructible_v<result_type>
+        &&
+        !is_optional<result_type>)
+    {
+        auto wrapWithOptional = [&]() -> task<std::optional<result_type>>
+            {
+                co_return co_await std::forward<TInvocable>(invocable);
+            };
+
+        return static_cast<result_type>(
+            *as_future(wrapWithOptional()).get());
+    }
+    else
+#endif
+    {
+        return static_cast<result_type>(
+            as_future(std::forward<TInvocable>(invocable)).get());
+    }
+}
+
 }
 
 PHANTOM_COROUTINES_MODULE_EXPORT
