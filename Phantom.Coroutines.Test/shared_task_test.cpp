@@ -94,7 +94,7 @@ TEST(shared_task_test, Can_await_void_task)
         []() -> shared_task<>
         {
             co_return;
-        }()
+        }
             );
 }
 
@@ -107,7 +107,7 @@ TEST(shared_task_test, Can_handle_thrown_exception)
             {
                 throw 5;
                 co_return;
-            }()
+            }
                 );
         },
         int);
@@ -119,7 +119,7 @@ TEST(shared_task_test, Can_await_string_task)
         []() -> shared_task<std::string>
         {
             co_return "hello world";
-        }());
+        });
 
     ASSERT_EQ("hello world", result);
 }
@@ -176,7 +176,7 @@ TEST(shared_task_test, Can_return_reference)
         [&]() -> shared_task<int&>
         {
             co_return value;
-        }());
+        });
 
     ASSERT_EQ(&value, &result);
 }
@@ -185,11 +185,12 @@ TEST(shared_task_test, Multiple_co_awaits_cause_only_one_invocation)
 {
     std::atomic_int invocationCount = 0;
 
-    auto task = [&]() -> shared_task<>
+    auto lambda = [&]() -> shared_task<>
     {
         ++invocationCount;
         co_return;
-    }();
+    };
+    auto task = lambda();
 
     sync_wait(
         task);
@@ -227,7 +228,8 @@ ASYNC_TEST(shared_task_test, All_awaiters_are_signalled_at_task_completion)
 
 TEST(shared_task_test, Return_by_value_returns_reference_to_same_object_to_all_calling_awaiters)
 {
-    auto task = []() -> shared_task<int> { co_return 5; }();
+    auto lambda = []() -> shared_task<int> { co_return 5; };
+    auto task = lambda();
 
     auto& result1 = sync_wait(
         task);
@@ -245,11 +247,12 @@ TEST(shared_task_test, Task_destroys_coroutine_if_not_awaited)
 
     {
         // Create a task and destroy it
-        auto myTask = [&, tracker = statistics.tracker()]()->shared_task<>
-        {
-            tracker.use();
-            co_return;
-        }();
+        auto lambda = [&, tracker = statistics.tracker()]()->shared_task<>
+            {
+                tracker.use();
+                co_return;
+            };
+        auto myTask = lambda();
     }
 
     ASSERT_EQ(0, statistics.instance_count);
@@ -264,7 +267,7 @@ TEST(shared_task_test, Task_destroys_coroutine_if_awaited)
         {
             tracker.use();
     co_return;
-        }());
+        });
 
     ASSERT_EQ(0, statistics.instance_count);
 }
@@ -275,10 +278,11 @@ TEST(shared_task_test, Task_does_destroy_coroutine_if_destroyed_while_suspended)
 
     {
         // Create and suspend a task, then destroy it.
-        auto myTask = [tracker = statistics.tracker(), &event]() -> shared_task<>
+        auto myTaskLambda = [tracker = statistics.tracker(), &event]() -> shared_task<>
         {
             co_await event;
-        }();
+        };
+        auto myTask = myTaskLambda();
 
         auto awaiter = myTask.operator co_await();
 
@@ -352,7 +356,7 @@ TEST(shared_task_test, Destroys_returned_value_when_co_awaited_as_lvalue)
                 instanceCountBeforeDestruction = statistics.instance_count;
             }
             instanceCountAfterDestruction = statistics.instance_count;
-        }());
+        });
 
     ASSERT_EQ(1, instanceCountBeforeDestruction);
     ASSERT_EQ(0, instanceCountAfterDestruction);
@@ -376,7 +380,7 @@ TEST(shared_task_test, Destroys_returned_value_when_co_awaited_as_rvalue)
                 instanceCountBeforeDestruction = statistics.instance_count;
             }
     instanceCountAfterDestruction = statistics.instance_count;
-        }());
+        });
 
     ASSERT_EQ(0, instanceCountBeforeDestruction);
     ASSERT_EQ(0, instanceCountAfterDestruction);
@@ -408,7 +412,7 @@ TEST(shared_task_test, Destroys_thrown_exception)
                 }
             }
     instanceCountAfterDestruction = statistics.instance_count;
-        }());
+        });
 
     // std::exception_ptr implementation is allowed but not required
     // to copy the exception object.  Thus, the lifetime_tracker

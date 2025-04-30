@@ -163,11 +163,12 @@ TEST(reusable_task_test, reusable_task_destroys_coroutine_if_not_awaited)
 
     {
         // Create a reusable_task and destroy it
-        auto myreusable_task = [&, tracker = statistics.tracker()]()->reusable_task<>
+        auto myreusable_task_lambda = [&, tracker = statistics.tracker()]()->reusable_task<>
         {
             tracker.use();
             co_return;
-        }();
+        };
+        auto myreusable_task = myreusable_task_lambda();
     }
 
     ASSERT_EQ(0, statistics.instance_count);
@@ -231,11 +232,12 @@ TEST(reusable_task_test, reusable_task_destroys_coroutine_if_destroyed_while_sus
 
     {
         // Create and suspend a reusable_task, then destroy it.
-        auto myreusable_task = [&]() -> reusable_task<>
+        auto myreusable_task_lambda = [&]() -> reusable_task<>
         {
             auto tracker = statistics.tracker();
             co_await event;
-        }();
+        };
+        auto myreusable_task = myreusable_task_lambda();
 
         auto awaiter = std::move(myreusable_task).operator co_await();
 

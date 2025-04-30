@@ -200,7 +200,7 @@ template<
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     std::invocable<> TInvocable
-> auto sync_wait(
+> decltype(auto) sync_wait(
     TInvocable&& invocable
 )
 {
