@@ -122,5 +122,23 @@
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       }
     }
+  ],
+  "testPresets": [
+    {
+      "name": "msvc-windows-x64-debug-unit",
+      "configurePreset": "msvc-windows-x64-debug"
+    },
+    {
+      "name": "msvc-windows-x64-release-unit",
+      "configurePreset": "msvc-windows-x64-release"
+    },
+    {
+      "name": "clang-linux-x64-debug-unit",
+      "configurePreset": "clang-linux-x64-debug"
+    },
+    {
+      "name": "clang-linux-x64-release-unit",
+      "configurePreset": "clang-linux-x64-release"
+    }
   ]
 }
