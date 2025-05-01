@@ -113,15 +113,16 @@ TEST(shared_task_test, Can_handle_thrown_exception)
         int);
 }
 
-TEST(shared_task_test, Can_await_string_task)
+ASYNC_TEST(shared_task_test, Can_await_string_task)
 {
-    auto result = sync_wait(
-        []() -> shared_task<std::string>
-        {
-            co_return "hello world";
-        });
+    auto lambda = []() -> shared_task<std::string>
+    {
+        co_return "hello world";
+    };
+    auto task = lambda();
 
-    ASSERT_EQ("hello world", result);
+    EXPECT_EQ("hello world", co_await task);
+    EXPECT_EQ("hello world", co_await task);
 }
 
 ASYNC_TEST(shared_task_test, is_ready_returns_true_if_complete)
