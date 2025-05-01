@@ -227,11 +227,12 @@ TEST(task_test, Task_destroys_coroutine_if_destroyed_while_suspended)
 
     {
         // Create and suspend a task, then destroy it.
-        auto myTask = [&]() -> task<>
+        auto myTaskLambda = [&]() -> task<>
         {
             auto tracker = statistics.tracker();
             co_await event;
-        }();
+        };
+        auto myTask = myTaskLambda();
 
         auto awaiter = std::move(myTask).operator co_await();
 
