@@ -36,6 +36,19 @@ template<
 struct event
 {
     std::source_location SourceLocation;
+
+    friend auto operator<=>(const event&, const event&) = default;
+};
+
+// Base for all tracing events that include arguments
+template<
+    typename ... Args
+> struct arguments
+{
+    using arguments_type = std::tuple<const Args&...>;
+    arguments_type Arguments;
+
+    friend auto operator<=>(const arguments&, const arguments&) = default;
 };
 
 // Base for all tracing events that refer to a promise.
@@ -46,7 +59,9 @@ struct promise_event
     :
     event
 {
-    Promise& Promise;
+    Promise* Promise;
+
+    friend auto operator<=>(const promise_event&, const promise_event&) = default;
 };
 
 // Trace a promise creation
@@ -56,11 +71,10 @@ template<
 >
 struct create
     :
-    public promise_event<Promise>
+    promise_event<Promise>,
+    arguments<Args...>
 {
-    using arguments_reference_type = std::tuple<const Args&...>;
-
-    arguments_reference_type Arguments;
+    friend auto operator<=>(const create&, const create&) = default;
 };
 
 // Trace a promise destruction
@@ -69,8 +83,9 @@ template<
 >
 struct destroy
     :
-    public promise_event<Promise>
+    promise_event<Promise>
 {
+    friend auto operator<=>(const destroy&, const destroy&) = default;
 };
 
 // Base for all tracing events that refer to an awaiter awaited in a promise.
@@ -79,21 +94,22 @@ template<
     typename Awaiter
 >
 struct awaiter_event :
-    public promise_event<Promise>
+    promise_event<Promise>
 {
     static constexpr bool is_initial_suspend = is_traced_promise_initial_suspend_awaiter<Awaiter>;
     static constexpr bool is_final_suspend = is_traced_promise_final_suspend_awaiter<Awaiter>;
     static constexpr bool is_co_yield = is_traced_promise_co_yield_awaiter<Awaiter>;
     static constexpr bool is_co_await = !is_initial_suspend && !is_final_suspend && !is_co_yield;
 
-    Awaiter& Awaiter;
+    Awaiter* Awaiter;
+
+    friend auto operator<=>(const awaiter_event&, const awaiter_event&) = default;
 };
 
 // Base for all tracing events that refer to a result value,
 // either from an awaiter or from the promise itself.
 template<
-    typename Result,
-    typename Tag = void
+    typename Result
 >
 struct result_event
 {
@@ -102,17 +118,20 @@ struct result_event
     using result_reference_type = const Result&;
 
     result_reference_type Result;
+
+    friend auto operator<=>(const result_event&, const result_event&) = default;
 };
 
 // Base for all tracing events that refer to a void result value,
 // either from an awaiter or from the promise itself.
 template<
-    typename Tag
 >
-struct result_event<void, Tag>
+struct result_event<void>
 {
     static constexpr bool is_void_result = true;
     using result_type = void;
+
+    friend auto operator<=>(const result_event&, const result_event&) = default;
 };
 
 template<
@@ -125,9 +144,10 @@ template<
 >
 struct promise_result_event
     :
-    public promise_event<Promise>,
-    public result_event<Result>
+    promise_event<Promise>,
+    result_event<Result>
 {
+    friend auto operator<=>(const promise_result_event&, const promise_result_event&) = default;
 };
 
 // Base for all tracing events that refer to an exception,
@@ -135,6 +155,7 @@ struct promise_result_event
 struct exception_event
 {
     std::exception_ptr Exception;
+    friend auto operator<=>(const exception_event&, const exception_event&) = default;
 };
 
 // Base for awaiter events that return a result.
@@ -145,9 +166,10 @@ template<
 >
 struct awaiter_result_event
     :
-    public awaiter_event<Promise, Awaiter>,
-    public result_event<Result>
+    awaiter_event<Promise, Awaiter>,
+    result_event<Result>
 {
+    friend auto operator<=>(const awaiter_result_event&, const awaiter_result_event&) = default;
 };
 
 // Base for awaiter events that return an exception.
@@ -156,9 +178,10 @@ template<
     typename Awaiter
 > struct awaiter_exception_event
     :
-    public awaiter_event<Promise, Awaiter>,
-    public exception_event
+    awaiter_event<Promise, Awaiter>,
+    exception_event
 {
+    friend auto operator<=>(const awaiter_exception_event&, const awaiter_exception_event&) = default;
 };
 
 // Trace entry to an awaiter await_ready method.
@@ -168,8 +191,9 @@ template<
 >
 struct await_ready_begin
     :
-    public awaiter_event<Promise, Awaiter>
+    awaiter_event<Promise, Awaiter>
 {
+    friend auto operator<=>(const await_ready_begin&, const await_ready_begin&) = default;
 };
 
 // Trace result from an awaiter await_ready method.
@@ -180,8 +204,9 @@ template<
 >
 struct await_ready_result
     :
-    public awaiter_result_event<Promise, Awaiter, Result>
+    awaiter_result_event<Promise, Awaiter, Result>
 {
+    friend auto operator<=>(const await_ready_result&, const await_ready_result&) = default;
 };
 
 // Trace exception from an awaiter await_ready method.
@@ -191,25 +216,23 @@ template<
 >
 struct await_ready_exception
     :
-    public awaiter_exception_event<Promise, Awaiter>
+    awaiter_exception_event<Promise, Awaiter>
 {
+    friend auto operator<=>(const await_ready_exception&, const await_ready_exception&) = default;
 };
 
-// Trace entry to an awaiter await_suspend method.
 template<
     typename Promise,
-    typename Awaiter,
-    typename Argument
+    typename Awaiter
 >
 struct await_suspend_event
     :
-    public awaiter_event<Promise, Awaiter>
+    awaiter_event<Promise, Awaiter>
 {
-    using argument_reference_type = const Argument&;
-    argument_reference_type Argument;
+    friend auto operator<=>(const await_suspend_event&, const await_suspend_event&) = default;
 };
 
-// Trace result from an awaiter await_suspend method.
+// Trace entry from an awaiter await_suspend method.
 template<
     typename Promise,
     typename Awaiter,
@@ -217,8 +240,26 @@ template<
 >
 struct await_suspend_begin
     :
-    public await_suspend_event<Promise, Awaiter, Argument>
+    await_suspend_event<Promise, Awaiter>,
+    arguments<Argument>
 {
+    friend auto operator<=>(const await_suspend_begin&, const await_suspend_begin&) = default;
+};
+
+// Trace result from an await_suspend method.
+template<
+    typename Promise,
+    typename Awaiter,
+    typename Argument,
+    typename Result
+>
+struct await_suspend_result
+    :
+    await_suspend_event<Promise, Awaiter>,
+    arguments<Argument>,
+    result_event<Result>
+{
+    friend auto operator<=>(const await_suspend_result&, const await_suspend_result&) = default;
 };
 
 // Trace exception from an awaiter await_suspend method.
@@ -229,9 +270,11 @@ template<
 >
 struct await_suspend_exception
     :
-    public await_suspend_event<Promise, Awaiter, Argument>,
-    public exception_event
+    await_suspend_event<Promise, Awaiter>,
+    arguments<Argument>,
+    exception_event
 {
+    friend auto operator<=>(const await_suspend_exception&, const await_suspend_exception&) = default;
 };
 
 template<
@@ -246,6 +289,12 @@ struct await_suspend_argument_events
 
     template<
         typename Promise,
+        typename Awaiter,
+        typename Result
+    > using await_suspend_result = traced_promise_events::await_suspend_result<Promise, Awaiter, Argument, Result>;
+
+    template<
+        typename Promise,
         typename Awaiter
     > using await_suspend_exception = traced_promise_events::await_suspend_exception<Promise, Awaiter, Argument>;
 };
@@ -257,8 +306,9 @@ template<
 >
 struct await_resume_begin
     :
-    public awaiter_event<Promise, Awaiter>
+    awaiter_event<Promise, Awaiter>
 {
+    friend auto operator<=>(const await_resume_begin&, const await_resume_begin&) = default;
 };
 
 // Trace result from an awaiter await_resume method.
@@ -269,8 +319,9 @@ template<
 >
 struct await_resume_result
     :
-    public awaiter_result_event<Promise, Awaiter, Result>
+    awaiter_result_event<Promise, Awaiter, Result>
 {
+    friend auto operator<=>(const await_resume_result&, const await_resume_result&) = default;
 };
 
 // Trace exception from an awaiter await_resume method.
@@ -280,8 +331,9 @@ template<
 >
 struct await_resume_exception
     :
-    public awaiter_exception_event<Promise, Awaiter>
+    awaiter_exception_event<Promise, Awaiter>
 {
+    friend auto operator<=>(const await_resume_exception&, const await_resume_exception&) = default;
 };
 
 // Base for promise events that return an exception
@@ -290,9 +342,10 @@ template<
 >
 struct promise_exception_event
     :
-    public promise_event<Promise>,
-    public exception_event
+    promise_event<Promise>,
+    exception_event
 {
+    friend auto operator<=>(const promise_exception_event&, const promise_exception_event&) = default;
 };
 
 // Trace unhandled_exception on a promise.
@@ -300,8 +353,9 @@ template<
     typename Promise
 > struct unhandled_exception
     :
-    public promise_exception_event<Promise>
+    promise_exception_event<Promise>
 {
+    friend auto operator<=>(const unhandled_exception&, const unhandled_exception&) = default;
 };
 
 // Trace entry to an return_void method.
@@ -309,8 +363,9 @@ template<
     typename Promise
 > struct return_void_begin
     :
-    public promise_event<Promise>
+    promise_event<Promise>
 {
+    friend auto operator<=>(const return_void_begin&, const return_void_begin&) = default;
 };
 
 // Trace result from a return_void method.
@@ -319,8 +374,9 @@ template<
     typename Result
 > struct return_void_result
     :
-    public promise_result_event<Promise, Result>
+    promise_result_event<Promise, Result>
 {
+    friend auto operator<=>(const return_void_result&, const return_void_result&) = default;
 };
 
 // Trace exception from a return_void method.
@@ -328,8 +384,9 @@ template<
     typename Promise
 > struct return_void_exception
     :
-    public promise_exception_event<Promise>
+    promise_exception_event<Promise>
 {
+    friend auto operator<=>(const return_void_exception&, const return_void_exception&) = default;
 };
 
 // Trace entry to a return_value method.
@@ -338,8 +395,9 @@ template<
     typename Argument
 > struct return_value_begin
     :
-    public promise_result_event<Promise, Argument>
+    promise_result_event<Promise, Argument>
 {
+    friend auto operator<=>(const return_value_begin&, const return_value_begin&) = default;
 };
 
 // Trace result from a return_value method.
@@ -348,8 +406,9 @@ template<
     typename Result
 > struct return_value_result
     :
-    public promise_result_event<Promise, Result>
+    promise_result_event<Promise, Result>
 {
+    friend auto operator<=>(const return_value_result&, const return_value_result&) = default;
 };
 
 // Trace exception from a return_value method.
@@ -357,8 +416,9 @@ template<
     typename Promise
 > struct return_value_exception
     :
-    public promise_exception_event<Promise>
+    promise_exception_event<Promise>
 {
+    friend auto operator<=>(const return_value_exception&, const return_value_exception&) = default;
 };
 
 template<
@@ -386,8 +446,9 @@ template<
     typename Argument
 > struct yield_value_begin
     :
-    public promise_result_event<Promise, Argument>
+    promise_event<Promise>
 {
+    friend auto operator<=>(const yield_value_begin&, const yield_value_begin&) = default;
 };
 
 // Trace result from a yield_value method.
@@ -396,8 +457,9 @@ template<
     typename Result
 > struct yield_value_result
     :
-    public promise_result_event<Promise, Result>
+    promise_result_event<Promise, Result>
 {
+    friend auto operator<=>(const yield_value_result&, const yield_value_result&) = default;
 };
 
 // Trace exception from a yeild_value method.
@@ -405,8 +467,9 @@ template<
     typename Promise
 > struct yield_value_exception
     :
-    public promise_event<Promise>
+    promise_event<Promise>
 {
+    friend auto operator<=>(const yield_value_exception&, const yield_value_exception&) = default;
 };
 
 template<
@@ -623,7 +686,7 @@ template<
     typename Promise,
     typename Awaitable
 >
-struct traced_initial_suspend_awaiter : public traced_awaiter<Promise, Awaitable>
+struct traced_initial_suspend_awaiter : traced_awaiter<Promise, Awaitable>
 {
     static constexpr bool is_traced_promise_initial_suspend_awaiter = true;
     using traced_initial_suspend_awaiter::traced_awaiter::traced_awaiter;
@@ -633,7 +696,7 @@ template<
     typename Promise,
     typename Awaitable
 >
-struct traced_final_suspend_awaiter : public traced_awaiter<Promise, Awaitable>
+struct traced_final_suspend_awaiter : traced_awaiter<Promise, Awaitable>
 {
     static constexpr bool is_traced_promise_final_suspend_awaiter = true;
     using traced_final_suspend_awaiter::traced_awaiter::traced_awaiter;
@@ -946,7 +1009,7 @@ public:
     template<
         typename TracedAwaiter
     >
-    struct initial_suspend_awaiter : public TracedAwaiter
+    struct initial_suspend_awaiter : TracedAwaiter
     {
         static constexpr bool is_traced_promise_initial_suspend_awaiter = true;
         using TracedAwaiter::TracedAwaiter;

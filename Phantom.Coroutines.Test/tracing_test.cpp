@@ -9,6 +9,9 @@ import Phantom.Coroutines.tracing;
 namespace Phantom::Coroutines
 {
 
+struct tracing_test
+{
 
+};
 
 }
