@@ -56,5 +56,6 @@ export import Phantom.Coroutines.thread_local_context;
 export import Phantom.Coroutines.thread_local_contextual_promise;
 export import Phantom.Coroutines.thread_local_storage;
 export import Phantom.Coroutines.thread_pool_scheduler;
+export import Phantom.Coroutines.tracing;
 export import Phantom.Coroutines.type_traits;
 export import Phantom.Coroutines.variant_result_storage;

@@ -49,6 +49,7 @@ set(
     "thread_local_contextual_promise_test.cpp"
     "thread_local_storage_test.cpp"
     "thread_pool_scheduler_test.cpp"
+    "tracing_test.cpp"
     "type_traits_test.cpp"
 )
 

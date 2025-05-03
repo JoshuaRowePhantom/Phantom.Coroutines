@@ -76,6 +76,7 @@ target_sources(
     "thread_local_contextual_promise.ixx"
     "thread_local_storage.ixx" 
     "thread_pool_scheduler.ixx"
+    "tracing.ixx"
     "type_traits.ixx"
     "variant_result_storage.ixx" 
  )
