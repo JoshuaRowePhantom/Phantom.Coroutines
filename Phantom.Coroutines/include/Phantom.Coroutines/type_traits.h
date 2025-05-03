@@ -482,6 +482,19 @@ template<
     { promise.return_void(awaiter) };
 };
 
+struct has_yield_value_conflicted_name
+{
+    using yield_value = int;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Promise
+> concept has_yield_value = !requires
+{
+    typename conflict_detector<Promise, has_yield_value_conflicted_name>::yield_value;
+};
+
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Continuation
@@ -630,6 +643,8 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_await_transform;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_get_return_object_on_allocation_failure;
+PHANTOM_COROUTINES_MODULE_EXPORT
+using detail::has_yield_value;
 
 } // namespace Phantom::Coroutines
 #endif

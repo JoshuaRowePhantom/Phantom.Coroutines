@@ -34,15 +34,18 @@ static_assert(!has_return_void<std::tuple<>>);
 static_assert(!has_await_suspend<std::tuple<>>);
 static_assert(!has_await_suspend<std::tuple<>&>);
 static_assert(!has_await_suspend<std::tuple<>&&>);
+static_assert(!has_yield_value<std::tuple<>>);
 
 struct has_tested_members
 {
     void await_suspend();
     void return_void();
+    void yield_value();
 };
 
 static_assert(has_return_void<has_tested_members>);
 static_assert(has_await_suspend<has_tested_members>);
+static_assert(has_yield_value<has_tested_members>);
 
 // Verify that filter_tuple_types works
 template<
