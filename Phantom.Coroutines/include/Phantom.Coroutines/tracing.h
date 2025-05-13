@@ -1,6 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_TRACING_H
 #define PHANTOM_COROUTINES_INCLUDE_TRACING_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <concepts>
 #include <exception>
 #include <source_location>
 #include <type_traits>
@@ -9,6 +10,7 @@
 #include "detail/config.h"
 #include "detail/coroutine.h"
 #include "awaiter_wrapper.h"
+#include "extensible_promise.h"
 #include "type_traits.h"
 #endif
 
@@ -18,21 +20,27 @@ PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 namespace Phantom::Coroutines
 {
 
-namespace traced_promise_events
+namespace tracing
 {
+namespace events
+{
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Awaiter
 > concept is_traced_promise_initial_suspend_awaiter = std::remove_cvref_t<Awaiter>::is_traced_promise_initial_suspend_awaiter;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Awaiter
 > concept is_traced_promise_final_suspend_awaiter = std::remove_cvref_t<Awaiter>::is_traced_promise_final_suspend_awaiter;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Awaiter
 > concept is_traced_promise_co_yield_awaiter = std::remove_cvref_t<Awaiter>::is_traced_promise_co_yield_awaiter;
 
 // Base for all tracing events.
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct event
 {
     std::source_location SourceLocation;
@@ -41,6 +49,7 @@ struct event
 };
 
 // Base for all tracing events that include arguments
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Args
 > struct arguments
@@ -52,6 +61,7 @@ template<
 };
 
 // Base for all tracing events that refer to a promise.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 >
@@ -65,6 +75,7 @@ struct promise_event
 };
 
 // Trace a promise creation
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
     typename ... Args
@@ -78,6 +89,7 @@ struct create
 };
 
 // Trace a promise destruction
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 >
@@ -88,26 +100,9 @@ struct destroy
     friend auto operator<=>(const destroy&, const destroy&) = default;
 };
 
-// Base for all tracing events that refer to an awaiter awaited in a promise.
-template<
-    typename Promise,
-    typename Awaiter
->
-struct awaiter_event :
-    promise_event<Promise>
-{
-    static constexpr bool is_initial_suspend = is_traced_promise_initial_suspend_awaiter<Awaiter>;
-    static constexpr bool is_final_suspend = is_traced_promise_final_suspend_awaiter<Awaiter>;
-    static constexpr bool is_co_yield = is_traced_promise_co_yield_awaiter<Awaiter>;
-    static constexpr bool is_co_await = !is_initial_suspend && !is_final_suspend && !is_co_yield;
-
-    Awaiter* Awaiter;
-
-    friend auto operator<=>(const awaiter_event&, const awaiter_event&) = default;
-};
-
 // Base for all tracing events that refer to a result value,
 // either from an awaiter or from the promise itself.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Result
 >
@@ -124,6 +119,7 @@ struct result_event
 
 // Base for all tracing events that refer to a void result value,
 // either from an awaiter or from the promise itself.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
 >
 struct result_event<void>
@@ -134,10 +130,12 @@ struct result_event<void>
     friend auto operator<=>(const result_event&, const result_event&) = default;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 > concept is_void_result_event = T::is_void_result;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
     typename Result
@@ -152,191 +150,266 @@ struct promise_result_event
 
 // Base for all tracing events that refer to an exception,
 // either from an awaiter or from the promise itself.
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct exception_event
 {
     std::exception_ptr Exception;
     friend auto operator<=>(const exception_event&, const exception_event&) = default;
 };
 
-// Base for awaiter events that return a result.
+// Base for all tracing events that refer to an awaiter.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
-    typename Awaiter,
-    typename Result
->
-struct awaiter_result_event
-    :
-    awaiter_event<Promise, Awaiter>,
-    result_event<Result>
-{
-    friend auto operator<=>(const awaiter_result_event&, const awaiter_result_event&) = default;
-};
-
-// Base for awaiter events that return an exception.
-template<
-    typename Promise,
     typename Awaiter
-> struct awaiter_exception_event
-    :
-    awaiter_event<Promise, Awaiter>,
-    exception_event
+>
+struct awaiter_event
+    : event
 {
-    friend auto operator<=>(const awaiter_exception_event&, const awaiter_exception_event&) = default;
+    static constexpr bool is_initial_suspend = is_traced_promise_initial_suspend_awaiter<Awaiter>;
+    static constexpr bool is_final_suspend = is_traced_promise_final_suspend_awaiter<Awaiter>;
+    static constexpr bool is_co_yield = is_traced_promise_co_yield_awaiter<Awaiter>;
+    static constexpr bool is_co_await = !is_initial_suspend && !is_final_suspend && !is_co_yield;
+
+    Awaiter* Awaiter;
+
+    friend auto operator<=>(const awaiter_event&, const awaiter_event&) = default;
 };
 
 // Trace entry to an awaiter await_ready method.
+
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
-    typename Awaiter
+    typename Awaiter,
+    typename ... Arguments
+>
+struct await_ready_event
+    :
+    awaiter_event<Awaiter>,
+    arguments<Arguments...>
+{
+    friend auto operator<=>(const await_ready_event&, const await_ready_event&) = default;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Awaiter,
+    typename ... Arguments
 >
 struct await_ready_begin
     :
-    awaiter_event<Promise, Awaiter>
+    await_ready_event<Awaiter, Arguments...>
 {
     friend auto operator<=>(const await_ready_begin&, const await_ready_begin&) = default;
 };
 
 // Trace result from an awaiter await_ready method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
     typename Awaiter,
-    typename Result
+    typename Result,
+    typename ... Arguments
 >
 struct await_ready_result
     :
-    awaiter_result_event<Promise, Awaiter, Result>
+    await_ready_event<Awaiter, Arguments...>,
+    result_event<Result>
 {
     friend auto operator<=>(const await_ready_result&, const await_ready_result&) = default;
 };
 
 // Trace exception from an awaiter await_ready method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
-    typename Awaiter
+    typename Awaiter,
+    typename ... Arguments
 >
 struct await_ready_exception
     :
-    awaiter_exception_event<Promise, Awaiter>
+    await_ready_event<Awaiter, Arguments...>,
+    exception_event
 {
     friend auto operator<=>(const await_ready_exception&, const await_ready_exception&) = default;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
     typename Awaiter
+>
+struct await_ready_events
+{
+    template<
+        typename ... Arguments
+    >
+    using begin_event = await_ready_begin<Awaiter, Arguments...>;
+
+    template<
+        typename Result,
+        typename ... Arguments
+    > using result_event = await_ready_result<Awaiter, Result, Arguments...>;
+
+    template<
+        typename ... Arguments
+    >
+    using exception_event = await_ready_exception<Awaiter, Arguments...>;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Awaiter,
+    typename ... Arguments
 >
 struct await_suspend_event
     :
-    awaiter_event<Promise, Awaiter>
+    awaiter_event<Awaiter>,
+    arguments<Arguments...>
 {
     friend auto operator<=>(const await_suspend_event&, const await_suspend_event&) = default;
 };
 
 // Trace entry from an awaiter await_suspend method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
     typename Awaiter,
-    typename Argument
+    typename ... Arguments
 >
 struct await_suspend_begin
     :
-    await_suspend_event<Promise, Awaiter>,
-    arguments<Argument>
+    await_suspend_event<Awaiter, Arguments...>
 {
     friend auto operator<=>(const await_suspend_begin&, const await_suspend_begin&) = default;
 };
 
 // Trace result from an await_suspend method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
     typename Awaiter,
-    typename Argument,
-    typename Result
+    typename Result,
+    typename ... Arguments
 >
 struct await_suspend_result
     :
-    await_suspend_event<Promise, Awaiter>,
-    arguments<Argument>,
+    await_suspend_event<Awaiter, Arguments...>,
     result_event<Result>
 {
     friend auto operator<=>(const await_suspend_result&, const await_suspend_result&) = default;
 };
 
 // Trace exception from an awaiter await_suspend method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
     typename Awaiter,
-    typename Argument
+    typename ... Arguments
 >
 struct await_suspend_exception
     :
-    await_suspend_event<Promise, Awaiter>,
-    arguments<Argument>,
+    await_suspend_event<Awaiter, Arguments...>,
     exception_event
 {
     friend auto operator<=>(const await_suspend_exception&, const await_suspend_exception&) = default;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Argument
+    typename Awaiter
 >
-struct await_suspend_argument_events
+struct await_suspend_events
 {
-    template<
-        typename Promise,
-        typename Awaiter
-    > using await_suspend_begin = traced_promise_events::await_suspend_begin<Promise, Awaiter, Argument>;
+    await_suspend_events(const Awaiter&) {}
 
     template<
-        typename Promise,
-        typename Awaiter,
-        typename Result
-    > using await_suspend_result = traced_promise_events::await_suspend_result<Promise, Awaiter, Argument, Result>;
+        typename ... Arguments
+    > using begin_event = await_suspend_begin<Awaiter, Arguments...>;
 
     template<
-        typename Promise,
-        typename Awaiter
-    > using await_suspend_exception = traced_promise_events::await_suspend_exception<Promise, Awaiter, Argument>;
+        typename Result,
+        typename ... Arguments
+    > using result_event = await_suspend_result<Awaiter, Result, Arguments...>;
+
+    template<
+        typename ... Arguments
+    > using exception_event = await_suspend_exception<Awaiter, Arguments...>;
+};
+
+// Base for all tracing events that refer to an awaiter await_ready method.
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Awaiter,
+    typename ... Arguments
+>
+struct await_resume_event
+    :
+    awaiter_event<Awaiter>,
+    arguments<Arguments...>
+{
+    friend auto operator<=>(const await_resume_event&, const await_resume_event&) = default;
 };
 
 // Trace entry to an awaiter await_resume method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
-    typename Awaiter
+    typename Awaiter,
+    typename ... Arguments
 >
 struct await_resume_begin
     :
-    awaiter_event<Promise, Awaiter>
+    await_resume_event<Awaiter, Arguments...>
 {
     friend auto operator<=>(const await_resume_begin&, const await_resume_begin&) = default;
 };
 
 // Trace result from an awaiter await_resume method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
     typename Awaiter,
-    typename Result
+    typename Result,
+    typename ... Arguments
 >
 struct await_resume_result
     :
-    awaiter_result_event<Promise, Awaiter, Result>
+    await_resume_event<Awaiter, Arguments...>,
+    result_event<Result>
 {
     friend auto operator<=>(const await_resume_result&, const await_resume_result&) = default;
 };
 
 // Trace exception from an awaiter await_resume method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise,
-    typename Awaiter
+    typename Awaiter,
+    typename ... Arguments
 >
 struct await_resume_exception
     :
-    awaiter_exception_event<Promise, Awaiter>
+    await_resume_event<Awaiter, Arguments...>,
+    exception_event
 {
     friend auto operator<=>(const await_resume_exception&, const await_resume_exception&) = default;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Awaiter
+>
+struct await_resume_events
+{
+    await_resume_events(Awaiter&) {}
+
+    template<
+        typename ... Arguments
+    > using begin_event = await_resume_begin<Awaiter, Arguments...>;
+
+    template<
+        typename Result,
+        typename ... Arguments
+    > using result_event = await_resume_result<Awaiter, Result, Arguments...>;
+
+    template<
+        typename ... Arguments
+    > using exception_event = await_resume_exception<Awaiter, Arguments...>;
+};
+
 // Base for promise events that return an exception
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 >
@@ -349,6 +422,7 @@ struct promise_exception_event
 };
 
 // Trace unhandled_exception on a promise.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > struct unhandled_exception
@@ -359,6 +433,7 @@ template<
 };
 
 // Trace entry to an return_void method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > struct return_void_begin
@@ -369,6 +444,7 @@ template<
 };
 
 // Trace result from a return_void method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
     typename Result
@@ -380,6 +456,7 @@ template<
 };
 
 // Trace exception from a return_void method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > struct return_void_exception
@@ -390,6 +467,7 @@ template<
 };
 
 // Trace entry to a return_value method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
     typename Argument
@@ -401,6 +479,7 @@ template<
 };
 
 // Trace result from a return_value method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
     typename Result
@@ -412,6 +491,7 @@ template<
 };
 
 // Trace exception from a return_value method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 > struct return_value_exception
@@ -421,6 +501,7 @@ template<
     friend auto operator<=>(const return_value_exception&, const return_value_exception&) = default;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Argument
 >
@@ -428,165 +509,206 @@ struct return_value_argument_events
 {
     template<
         typename Promise
-    > using return_value_begin = traced_promise_events::return_value_begin<Promise, Argument>;
+    > using return_value_begin = events::return_value_begin<Promise, Argument>;
 
     template<
         typename Promise,
         typename Result
-    > using return_value_result = traced_promise_events::return_value_result<Promise, Result>;
+    > using return_value_result = events::return_value_result<Promise, Result>;
 
     template<
         typename Promise
-    > using return_value_exception = traced_promise_events::return_value_exception<Promise>;
+    > using return_value_exception = events::return_value_exception<Promise>;
 };
 
 // Trace entry to a yield_value method.
 template<
     typename Promise,
     typename Argument
+> struct yield_value_event
+    :
+    promise_event<Promise>,
+    arguments<Argument>
+{
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Promise,
+    typename Argument
 > struct yield_value_begin
     :
-    promise_event<Promise>
+    yield_value_event<Promise, Argument>
 {
     friend auto operator<=>(const yield_value_begin&, const yield_value_begin&) = default;
 };
 
 // Trace result from a yield_value method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise,
+    typename Argument,
     typename Result
 > struct yield_value_result
     :
-    promise_result_event<Promise, Result>
+    yield_value_event<Promise, Argument>,
+    result_event<Result>
 {
     friend auto operator<=>(const yield_value_result&, const yield_value_result&) = default;
 };
 
 // Trace exception from a yeild_value method.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Promise
+    typename Promise,
+    typename Argument
 > struct yield_value_exception
     :
-    promise_event<Promise>
+    yield_value_event<Promise, Argument>
 {
     friend auto operator<=>(const yield_value_exception&, const yield_value_exception&) = default;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename Argument
+    typename Promise
 >
 struct yield_value_argument_events
 {
     template<
-        typename Promise
-    > using yield_value_begin = traced_promise_events::yield_value_begin<Promise, Argument>;
+        typename ... Arguments
+    > using yield_value_begin = events::yield_value_begin<Promise, Arguments...>;
+
+    template<
+        typename Result,
+        typename ... Arguments
+    > using yield_value_result = events::yield_value_result<Promise, Result, Arguments...>;
 
     template<
         typename Promise,
-        typename Result
-    > using yield_value_result = traced_promise_events::yield_value_result<Promise, Result>;
-
-    template<
-        typename Promise
-    > using yield_value_exception = traced_promise_events::yield_value_exception<Promise>;
+        typename ... Arguments
+    > using yield_value_exception = events::yield_value_exception<Promise, Arguments...>;
 };
 
-};
+// namespace events
+}
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TraceSink
 > concept is_trace_sink = std::invocable<
     TraceSink,
-    traced_promise_events::event
+    events::event
 >;
 
 namespace detail
 {
 
+struct declare_is_traced_initial_suspend_awaiter
+{
+    static constexpr bool is_traced_promise_initial_suspend_awaiter = true;
+};
+
+struct declare_is_traced_final_suspend_awaiter
+{
+    static constexpr bool is_traced_promise_final_suspend_awaiter = true;
+};
+
+struct declare_is_traced_co_yield_awaiter
+{
+    static constexpr bool is_traced_promise_co_yield_awaiter = true;
+};
+
+struct declare_is_traced_co_await_awaiter
+{
+};
+
 template<
-    typename Promise,
+    typename TraceSink
+>
+struct trace_sink_accessor
+{
+    TraceSink& m_traceSink;
+
+    auto& trace_sink() const
+    {
+        return m_traceSink;
+    }
+};
+
+template<
+    typename TraceSinkAccessor,
     typename Awaitable
 >
 struct traced_awaiter :
+    TraceSinkAccessor,
     awaiter_wrapper<Awaitable>
 {
-    using awaiter_wrapper = awaiter_wrapper<Awaitable>;
+    using awaiter_wrapper = traced_awaiter::awaiter_wrapper;
+    using trace_sink_accessor = TraceSinkAccessor;
+    using traced_awaiter::trace_sink_accessor::trace_sink;
 
     std::source_location m_sourceLocation;
-    Promise& m_promise;
-
-    decltype(auto) trace_sink(
-        this auto& awaiter)
-    {
-        return (
-            awaiter
-            .traced_awaiter::m_promise
-            .Promise::m_traceSink
-            );
-    }
 
     template<
-        typename Awaiter,
-        template<typename Promise, typename Awaiter> typename BeginEventType,
-        template<typename Promise, typename Awaiter, typename Result> typename ResultEventType,
-        template<typename Promise, typename Awaiter> typename ExceptionEventType,
-        std::invocable Call,
-        typename... Args
+        typename Events,
+        std::invocable<> Call,
+        typename... Arguments
     >
-    decltype(auto) call_awaiter(
-        this Awaiter& awaiter,
-        Call call,
-        Args&& ... traceArgs
-    )
+    auto call_awaiter(
+        [[maybe_unused]] this auto& awaiter,
+        Events,
+        [[maybe_unused]] Call call,
+        [[maybe_unused]] std::tuple<Arguments&...> traceArguments
+    ) -> std::invoke_result_t<Call>
     {
         using wrapped_awaiter_type = typename traced_awaiter::awaiter_wrapper::awaiter_type;
-        auto& wrapped_awaiter = awaiter.traced_awaiter::awaiter_wrapper::awaiter();
+
+        using begin_event_type = typename Events::template begin_event<
+            Arguments...
+        >;
+        using result_type = std::invoke_result_t<Call>;
+        using result_event_type = typename Events::template result_event<
+            result_type,
+            Arguments...
+        >;
+        using exception_event_type = typename Events::template exception_event<
+            Arguments...
+        >;
 
         try
         {
             awaiter.traced_awaiter::trace_sink()(
-                BeginEventType<Promise, wrapped_awaiter_type>
-            {
-                awaiter.traced_awaiter::m_sourceLocation,
-                    awaiter.traced_awaiter::m_promise,
-                    wrapped_awaiter,
-                    std::forward<Args>(traceArgs)...,
-            });
+                begin_event_type
+                {
+                    awaiter.traced_awaiter::m_sourceLocation,
+                    &awaiter,
+                    traceArguments
+                });
 
-            using result_type = decltype(call());
-
-            // A successful await_suspend cannot generally speaking refer to the promise object,
-            // as the coroutine may have been resumed and destroyed already.
-            // Therefore is the event type is void, we don't trace.
-            if constexpr (std::same_as<void, ResultEventType<Promise, wrapped_awaiter_type, result_type>>)
-            {
-                return call();
-            }
-            else if constexpr (std::same_as<void, result_type>)
+            if constexpr (std::same_as<void, result_type>)
             {
                 call();
                 awaiter.traced_awaiter::trace_sink()(
-                    ResultEventType<Promise, wrapped_awaiter_type, void>
-                {
-                    awaiter.traced_awaiter::m_sourceLocation,
-                        awaiter.traced_awaiter::m_promise,
-                        wrapped_awaiter,
-                        std::forward<Args>(traceArgs)...
-                });
+                    result_event_type
+                    {
+                        awaiter.traced_awaiter::m_sourceLocation,
+                        &awaiter,
+                        traceArguments,
+                    });
             }
             else
             {
                 decltype(auto) result = call();
 
                 awaiter.traced_awaiter::trace_sink()(
-                    ResultEventType<Promise, wrapped_awaiter_type, result_type>
-                {
-                    awaiter.traced_awaiter::m_sourceLocation,
-                        awaiter.traced_awaiter::m_promise,
-                        wrapped_awaiter,
-                        std::forward<Args>(traceArgs)...,
-                        result
-                });
+                    result_event_type
+                    {
+                        awaiter.traced_awaiter::m_sourceLocation,
+                        &awaiter,
+                        traceArguments,
+                        result,
+                    });
 
                 return result;
             }
@@ -594,113 +716,89 @@ struct traced_awaiter :
         catch (...)
         {
             awaiter.traced_awaiter::trace_sink()(
-                ExceptionEventType<Promise, wrapped_awaiter_type>
-            {
-                awaiter.traced_awaiter::m_sourceLocation,
-                    awaiter.traced_awaiter::m_promise,
-                    wrapped_awaiter,
-                    std::forward<Args>(traceArgs)...,
-                    std::current_exception()
-            });
+                exception_event_type
+                {
+                    awaiter.traced_awaiter::m_sourceLocation,
+                    &awaiter,
+                    traceArguments,
+                    std::current_exception(),
+                });
             throw;
         }
     }
 
-
     decltype(auto) await_ready(
-        [[maybe_unused]]
-    std::source_location sourceLocation = std::source_location::current()
-        ) noexcept(noexcept(this->awaiter_wrapper::await_ready()))
+        this auto& self
+        ) noexcept(noexcept(self.awaiter_wrapper::await_ready()))
     {
-        return this->traced_awaiter::call_awaiter<
-            decltype(*this),
-            traced_promise_events::await_ready_begin,
-            traced_promise_events::await_ready_result,
-            traced_promise_events::await_ready_exception
-        >(
-            [&]()
+        return self.traced_awaiter::call_awaiter(
+            events::await_suspend_events{ self },
+            [&]() -> decltype(auto)
             {
-                return this->awaiter_wrapper::await_ready();
-            }
+                return self.awaiter_wrapper::await_ready();
+            },
+            std::tie()
         );
     }
 
     template<
-        typename Awaiter,
         typename Arg
     >
     decltype(auto) await_suspend(
-        this Awaiter&& awaiter,
+        this auto& self,
         Arg&& arg
-    ) noexcept(noexcept(std::forward<Awaiter>(awaiter).awaiter_wrapper::await_suspend(std::forward<Arg>(arg))))
+        ) noexcept(noexcept(self.awaiter_wrapper::await_suspend(std::forward<Arg>(arg))))
     {
-        return awaiter.call_awaiter<
-            Awaiter,
-            traced_promise_events::await_suspend_argument_events<Arg>::await_suspend_begin,
-            std::void_t,
-            traced_promise_events::await_suspend_argument_events<Arg>::await_suspend_exception
-        >(
-            [&]()
+        return self.traced_awaiter::call_awaiter(
+            events::await_suspend_events{ self },
+            [&]() -> decltype(auto)
             {
-                return std::forward<Awaiter>(awaiter).awaiter_wrapper::await_suspend(
+                return self.awaiter_wrapper::await_suspend(
                     std::forward<Arg>(arg));
             },
-            std::forward<Arg>(arg)
+            std::tie(arg)
         );
     }
 
-    template<
-        typename Awaiter
-    >
     decltype(auto) await_resume(
-        this Awaiter&& awaiter
-    ) noexcept(noexcept(std::forward<Awaiter>(awaiter).awaiter_wrapper::await_resume()))
+        this auto& self
+    ) noexcept(noexcept(self.awaiter_wrapper::await_resume()))
     {
-        return awaiter.traced_awaiter::call_awaiter<
-            Awaiter,
-            traced_promise_events::await_resume_begin,
-            traced_promise_events::await_resume_result,
-            traced_promise_events::await_resume_exception
-        >(
-            [&]()
+        return self.traced_awaiter::call_awaiter(
+            events::await_resume_events{ self },
+            [&]() -> decltype(auto)
             {
-                return std::forward<Awaiter>(awaiter).awaiter_wrapper::await_resume();
-            }
+                return self.awaiter_wrapper::await_resume();
+            },
+            std::tie()
         );
     }
 
     traced_awaiter(
         std::source_location sourceLocation,
-        Promise& promise,
-        std::invocable auto awaiterFunction
+        std::invocable auto awaiterFunction,
+        TraceSinkAccessor traceSinkAccessor
     )
         :
+        TraceSinkAccessor{ traceSinkAccessor },
         m_sourceLocation{ sourceLocation },
-        m_promise{ promise },
         awaiter_wrapper{ std::move(awaiterFunction) }
     {
     }
 };
 
 template<
-    typename Promise,
-    typename Awaitable
+    std::invocable AwaiterFunction,
+    typename TraceSinkAccessor
 >
-struct traced_initial_suspend_awaiter : traced_awaiter<Promise, Awaitable>
-{
-    static constexpr bool is_traced_promise_initial_suspend_awaiter = true;
-    using traced_initial_suspend_awaiter::traced_awaiter::traced_awaiter;
-};
-
-template<
-    typename Promise,
-    typename Awaitable
->
-struct traced_final_suspend_awaiter : traced_awaiter<Promise, Awaitable>
-{
-    static constexpr bool is_traced_promise_final_suspend_awaiter = true;
-    using traced_final_suspend_awaiter::traced_awaiter::traced_awaiter;
-};
+traced_awaiter(
+    std::source_location,
+    AwaiterFunction,
+    TraceSinkAccessor
+) -> traced_awaiter<
+    TraceSinkAccessor,
+    std::invoke_result_t<AwaiterFunction>
+>;
 
 template<
     is_trace_sink TraceSink
@@ -708,42 +806,45 @@ template<
 class traced_promise_trace_sink_storage
 {
     template<
-        typename Promise,
-        typename Awaitable
+        typename Declaration
     >
-    friend struct ::Phantom::Coroutines::detail::traced_awaiter;
+    struct traced_promise_trace_sink_accessor;
+
+public:
+    using trace_sink_type = TraceSink;
 
 protected:
     TraceSink m_traceSink;
 
     traced_promise_trace_sink_storage(
-        auto&& ... args
+        auto& ... args
     )
         requires std::constructible_from<TraceSink, decltype(args)...>
     :
-    m_traceSink{ std::forward<decltype(args)>(args)... }
+    m_traceSink{ args... }
     {
         m_traceSink(
-            traced_promise_events::create<
-            traced_promise_trace_sink_storage,
-            decltype(args)...
+            events::create<
+                traced_promise_trace_sink_storage,
+                decltype(args)&...
             >
         {
             std::source_location::current(),
-                * this,
-            { args ... }
+            this,
+            std::tie(args...)
         });
     }
 
     traced_promise_trace_sink_storage(
-        auto&& ... args
+        auto& ... args
     )
         requires !std::constructible_from<TraceSink, decltype(args)...>
+    && std::constructible_from<TraceSink>
     :
     m_traceSink{}
     {
         m_traceSink(
-            traced_promise_events::create<
+            events::create<
             traced_promise_trace_sink_storage,
             decltype(args)...
             >
@@ -767,14 +868,16 @@ protected:
         auto&& ... traceArgs
     )
     {
+        using promise_type = std::remove_cvref_t<Promise>;
+
         try
         {
             promise.traced_promise_trace_sink_storage::m_traceSink(
-                BeginEventType<Promise>
+                BeginEventType<promise_type>
             {
                 sourceLocation,
-                    promise,
-                    std::forward<decltype(traceArgs)>(traceArgs)...
+                &promise,
+                std::forward<decltype(traceArgs)>(traceArgs)...
             });
 
             using result_type = decltype(call());
@@ -783,10 +886,10 @@ protected:
                 call();
 
                 promise.traced_promise_trace_sink_storage::m_traceSink(
-                    ResultEventType<Promise, void>
+                    ResultEventType<promise_type, void>
                 {
                     sourceLocation,
-                        promise,
+                    &promise,
                 });
             }
             else
@@ -794,12 +897,12 @@ protected:
                 decltype(auto) result = call();
 
                 promise.traced_promise_trace_sink_storage::m_traceSink(
-                    ResultEventType<Promise, result_type>
+                    ResultEventType<promise_type, result_type>
                 {
                     sourceLocation,
-                        promise,
-                        std::forward<decltype(traceArgs)>(traceArgs)...,
-                        result
+                    &promise,
+                    std::forward<decltype(traceArgs)>(traceArgs)...,
+                    result
                 });
 
                 return std::forward<decltype(result)>(result);
@@ -808,11 +911,11 @@ protected:
         catch (...)
         {
             promise.traced_promise_trace_sink_storage::m_traceSink(
-                ExceptionEventType<Promise>
+                ExceptionEventType<promise_type>
             {
                 sourceLocation,
-                    promise,
-                    std::current_exception(),
+                &promise,
+                std::current_exception(),
             });
             throw;
         }
@@ -849,9 +952,9 @@ public:
     {
         return call_promise<
             Promise,
-            traced_promise_events::yield_value_argument_events<decltype(value)>::yield_value_begin,
-            traced_promise_events::yield_value_argument_events<decltype(value)>::yield_value_result,
-            traced_promise_events::yield_value_argument_events<decltype(value)>::yield_value_exception
+            events::yield_value_argument_events<decltype(value)>::yield_value_begin,
+            events::yield_value_argument_events<decltype(value)>::yield_value_result,
+            events::yield_value_argument_events<decltype(value)>::yield_value_exception
         >(
             promise,
             sourceLocation,
@@ -888,9 +991,9 @@ public:
     {
         return std::forward<Promise>(promise).call_promise<
             Promise,
-            traced_promise_events::return_value_argument_events<Value>::return_value_begin,
-            traced_promise_events::return_value_argument_events<Value>::return_value_result,
-            traced_promise_events::return_value_argument_events<Value>::return_value_exception
+            events::return_value_argument_events<Value>::return_value_begin,
+            events::return_value_argument_events<Value>::return_value_result,
+            events::return_value_argument_events<Value>::return_value_exception
         >(
             sourceLocation,
             [&]()
@@ -928,9 +1031,9 @@ public:
     {
         return promise.call_promise<
             Promise,
-            traced_promise_events::return_void_begin,
-            traced_promise_events::return_void_result,
-            traced_promise_events::return_void_exception
+            events::return_void_begin,
+            events::return_void_result,
+            events::return_void_exception
         >(
             sourceLocation,
             [&]()
@@ -952,6 +1055,7 @@ using traced_promise_base = traced_promise_return_value_or_void<TraceSink, BaseP
 // Use suppress_trace to suppress tracing of an awaitable.
 // Example:
 //    co_await suppress_trace{ m_event.Wait() };
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Awaiter
 >
@@ -963,12 +1067,14 @@ struct suppress_trace
 // Use trace to send a value to the trace sink.
 // Example:
 //    co_await trace{ my_trace_event_information{} };
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct trace
     :
-    traced_promise_events::event
+    events::event
 {
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_trace_sink TraceSink,
     is_extensible_promise BasePromise
@@ -978,17 +1084,15 @@ class traced_promise
     public detail::traced_promise_base<TraceSink, BasePromise>
 {
     template<
-        typename Promise,
-        typename Awaitable
+        typename Declaration
     >
-    friend struct ::Phantom::Coroutines::detail::traced_awaiter;
+    struct traced_promise_trace_sink_accessor;
 
 protected:
     using base_promise = detail::traced_promise_base<TraceSink, BasePromise>;
     using base_promise::m_traceSink;
 
 public:
-
     traced_promise(
         auto&& ... args
     ) :
@@ -999,21 +1103,12 @@ public:
     ~traced_promise()
     {
         m_traceSink(
-            traced_promise_events::destroy<traced_promise>
+            events::destroy<traced_promise>
         {
             std::source_location::current(),
-            *this
+            this
         });
     }
-
-    template<
-        typename TracedAwaiter
-    >
-    struct initial_suspend_awaiter : TracedAwaiter
-    {
-        static constexpr bool is_traced_promise_initial_suspend_awaiter = true;
-        using TracedAwaiter::TracedAwaiter;
-    };
 
     template<
         typename Promise
@@ -1023,13 +1118,14 @@ public:
         std::source_location sourceLocation = std::source_location::current()
     )
     {
-        using awaiter_type = detail::traced_initial_suspend_awaiter<Promise, decltype(promise.base_promise::initial_suspend())>;
-
-        return awaiter_type
+        return detail::traced_awaiter
         {
             sourceLocation,
-            promise,
-            [&]() { return promise.base_promise::initial_suspend(); }
+            [&]() { return promise.base_promise::initial_suspend(); },
+            detail::trace_sink_accessor
+            {
+                promise.traced_promise::m_traceSink
+            }
         };
     }
 
@@ -1041,13 +1137,14 @@ public:
         std::source_location sourceLocation = std::source_location::current()
     ) noexcept
     {
-        using awaiter_type = detail::traced_final_suspend_awaiter<Promise, decltype(promise.base_promise::final_suspend())>;
-
-        return awaiter_type
+        return detail::traced_awaiter
         {
             sourceLocation,
-            promise,
-            [&]() { return promise.base_promise::final_suspend(); }
+            [&]() { return promise.base_promise::final_suspend(); },
+            detail::trace_sink_accessor
+            {
+                promise.traced_promise::m_traceSink
+            }
         };
     }
 
@@ -1060,59 +1157,41 @@ public:
     )
     {
         promise.traced_promise::m_traceSink(
-            traced_promise_events::unhandled_exception<Promise>
+            events::unhandled_exception<Promise>
         {
             sourceLocation,
-                promise,
-                std::current_exception()
+            &promise,
+            std::current_exception()
         });
 
         promise.base_promise::unhandled_exception();
     }
 
-    template<
-        typename Promise,
-        typename Awaiter
-    >
     auto await_transform(
-        this Promise& promise,
-        Awaiter&& awaiter,
+        this auto& promise,
+        auto&& awaiter,
         std::source_location sourceLocation = std::source_location::current()
     )
     {
-        if constexpr (std::derived_from<Awaiter, trace>)
+        return detail::traced_awaiter
         {
-            promise.m_traceSink(
-                std::forward<Awaiter>(awaiter));
-            return suspend_never{};
-        }
-        else
-        {
-            auto transformAwaiter = [&]() -> decltype(auto)
-                {
-                    return promise.base_promise::await_transform(
-                        std::forward<decltype(awaiter)>(awaiter));
-                };
-
-            using transformed_awaiter_type = decltype(transformAwaiter());
-
-            return detail::traced_awaiter<
-                Promise,
-                transformed_awaiter_type
-            >
+            sourceLocation,
+            [&]() 
+            { 
+                return promise.base_promise::await_transform(
+                    std::forward<decltype(awaiter)>(awaiter)); 
+            },
+            detail::trace_sink_accessor
             {
-                sourceLocation,
-                    promise,
-                    transformAwaiter
-            };
-        }
+                promise.traced_promise::m_traceSink
+            }
+        };
     }
 
     template<
-        typename Promise,
         typename Awaiter
     > decltype(auto) await_transform(
-        this Promise& promise,
+        this auto& promise,
         const suppress_trace<Awaiter>& noTraceAwaiter
     )
     {
@@ -1120,9 +1199,240 @@ public:
             noTraceAwaiter.value
         );
     }
+
+    suspend_never await_transform(
+        this auto& promise,
+        std::derived_from<trace> auto& traceEvent
+    )
+    {
+        promise.m_traceSink(
+            traceEvent);
+        return suspend_never{};
+    }
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
+namespace filters
+{
+
+struct filter
+{
+    constexpr std::false_type operator()(const events::event&) const noexcept {
+        return {};
+    }
+
+    template<
+        std::derived_from<filter> Left,
+        std::derived_from<filter> Right
+    >
+    friend constexpr auto operator&&(
+        Left left,
+        Right right
+        ) noexcept
+    {
+        return [=](const events::event& event) {
+            return left(event) && right(event);
+            };
+    }
+
+    template<
+        std::derived_from<filter> Left,
+        std::derived_from<filter> Right
+    >
+    friend constexpr auto operator||(
+        const Left& left, 
+        const Right& right
+        ) noexcept
+    {
+        return [=](const events::event& event) {
+            return left(event) || right(event);
+            };
+    }
+
+    template<
+        std::derived_from<filter> Filter
+    >
+    friend constexpr auto operator!(
+        const Filter& filter
+        ) noexcept
+    {
+        return [=](const events::event& event) {
+            return !filter(event);
+            };
+    }
+};
+
+struct has_arguments_fn : filter {
+    template<typename... Arguments>
+    constexpr std::true_type operator()(const events::arguments<Arguments...>&) const noexcept {
+        return {};
+    }
+};
+constexpr has_arguments_fn has_arguments{};
+
+struct has_void_result_fn : filter {
+    constexpr std::true_type operator()(const events::result_event<void>&) const noexcept {
+        return {};
+    }
+};
+constexpr has_void_result_fn has_void_result{};
+
+struct has_result_fn : filter {
+    template<typename Result>
+    constexpr std::true_type operator()(const events::result_event<Result>&) const noexcept {
+        return {};
+    }
+};
+constexpr has_result_fn has_result{};
+
+struct has_exception_fn : filter {
+    constexpr std::true_type operator()(const events::exception_event&) const noexcept {
+        return {};
+    }
+};
+constexpr has_exception_fn has_exception{};
+
+struct has_promise_fn : filter {
+    template<typename Promise>
+    constexpr std::true_type operator()(const events::promise_event<Promise>&) const noexcept {
+        return {};
+    }
+};
+constexpr has_promise_fn has_promise{};
+
+struct has_awaiter_fn : filter {
+    template<typename Awaiter>
+    constexpr std::true_type operator()(const events::awaiter_event<Awaiter>&) const noexcept {
+        return {};
+    }
+};
+constexpr has_awaiter_fn has_awaiter{};
+
+struct is_create_promise_fn : filter {
+    template<typename Promise, typename... Arguments>
+    constexpr std::true_type operator()(const events::create<Promise, Arguments...>&) const noexcept {
+        return {};
+    }
+};
+constexpr is_create_promise_fn is_create_promise{};
+
+struct is_destroy_promise_fn : filter {
+    template<typename Promise>
+    constexpr std::true_type operator()(const events::destroy<Promise>&) const noexcept {
+        return {};
+    }
+};
+constexpr is_destroy_promise_fn is_destroy_promise{};
+
+struct is_await_ready_fn : filter {
+    template<typename Awaiter, typename... Arguments>
+    constexpr std::true_type operator()(const events::await_ready_event<Awaiter, Arguments...>&) const noexcept {
+        return {};
+    }
+};
+constexpr is_await_ready_fn is_await_ready{};
+
+struct is_await_suspend_fn : filter {
+    template<typename Awaiter, typename... Arguments>
+    constexpr std::true_type operator()(const events::await_suspend_event<Awaiter, Arguments...>&) const noexcept {
+        return {};
+    }
+};
+constexpr is_await_suspend_fn is_await_suspend{};
+
+struct is_await_resume_fn : filter {
+    template<typename Awaiter, typename... Arguments>
+    constexpr std::true_type operator()(const events::await_resume_event<Awaiter, Arguments...>&) const noexcept {
+        return {};
+    }
+};
+constexpr is_await_resume_fn is_await_resume{};
+
+struct is_return_void_fn : filter {
+    template<typename Promise>
+    constexpr std::true_type operator()(const events::return_void_begin<Promise>&) const noexcept {
+        return {};
+    }
+};
+constexpr is_return_void_fn is_return_void{};
+
+struct is_return_value_fn : filter {
+    template<typename Promise, typename... Arguments>
+    constexpr std::true_type operator()(const events::return_value_begin<Promise, Arguments...>&) const noexcept {
+        return {};
+    }
+};
+constexpr is_return_value_fn is_return_value{};
+
+struct is_yield_value_fn : filter {
+    template<typename Promise, typename... Arguments>
+    constexpr std::true_type operator()(const events::yield_value_event<Promise, Arguments...>&) const noexcept {
+        return {};
+    }
+};
+constexpr is_yield_value_fn is_yield_value{};
+
+struct is_unhandled_exception_fn : filter {
+    template<typename Promise>
+    constexpr std::true_type operator()(const events::unhandled_exception<Promise>&) const noexcept {
+        return {};
+    }
+};
+constexpr is_unhandled_exception_fn is_unhandled_exception{};
+
+struct is_initial_suspend_fn : filter {
+    template<typename Awaiter>
+    constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
+        return std::bool_constant<decltype(event)::is_initial_suspend>{};
+    }
+};
+constexpr is_initial_suspend_fn is_initial_suspend{};
+
+struct is_final_suspend_fn : filter {
+    template<typename Awaiter>
+    constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
+        return std::bool_constant<decltype(event)::is_final_suspend>{};
+    }
+};
+constexpr is_final_suspend_fn is_final_suspend{};
+
+struct is_co_yield_fn : filter {
+    template<typename Awaiter>
+    constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
+        return std::bool_constant<decltype(event)::is_co_yield>{};
+    }
+};
+constexpr is_co_yield_fn is_co_yield{};
+
+struct is_co_await_fn : filter {
+    template<typename Awaiter>
+    constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
+        return std::bool_constant<decltype(event)::is_co_await>{};
+    }
+};
+constexpr is_co_await_fn is_co_await{};
+
+constexpr auto constant_filtered_trace_sink(
+    auto&& traceSink,
+    auto filter
+)
+{
+    return [traceSink = std::forward<decltype(traceSink)>(traceSink), filter](const auto& event)
+    {
+        if constexpr (filter(event))
+        {
+            traceSink(event);
+        }
+    };
 }
 
+// namespace filters
+}
+
+// namespace tracing
+}
+
+// namespace Phantom::Coroutines
+}
 
 #endif
