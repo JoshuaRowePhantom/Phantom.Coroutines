@@ -80,12 +80,12 @@ template<
     typename Promise,
     typename ... Args
 >
-struct create
+struct create_promise
     :
     promise_event<Promise>,
     arguments<Args...>
 {
-    friend auto operator<=>(const create&, const create&) = default;
+    friend auto operator<=>(const create_promise&, const create_promise&) = default;
 };
 
 // Trace a promise destruction
@@ -93,11 +93,11 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
 >
-struct destroy
+struct destroy_promise
     :
     promise_event<Promise>
 {
-    friend auto operator<=>(const destroy&, const destroy&) = default;
+    friend auto operator<=>(const destroy_promise&, const destroy_promise&) = default;
 };
 
 // Base for all tracing events that refer to a result value,
@@ -153,7 +153,7 @@ struct promise_result_event
 PHANTOM_COROUTINES_MODULE_EXPORT
 struct exception_event
 {
-    std::exception_ptr Exception;
+    std::exception_ptr exception;
     friend auto operator<=>(const exception_event&, const exception_event&) = default;
 };
 
@@ -816,7 +816,11 @@ public:
 protected:
     TraceSink m_traceSink;
 
+    template<
+        typename Promise
+    >
     traced_promise_trace_sink_storage(
+        Promise& self,
         auto& ... args
     )
         requires std::constructible_from<TraceSink, decltype(args)...>
@@ -824,18 +828,22 @@ protected:
     m_traceSink{ args... }
     {
         m_traceSink(
-            events::create<
-                traced_promise_trace_sink_storage,
+            events::create_promise<
+                Promise,
                 decltype(args)&...
             >
         {
             std::source_location::current(),
-            this,
+            &self,
             std::tie(args...)
         });
     }
 
+    template<
+        typename Promise
+    >
     traced_promise_trace_sink_storage(
+        Promise& self,
         auto& ... args
     )
         requires !std::constructible_from<TraceSink, decltype(args)...>
@@ -844,14 +852,14 @@ protected:
     m_traceSink{}
     {
         m_traceSink(
-            events::create<
-            traced_promise_trace_sink_storage,
-            decltype(args)...
+            events::create_promise<
+                Promise,
+                decltype(args)...
             >
         {
             std::source_location::current(),
-                * this,
-                std::make_tuple<const decltype(args)&...>(args...)
+            &self,
+            std::make_tuple<const decltype(args)&...>(args...)
         });
     }
 
@@ -932,10 +940,14 @@ class traced_promise_yield_value
     public derived_promise<BasePromise>
 {
 public:
+    template<
+        typename Promise
+    >
     traced_promise_yield_value(
+        Promise& self,
         auto&& ... args
     ) :
-        traced_promise_yield_value::traced_promise_trace_sink_storage{ std::forward<decltype(args)>(args)... },
+        traced_promise_yield_value::traced_promise_trace_sink_storage{ self, std::forward<decltype(args)>(args)... },
         traced_promise_yield_value::derived_promise{ std::forward<decltype(args)>(args)... }
     {
     }
@@ -1096,14 +1108,14 @@ public:
     traced_promise(
         auto&& ... args
     ) :
-        base_promise{ std::forward<decltype(args)>(args)... }
+        base_promise{ *this, std::forward<decltype(args)>(args)... }
     {
     }
 
     ~traced_promise()
     {
         m_traceSink(
-            events::destroy<traced_promise>
+            events::destroy_promise<traced_promise>
         {
             std::source_location::current(),
             this
@@ -1263,6 +1275,7 @@ struct filter
 };
 
 struct has_arguments_fn : filter {
+    using filter::operator();
     template<typename... Arguments>
     constexpr std::true_type operator()(const events::arguments<Arguments...>&) const noexcept {
         return {};
@@ -1271,6 +1284,7 @@ struct has_arguments_fn : filter {
 constexpr has_arguments_fn has_arguments{};
 
 struct has_void_result_fn : filter {
+    using filter::operator();
     constexpr std::true_type operator()(const events::result_event<void>&) const noexcept {
         return {};
     }
@@ -1278,6 +1292,7 @@ struct has_void_result_fn : filter {
 constexpr has_void_result_fn has_void_result{};
 
 struct has_result_fn : filter {
+    using filter::operator();
     template<typename Result>
     constexpr std::true_type operator()(const events::result_event<Result>&) const noexcept {
         return {};
@@ -1286,13 +1301,22 @@ struct has_result_fn : filter {
 constexpr has_result_fn has_result{};
 
 struct has_exception_fn : filter {
-    constexpr std::true_type operator()(const events::exception_event&) const noexcept {
-        return {};
+    template<
+        std::derived_from<events::event> Event
+    >
+    constexpr auto operator()(
+        const Event&
+        ) const noexcept {
+        return std::is_base_of<
+            events::exception_event,
+            Event
+        >{};
     }
 };
 constexpr has_exception_fn has_exception{};
 
 struct has_promise_fn : filter {
+    using filter::operator();
     template<typename Promise>
     constexpr std::true_type operator()(const events::promise_event<Promise>&) const noexcept {
         return {};
@@ -1301,6 +1325,7 @@ struct has_promise_fn : filter {
 constexpr has_promise_fn has_promise{};
 
 struct has_awaiter_fn : filter {
+    using filter::operator();
     template<typename Awaiter>
     constexpr std::true_type operator()(const events::awaiter_event<Awaiter>&) const noexcept {
         return {};
@@ -1309,22 +1334,25 @@ struct has_awaiter_fn : filter {
 constexpr has_awaiter_fn has_awaiter{};
 
 struct is_create_promise_fn : filter {
+    using filter::operator();
     template<typename Promise, typename... Arguments>
-    constexpr std::true_type operator()(const events::create<Promise, Arguments...>&) const noexcept {
+    constexpr std::true_type operator()(const events::create_promise<Promise, Arguments...>&) const noexcept {
         return {};
     }
 };
 constexpr is_create_promise_fn is_create_promise{};
 
 struct is_destroy_promise_fn : filter {
+    using filter::operator();
     template<typename Promise>
-    constexpr std::true_type operator()(const events::destroy<Promise>&) const noexcept {
+    constexpr std::true_type operator()(const events::destroy_promise<Promise>&) const noexcept {
         return {};
     }
 };
 constexpr is_destroy_promise_fn is_destroy_promise{};
 
 struct is_await_ready_fn : filter {
+    using filter::operator();
     template<typename Awaiter, typename... Arguments>
     constexpr std::true_type operator()(const events::await_ready_event<Awaiter, Arguments...>&) const noexcept {
         return {};
@@ -1333,6 +1361,7 @@ struct is_await_ready_fn : filter {
 constexpr is_await_ready_fn is_await_ready{};
 
 struct is_await_suspend_fn : filter {
+    using filter::operator();
     template<typename Awaiter, typename... Arguments>
     constexpr std::true_type operator()(const events::await_suspend_event<Awaiter, Arguments...>&) const noexcept {
         return {};
@@ -1341,6 +1370,7 @@ struct is_await_suspend_fn : filter {
 constexpr is_await_suspend_fn is_await_suspend{};
 
 struct is_await_resume_fn : filter {
+    using filter::operator();
     template<typename Awaiter, typename... Arguments>
     constexpr std::true_type operator()(const events::await_resume_event<Awaiter, Arguments...>&) const noexcept {
         return {};
@@ -1349,6 +1379,7 @@ struct is_await_resume_fn : filter {
 constexpr is_await_resume_fn is_await_resume{};
 
 struct is_return_void_fn : filter {
+    using filter::operator();
     template<typename Promise>
     constexpr std::true_type operator()(const events::return_void_begin<Promise>&) const noexcept {
         return {};
@@ -1357,6 +1388,7 @@ struct is_return_void_fn : filter {
 constexpr is_return_void_fn is_return_void{};
 
 struct is_return_value_fn : filter {
+    using filter::operator();
     template<typename Promise, typename... Arguments>
     constexpr std::true_type operator()(const events::return_value_begin<Promise, Arguments...>&) const noexcept {
         return {};
@@ -1365,6 +1397,7 @@ struct is_return_value_fn : filter {
 constexpr is_return_value_fn is_return_value{};
 
 struct is_yield_value_fn : filter {
+    using filter::operator();
     template<typename Promise, typename... Arguments>
     constexpr std::true_type operator()(const events::yield_value_event<Promise, Arguments...>&) const noexcept {
         return {};
@@ -1373,6 +1406,7 @@ struct is_yield_value_fn : filter {
 constexpr is_yield_value_fn is_yield_value{};
 
 struct is_unhandled_exception_fn : filter {
+    using filter::operator();
     template<typename Promise>
     constexpr std::true_type operator()(const events::unhandled_exception<Promise>&) const noexcept {
         return {};
@@ -1381,6 +1415,7 @@ struct is_unhandled_exception_fn : filter {
 constexpr is_unhandled_exception_fn is_unhandled_exception{};
 
 struct is_initial_suspend_fn : filter {
+    using filter::operator();
     template<typename Awaiter>
     constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
         return std::bool_constant<decltype(event)::is_initial_suspend>{};
@@ -1389,6 +1424,7 @@ struct is_initial_suspend_fn : filter {
 constexpr is_initial_suspend_fn is_initial_suspend{};
 
 struct is_final_suspend_fn : filter {
+    using filter::operator();
     template<typename Awaiter>
     constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
         return std::bool_constant<decltype(event)::is_final_suspend>{};
@@ -1397,6 +1433,7 @@ struct is_final_suspend_fn : filter {
 constexpr is_final_suspend_fn is_final_suspend{};
 
 struct is_co_yield_fn : filter {
+    using filter::operator();
     template<typename Awaiter>
     constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
         return std::bool_constant<decltype(event)::is_co_yield>{};
@@ -1405,12 +1442,32 @@ struct is_co_yield_fn : filter {
 constexpr is_co_yield_fn is_co_yield{};
 
 struct is_co_await_fn : filter {
+    using filter::operator();
     template<typename Awaiter>
     constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
         return std::bool_constant<decltype(event)::is_co_await>{};
     }
 };
 constexpr is_co_await_fn is_co_await{};
+
+template<
+    typename Event
+>
+struct check_constexpr_fn
+{
+    template<
+        std::derived_from<filter> Filter
+    > constexpr auto operator()(
+        Filter filter
+        ) const noexcept
+    {
+        return decltype(filter(std::declval<Event>())){};
+    }
+};
+
+template<
+    typename Event
+> constexpr check_constexpr_fn<Event> check_constexpr{};
 
 constexpr auto constant_filtered_trace_sink(
     auto&& traceSink,
