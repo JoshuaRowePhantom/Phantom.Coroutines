@@ -1,5 +1,6 @@
 #include "async_test.h"
 #include <typeindex>
+#include "Phantom.Coroutines/detail/config_macros.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
@@ -104,9 +105,9 @@ void ExpectIsFinalSuspend(
     EXPECT_EQ(true, event->is_final_suspend);
 }
 
-#pragma warning (disable: 4702)
 ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
 {
+    PHANTOM_COROUTINES_MSVC_PUSH_DISABLE_WARNING(4702)
     auto taskLambda = [](
         traced_events_checker& eventsChecker,
         std::string inputArgument
@@ -114,7 +115,8 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
     {
         co_return;
     };
-    
+    PHANTOM_COROUTINES_MSVC_POP()
+
     int eventIndex = 0;
     test_traced_promise<void>* expectedPromise = nullptr;
     

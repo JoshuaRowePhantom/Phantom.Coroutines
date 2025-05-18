@@ -1,4 +1,5 @@
 #include "async_test.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
@@ -19,16 +20,11 @@ enum TaggedPointerTag
 };
 
 // Disable warning that structure padded due to alignment specifier
-#if _MSVC_LANG
-#pragma warning(push)
-#pragma warning(disable:4324)
-#endif
+PHANTOM_COROUTINES_MSVC_PUSH_DISABLE_WARNING(4324)
 struct alignas(8) TaggedPointerStruct
 {
 };
-#if _MSVC_LANG
-#pragma warning(pop)
-#endif
+PHANTOM_COROUTINES_MSVC_POP()
 
 }
 
