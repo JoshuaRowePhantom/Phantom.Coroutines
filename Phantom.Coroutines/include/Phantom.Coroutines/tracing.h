@@ -39,6 +39,11 @@ template<
     typename Awaiter
 > concept is_traced_promise_co_yield_awaiter = std::remove_cvref_t<Awaiter>::is_traced_promise_co_yield_awaiter;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Awaiter
+> concept is_traced_promise_co_await_awaiter = std::remove_cvref_t<Awaiter>::is_traced_promise_co_await_awaiter;
+
 // Base for all tracing events.
 PHANTOM_COROUTINES_MODULE_EXPORT
 struct event
@@ -168,7 +173,7 @@ struct awaiter_event
     static constexpr bool is_initial_suspend = is_traced_promise_initial_suspend_awaiter<Awaiter>;
     static constexpr bool is_final_suspend = is_traced_promise_final_suspend_awaiter<Awaiter>;
     static constexpr bool is_co_yield = is_traced_promise_co_yield_awaiter<Awaiter>;
-    static constexpr bool is_co_await = !is_initial_suspend && !is_final_suspend && !is_co_yield;
+    static constexpr bool is_co_await = is_traced_promise_co_await_awaiter<Awaiter>;
 
     Awaiter* Awaiter;
 
@@ -237,6 +242,8 @@ template<
 >
 struct await_ready_events
 {
+    await_ready_events(const Awaiter&) {}
+
     template<
         typename ... Arguments
     >
@@ -601,28 +608,44 @@ template<
     events::event
 >;
 
-namespace detail
-{
-
-struct declare_is_traced_initial_suspend_awaiter
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct initial_suspend_awaiter
 {
     static constexpr bool is_traced_promise_initial_suspend_awaiter = true;
+    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_co_yield_awaiter = false;
+    static constexpr bool is_traced_promise_co_await_awaiter = false;
 };
 
-struct declare_is_traced_final_suspend_awaiter
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct final_suspend_awaiter
 {
+    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
     static constexpr bool is_traced_promise_final_suspend_awaiter = true;
+    static constexpr bool is_traced_promise_co_yield_awaiter = false;
+    static constexpr bool is_traced_promise_co_await_awaiter = false;
 };
 
-struct declare_is_traced_co_yield_awaiter
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct co_yield_awaiter
 {
+    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
     static constexpr bool is_traced_promise_co_yield_awaiter = true;
+    static constexpr bool is_traced_promise_co_await_awaiter = false;
 };
 
-struct declare_is_traced_co_await_awaiter
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct co_await_awaiter
 {
+    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_co_yield_awaiter = false;
+    static constexpr bool is_traced_promise_co_await_awaiter = true;
 };
 
+namespace detail
+{
 template<
     typename TraceSink
 >
@@ -636,16 +659,21 @@ struct trace_sink_accessor
     }
 };
 
+} // namespace detail
+
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename TraceSinkAccessor,
-    typename Awaitable
+    typename TraceSink,
+    typename Awaitable,
+    typename AwaiterType
 >
 struct traced_awaiter :
-    TraceSinkAccessor,
-    awaiter_wrapper<Awaitable>
+    detail::trace_sink_accessor<TraceSink>,
+    awaiter_wrapper<Awaitable>,
+    AwaiterType
 {
     using awaiter_wrapper = traced_awaiter::awaiter_wrapper;
-    using trace_sink_accessor = TraceSinkAccessor;
+    using trace_sink_accessor = traced_awaiter::trace_sink_accessor;
     using traced_awaiter::trace_sink_accessor::trace_sink;
 
     std::source_location m_sourceLocation;
@@ -732,7 +760,7 @@ struct traced_awaiter :
         ) noexcept(noexcept(self.awaiter_wrapper::await_ready()))
     {
         return self.traced_awaiter::call_awaiter(
-            events::await_suspend_events{ self },
+            events::await_ready_events{ self },
             [&]() -> decltype(auto)
             {
                 return self.awaiter_wrapper::await_ready();
@@ -777,28 +805,37 @@ struct traced_awaiter :
     traced_awaiter(
         std::source_location sourceLocation,
         std::invocable auto awaiterFunction,
-        TraceSinkAccessor traceSinkAccessor
+        trace_sink_accessor traceSinkAccessor,
+        AwaiterType awaiterType
     )
         :
-        TraceSinkAccessor{ traceSinkAccessor },
+        trace_sink_accessor{ traceSinkAccessor },
         m_sourceLocation{ sourceLocation },
-        awaiter_wrapper{ std::move(awaiterFunction) }
+        awaiter_wrapper{ std::move(awaiterFunction) },
+        AwaiterType{ awaiterType }
     {
     }
 };
 
 template<
     std::invocable AwaiterFunction,
-    typename TraceSinkAccessor
+    typename TraceSink,
+    typename AwaiterType
 >
 traced_awaiter(
     std::source_location,
     AwaiterFunction,
-    TraceSinkAccessor
+    detail::trace_sink_accessor<TraceSink>,
+    AwaiterType
 ) -> traced_awaiter<
-    TraceSinkAccessor,
-    std::invoke_result_t<AwaiterFunction>
+    TraceSink,
+    std::invoke_result_t<AwaiterFunction>,
+    AwaiterType
 >;
+
+
+namespace detail
+{
 
 template<
     is_trace_sink TraceSink
@@ -829,13 +866,13 @@ protected:
     {
         m_traceSink(
             events::create_promise<
-                Promise,
-                decltype(args)&...
+            Promise,
+            decltype(args)&...
             >
         {
             std::source_location::current(),
-            &self,
-            std::tie(args...)
+                & self,
+                std::tie(args...)
         });
     }
 
@@ -848,18 +885,18 @@ protected:
     )
         requires !std::constructible_from<TraceSink, decltype(args)...>
     && std::constructible_from<TraceSink>
-    :
+        :
     m_traceSink{}
     {
         m_traceSink(
             events::create_promise<
-                Promise,
-                decltype(args)...
+            Promise,
+            decltype(args)...
             >
         {
             std::source_location::current(),
-            &self,
-            std::make_tuple<const decltype(args)&...>(args...)
+                & self,
+                std::make_tuple<const decltype(args)&...>(args...)
         });
     }
 
@@ -884,8 +921,8 @@ protected:
                 BeginEventType<promise_type>
             {
                 sourceLocation,
-                &promise,
-                std::forward<decltype(traceArgs)>(traceArgs)...
+                    & promise,
+                    std::forward<decltype(traceArgs)>(traceArgs)...
             });
 
             using result_type = decltype(call());
@@ -897,7 +934,7 @@ protected:
                     ResultEventType<promise_type, void>
                 {
                     sourceLocation,
-                    &promise,
+                        & promise,
                 });
             }
             else
@@ -908,9 +945,9 @@ protected:
                     ResultEventType<promise_type, result_type>
                 {
                     sourceLocation,
-                    &promise,
-                    std::forward<decltype(traceArgs)>(traceArgs)...,
-                    result
+                        & promise,
+                        std::forward<decltype(traceArgs)>(traceArgs)...,
+                        result
                 });
 
                 return std::forward<decltype(result)>(result);
@@ -922,8 +959,8 @@ protected:
                 ExceptionEventType<promise_type>
             {
                 sourceLocation,
-                &promise,
-                std::current_exception(),
+                    & promise,
+                    std::current_exception(),
             });
             throw;
         }
@@ -975,7 +1012,8 @@ public:
                 return std::forward<Promise>(promise).traced_promise_yield_value::yield_value(
                     std::forward<decltype(value)>(value));
             },
-            value
+            value,
+            co_yield_awaiter{}
         );
     }
 };
@@ -1062,7 +1100,7 @@ template<
 >
 using traced_promise_base = traced_promise_return_value_or_void<TraceSink, BasePromise>;
 
-}
+} // namespace detail
 
 // Use suppress_trace to suppress tracing of an awaitable.
 // Example:
@@ -1130,14 +1168,15 @@ public:
         std::source_location sourceLocation = std::source_location::current()
     )
     {
-        return detail::traced_awaiter
+        return traced_awaiter
         {
             sourceLocation,
             [&]() { return promise.base_promise::initial_suspend(); },
             detail::trace_sink_accessor
             {
                 promise.traced_promise::m_traceSink
-            }
+            },
+            initial_suspend_awaiter{}
         };
     }
 
@@ -1149,14 +1188,15 @@ public:
         std::source_location sourceLocation = std::source_location::current()
     ) noexcept
     {
-        return detail::traced_awaiter
+        return traced_awaiter
         {
             sourceLocation,
             [&]() { return promise.base_promise::final_suspend(); },
             detail::trace_sink_accessor
             {
                 promise.traced_promise::m_traceSink
-            }
+            },
+            final_suspend_awaiter{}
         };
     }
 
@@ -1185,7 +1225,7 @@ public:
         std::source_location sourceLocation = std::source_location::current()
     )
     {
-        return detail::traced_awaiter
+        return traced_awaiter
         {
             sourceLocation,
             [&]() 
@@ -1196,7 +1236,8 @@ public:
             detail::trace_sink_accessor
             {
                 promise.traced_promise::m_traceSink
-            }
+            },
+            co_await_awaiter{}
         };
     }
 
@@ -1488,6 +1529,7 @@ constexpr auto constant_filtered_trace_sink(
 
 // namespace tracing
 }
+
 
 // namespace Phantom::Coroutines
 }

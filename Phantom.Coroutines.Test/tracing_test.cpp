@@ -15,260 +15,315 @@ namespace Phantom::Coroutines
 
 struct tracing_tests : testing::Test
 {
-    struct comparable_data_base
-    {
-        virtual const type_info& type() const = 0;
-        virtual ~comparable_data_base() {}
-        virtual bool equals(const comparable_data_base& other) const = 0;
-    };
+    //struct comparable_data_base
+    //{
+    //    virtual const type_info& type() const = 0;
+    //    virtual ~comparable_data_base() {}
+    //    virtual bool equals(const comparable_data_base& other) const = 0;
+    //};
 
-    template<
-        typename T
-    >
-    struct comparable_data : comparable_data_base
-    {
-        const type_info& type() const override
-        {
-            return typeid(T);
-        }
+    //template<
+    //    typename T
+    //>
+    //struct comparable_data : comparable_data_base
+    //{
+    //    const type_info& type() const override
+    //    {
+    //        return typeid(T);
+    //    }
 
-        bool equals(
-            const comparable_data_base& other
-        ) const override
-        {
-            if (type() != other.type())
-            {
-                return false;
-            }
-            const comparable& otherValue = static_cast<const comparable&>(other);
-            return value == otherValue.value;
-        }
+    //    bool equals(
+    //        const comparable_data_base& other
+    //    ) const override
+    //    {
+    //        if (type() != other.type())
+    //        {
+    //            return false;
+    //        }
+    //        const comparable& otherValue = static_cast<const comparable&>(other);
+    //        return value == otherValue.value;
+    //    }
 
-        T value;
-    };
+    //    T value;
+    //};
 
-    struct exception_holder_type_info {};
+    //struct exception_holder_type_info {};
 
-    template<
-        typename Exception
-    >
-    struct exception_holder
-    {
-        Exception value;
-    };
+    //template<
+    //    typename Exception
+    //>
+    //struct exception_holder
+    //{
+    //    Exception value;
+    //};
 
-    struct exception_holder_comparable_data_base : comparable_data_base
-    {
-        const type_info& type() const override
-        {
-            return typeid(exception_holder_type_info);
-        }
+    //struct exception_holder_comparable_data_base : comparable_data_base
+    //{
+    //    const type_info& type() const override
+    //    {
+    //        return typeid(exception_holder_type_info);
+    //    }
 
-        virtual bool equals(std::exception_ptr) const = 0;
-    };
+    //    virtual bool equals(std::exception_ptr) const = 0;
+    //};
 
-    template<>
-    struct comparable_data<std::exception_ptr> : comparable_data_base
-    {
-        const type_info& type() const override
-        {
-            return typeid(std::exception_ptr);
-        }
+    //template<>
+    //struct comparable_data<std::exception_ptr> : comparable_data_base
+    //{
+    //    const type_info& type() const override
+    //    {
+    //        return typeid(std::exception_ptr);
+    //    }
 
-        bool equals(
-            const comparable_data_base& other
-        ) const override
-        {
-            if (other.type() != typeid(exception_holder_type_info))
-            {
-                return false;
-            }
-            auto& exceptionHolderComparable = static_cast<const exception_holder_comparable_data_base&>(other);
-            return exceptionHolderComparable.equals(value);
-        }
+    //    bool equals(
+    //        const comparable_data_base& other
+    //    ) const override
+    //    {
+    //        if (other.type() != typeid(exception_holder_type_info))
+    //        {
+    //            return false;
+    //        }
+    //        auto& exceptionHolderComparable = static_cast<const exception_holder_comparable_data_base&>(other);
+    //        return exceptionHolderComparable.equals(value);
+    //    }
 
-        comparable_data(std::exception_ptr exception) :
-            value(exception)
-        {
-        }
+    //    comparable_data(std::exception_ptr exception) :
+    //        value(exception)
+    //    {
+    //    }
 
-        std::exception_ptr value;
-    };
+    //    std::exception_ptr value;
+    //};
 
-    template<
-        typename Exception
-    >
-    struct comparable_data<exception_holder<Exception>> : exception_holder_comparable_data_base
-    {
-        bool equals(
-            std::exception_ptr exception
-        ) const override
-        {
-            try
-            {
-                std::rethrow_exception(exception);
-            }
-            catch (const Exception& e)
-            {
-                return true;
-            }
-            catch (...)
-            {
-                return false;
-            }
-        }
+    //template<
+    //    typename Exception
+    //>
+    //struct comparable_data<exception_holder<Exception>> : exception_holder_comparable_data_base
+    //{
+    //    bool equals(
+    //        std::exception_ptr exception
+    //    ) const override
+    //    {
+    //        try
+    //        {
+    //            std::rethrow_exception(exception);
+    //        }
+    //        catch (const Exception& e)
+    //        {
+    //            return true;
+    //        }
+    //        catch (...)
+    //        {
+    //            return false;
+    //        }
+    //    }
 
-        bool equals(
-            const comparable_data_base& other
-        ) const override
-        {
-            if (other.type() == type())
-            {
-                return true;
-            }
-            if (other.type() == typeid(std::exception_ptr))
-            {
-                return equals(static_cast<const comparable_data<std::exception_ptr>&>(other).value);
-            }
-            return false;
-        }
-    };
+    //    bool equals(
+    //        const comparable_data_base& other
+    //    ) const override
+    //    {
+    //        if (other.type() == type())
+    //        {
+    //            return true;
+    //        }
+    //        if (other.type() == typeid(std::exception_ptr))
+    //        {
+    //            return equals(static_cast<const comparable_data<std::exception_ptr>&>(other).value);
+    //        }
+    //        return false;
+    //    }
+    //};
 
-    struct comparable
-    {
-        std::shared_ptr<comparable_data_base> value;
+    //struct comparable
+    //{
+    //    std::shared_ptr<comparable_data_base> value;
 
-        constexpr comparable() = default;
+    //    constexpr comparable() = default;
 
-        template<
-            typename T
-        >
-        comparable(
-            T&& data
-        ) :
-            value(std::make_shared<comparable_data<std::remove_cvref_t<T>>>(data))
-        {
-        }
+    //    template<
+    //        typename T
+    //    >
+    //    comparable(
+    //        T&& data
+    //    ) :
+    //        value(std::make_shared<comparable_data<std::remove_cvref_t<T>>>(data))
+    //    {
+    //    }
 
-        friend bool operator==(
-            const comparable& lhs,
-            const comparable& rhs
-            )
-        {
-            return 
-                lhs.value == rhs.value
-                ||
-                lhs.value && rhs.value && lhs.value->equals(*rhs.value);
-        }
-    };
+    //    friend bool operator==(
+    //        const comparable& lhs,
+    //        const comparable& rhs
+    //        )
+    //    {
+    //        return 
+    //            lhs.value == rhs.value
+    //            ||
+    //            lhs.value && rhs.value && lhs.value->equals(*rhs.value);
+    //    }
+    //};
 
-    static constexpr bool has_promise = true;
-    static constexpr bool no_promise = false;
+    //static constexpr bool has_promise = true;
+    //static constexpr bool no_promise = false;
 
-    using no_arguments = comparable;
-    using no_result = comparable;
+    //using no_arguments = comparable;
+    //using no_result = comparable;
+
+    //struct traced_event
+    //{
+    //    std::type_index type;
+    //    bool has_promise = false;
+    //    bool has_awaiter = false;
+
+    //    comparable arguments;
+    //    comparable result;
+    //    comparable exception;
+    //    
+    //    template<
+    //        typename Event
+    //    >
+    //    static comparable get_arguments(
+    //        const Event& event
+    //    )
+    //    {
+    //        if constexpr (tracing::filters::check_constexpr<Event>(tracing::filters::has_arguments))
+    //        {
+    //            return comparable(event.arguments);
+    //        }
+    //        else
+    //        {
+    //            return comparable{};
+    //        }
+    //    }
+
+    //    template<
+    //        typename Event
+    //    >
+    //    static comparable get_result(
+    //        const Event& event
+    //    )
+    //    {
+    //        if constexpr (tracing::filters::check_constexpr<Event>(tracing::filters::has_result))
+    //        {
+    //            return comparable(event.result);
+    //        }
+    //        else
+    //        {
+    //            return comparable{};
+    //        }
+    //    }
+
+    //    template<
+    //        typename Event
+    //    >
+    //    static comparable get_exception(
+    //        const Event& event
+    //    )
+    //    {
+    //        if constexpr (tracing::filters::check_constexpr<Event>(tracing::filters::has_exception))
+    //        {
+    //            return comparable(event.exception);
+    //        }
+    //        else
+    //        {
+    //            return comparable{};
+    //        }
+    //    }
+
+    //    template<
+    //        typename Event
+    //    >
+    //    static traced_event from_event(
+    //        Event& event
+    //    )
+    //    {
+    //        return traced_event
+    //        {
+    //            .type = typeid(Event),
+    //            .has_promise = tracing::filters::has_promise(event),
+    //            .has_awaiter = tracing::filters::has_awaiter(event),
+    //            .arguments = get_arguments(event),
+    //            .result = get_result(event),
+    //            .exception = get_exception(event),
+    //        };
+    //    }
+
+    //    friend auto operator<=>(const traced_event&, const traced_event&) = default;
+    //};
 
     struct traced_event
     {
-        std::type_index type;
-        bool has_promise = false;
-        bool has_awaiter = false;
+        std::any event;
+        //std::type_index type;
+        //std::any promise;
+        //std::any awaiter;
+        //std::any arguments;
+        //std::any result;
+        //std::exception_ptr exception;
 
-        comparable arguments;
-        comparable result;
-        comparable exception;
-        
-        template<
-            typename Event
-        >
-        static comparable get_arguments(
-            const Event& event
-        )
-        {
-            if constexpr (tracing::filters::check_constexpr<Event>(tracing::filters::has_arguments))
-            {
-                return comparable(event.arguments);
-            }
-            else
-            {
-                return comparable{};
-            }
-        }
-
-        template<
-            typename Event
-        >
-        static comparable get_result(
-            const Event& event
-        )
-        {
-            if constexpr (tracing::filters::check_constexpr<Event>(tracing::filters::has_result))
-            {
-                return comparable(event.result);
-            }
-            else
-            {
-                return comparable{};
-            }
-        }
-
-        template<
-            typename Event
-        >
-        static comparable get_exception(
-            const Event& event
-        )
-        {
-            if constexpr (tracing::filters::check_constexpr<Event>(tracing::filters::has_exception))
-            {
-                return comparable(event.exception);
-            }
-            else
-            {
-                return comparable{};
-            }
-        }
-
-        template<
-            typename Event
-        >
         static traced_event from_event(
-            Event& event
+            const auto& event
         )
         {
-            return traced_event
-            {
-                .type = typeid(Event),
-                .has_promise = tracing::filters::has_promise(event),
-                .has_awaiter = tracing::filters::has_awaiter(event),
-                .arguments = get_arguments(event),
-                .result = get_result(event),
-                .exception = get_exception(event),
-            };
+            return { &event };
         }
 
-        friend auto operator<=>(const traced_event&, const traced_event&) = default;
+        //static traced_event from_event(
+        //    const auto& event
+        //)
+        //{
+        //    traced_event tracedEvent
+        //    {
+        //        .type = typeid(event),
+        //    };
+
+        //    if constexpr (tracing::filters::check_constexpr<decltype(event)>(tracing::filters::has_promise))
+        //    {
+        //        tracedEvent.promise = event.promise;
+        //    }
+        //    if constexpr (tracing::filters::check_constexpr<decltype(event)>(tracing::filters::has_awaiter))
+        //    {
+        //        tracedEvent.awaiter = event.awaiter;
+        //    }
+        //    if constexpr (tracing::filters::check_constexpr<decltype(event)>(tracing::filters::has_arguments))
+        //    {
+        //        tracedEvent.arguments = &event.arguments;
+        //    }
+        //    if constexpr (tracing::filters::check_constexpr<decltype(event)>(tracing::filters::has_result))
+        //    {
+        //        tracedEvent.result = &event.result;
+        //    }
+        //    if constexpr (tracing::filters::check_constexpr<decltype(event)>(tracing::filters::has_exception))
+        //    {
+        //        tracedEvent.exception = event.exception;
+        //    }
+
+        //    return tracedEvent;
+        //}
     };
 
-    struct traced_events
+    struct traced_events_checker
     {
-        std::vector<traced_event> m_traceEvents;
+        std::function<void(const std::any&)> checker;
+
+        void operator()(const std::any& event) const
+        {
+            checker(event);
+        }
     };
 
     struct trace_sink
     {
-        traced_events& events;
+        traced_events_checker& checker;
 
         trace_sink(
             auto&... args
         ) :
-            events(get<traced_events&>(std::tie(args...)))
+            checker(get<traced_events_checker&>(std::tie(args...)))
         { }
 
         void operator()(const auto& traceEvent)
         {
-            events.m_traceEvents.push_back(
-                traced_event::from_event(traceEvent));
+            checker(&traceEvent);
         }
     };
 
@@ -286,37 +341,278 @@ struct tracing_tests : testing::Test
     using test_traced_task = basic_task<test_traced_promise<T>>;
 };
 
+template<
+    typename EventType
+>
+auto CastEventType(
+    const std::any& anyEvent)
+{
+    // Get human-readable string for debugging purposes.
+    std::string expectedTypeName = typeid(const EventType*).name();
+    std::string actualTypeName = anyEvent.type().name();
+    EXPECT_EQ(expectedTypeName, actualTypeName);
+
+    return std::any_cast<const EventType*>(anyEvent);
+}
+
+void ExpectIsInitialSuspend(
+    const auto* event
+)
+{
+    EXPECT_EQ(true, event->is_initial_suspend);
+    EXPECT_EQ(false, event->is_co_await);
+    EXPECT_EQ(false, event->is_co_yield);
+    EXPECT_EQ(false, event->is_final_suspend);
+}
+
+void ExpectIsFinalSuspend(
+    const auto* event
+)
+{
+    EXPECT_EQ(false, event->is_initial_suspend);
+    EXPECT_EQ(false, event->is_co_await);
+    EXPECT_EQ(false, event->is_co_yield);
+    EXPECT_EQ(true, event->is_final_suspend);
+}
+
 #pragma warning (disable: 4702)
 ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
 {
-    traced_events events;
-
     auto taskLambda = [](
-        traced_events& events, 
+        traced_events_checker& eventsChecker,
         std::string inputArgument
         ) -> test_traced_task<>
     {
-        EXPECT_EQ(7, events.m_traceEvents.size());
         co_return;
     };
+    
+    int eventIndex = 0;
+    test_traced_promise<void>* expectedPromise = nullptr;
+    
+    using initialSuspendAwaiter = tracing::traced_awaiter<
+        trace_sink,
+        std::suspend_always,
+        tracing::initial_suspend_awaiter
+    >;
 
-    co_await taskLambda(events, "hello");
-    EXPECT_EQ(14, events.m_traceEvents.size());
+    initialSuspendAwaiter* expectedInitialSuspendAwaiter = nullptr;
+    
+    using finalSuspendAwaiter = tracing::traced_awaiter<
+        trace_sink,
+        detail::final_suspend_transfer,
+        tracing::final_suspend_awaiter
+    >;
 
-    auto& expectedCreateEventType = typeid(tracing::events::create_promise<
-        test_traced_promise<void>,
-        decltype(taskLambda) const &,
-        traced_events&,
-        std::string&
-    >);
+    finalSuspendAwaiter* expectedFinalSuspendAwaiter = nullptr;
 
-    EXPECT_EQ(
-        (traced_event
+    traced_events_checker eventChecker
+    {
+        [&](const std::any& anyEvent)
         {
-            .type = expectedCreateEventType,
-            .has_promise = has_promise,
-        }),
-        events.m_traceEvents[0]);
+            using namespace tracing::events;
+            
+            ++eventIndex;
+            // We do this checkingIndex so that when trace messages are
+            // added or removed we don't have to change every index,
+            // we just insert code into the right place.
+            int checkingIndex = 0;
+            if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = create_promise<
+                    test_traced_promise<void>,
+                    decltype(taskLambda) const&,
+                    traced_events_checker&,
+                    std::string&
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_NE(nullptr, expectedPromise = event->Promise);
+                EXPECT_EQ(&taskLambda, &get<0>(event->Arguments));
+                EXPECT_EQ(&eventChecker, &get<1>(event->Arguments));
+                EXPECT_EQ(&eventChecker, &get<1>(event->Arguments));
+                EXPECT_EQ(std::string("hello"), get<2>(event->Arguments));
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_begin<
+                    initialSuspendAwaiter
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_NE(nullptr, expectedInitialSuspendAwaiter = event->Awaiter);
+                
+                ExpectIsInitialSuspend(event);
+                EXPECT_EQ(std::tuple<>{}, event->Arguments);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_result<
+                    initialSuspendAwaiter,
+                    bool
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedInitialSuspendAwaiter, event->Awaiter);
+
+                ExpectIsInitialSuspend(event);
+                EXPECT_EQ(std::tuple<>{}, event->Arguments);
+                EXPECT_EQ(false, event->Result);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_suspend_begin<
+                    initialSuspendAwaiter,
+                    std::coroutine_handle<test_traced_promise<void>>
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedInitialSuspendAwaiter, event->Awaiter);
+                EXPECT_EQ(expectedPromise, &get<0>(event->Arguments).promise());
+                ExpectIsInitialSuspend(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_suspend_result<
+                    initialSuspendAwaiter,
+                    void,
+                    std::coroutine_handle<test_traced_promise<void>>
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedInitialSuspendAwaiter, event->Awaiter);
+                EXPECT_EQ(expectedPromise, &get<0>(event->Arguments).promise());
+                EXPECT_EQ(true, event->is_void_result);
+                ExpectIsInitialSuspend(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_resume_begin<
+                    initialSuspendAwaiter
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedInitialSuspendAwaiter, event->Awaiter);
+                EXPECT_EQ(std::tuple<>{}, event->Arguments);
+                ExpectIsInitialSuspend(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_resume_result<
+                    initialSuspendAwaiter,
+                    void
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedInitialSuspendAwaiter, event->Awaiter);
+                EXPECT_EQ(std::tuple<>{}, event->Arguments);
+                EXPECT_EQ(true, event->is_void_result);
+                ExpectIsInitialSuspend(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = return_void_begin<
+                    test_traced_promise<void>
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedPromise, event->Promise);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = return_void_result<
+                    test_traced_promise<void>,
+                    void
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedPromise, event->Promise);
+                EXPECT_EQ(true, event->is_void_result);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_begin<
+                    finalSuspendAwaiter
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_NE(nullptr, expectedFinalSuspendAwaiter = event->Awaiter);
+
+                ExpectIsFinalSuspend(event);
+                EXPECT_EQ(std::tuple<>{}, event->Arguments);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_result<
+                    finalSuspendAwaiter,
+                    bool
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedFinalSuspendAwaiter, event->Awaiter);
+
+                ExpectIsFinalSuspend(event);
+                EXPECT_EQ(std::tuple<>{}, event->Arguments);
+                EXPECT_EQ(false, event->Result);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_suspend_begin<
+                    finalSuspendAwaiter,
+                    std::coroutine_handle<test_traced_promise<void>>
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedFinalSuspendAwaiter, event->Awaiter);
+                EXPECT_EQ(expectedPromise, &get<0>(event->Arguments).promise());
+                ExpectIsFinalSuspend(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_suspend_result<
+                    finalSuspendAwaiter,
+                    std::coroutine_handle<void>,
+                    std::coroutine_handle<test_traced_promise<void>>
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedFinalSuspendAwaiter, event->Awaiter);
+                EXPECT_EQ(expectedPromise, &get<0>(event->Arguments).promise());
+                EXPECT_EQ(false, event->is_void_result);
+                EXPECT_NE(nullptr, event->Result.address());
+                ExpectIsFinalSuspend(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = destroy_promise<
+                    test_traced_promise<void>
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedPromise, event->Promise);
+            }
+            else
+            {
+                EXPECT_FALSE(true);
+            }
+        }
+    };
+
+    co_await taskLambda(eventChecker, "hello");
+    EXPECT_EQ(14, eventIndex);
 }
 
 
