@@ -407,7 +407,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
 
     traced_events_checker eventChecker
     {
-        [&](const std::any& anyEvent)
+        [&](this auto& self, const std::any& anyEvent)
         {
             using namespace tracing::events;
             
@@ -418,6 +418,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
             int checkingIndex = 0;
             if (eventIndex == ++checkingIndex)
             {
+#if PHANTOM_COROUTINES_LAMBDA_REFERENCE_IS_FIRST_ARGUMENT
                 using expectedEventType = create_promise<
                     test_traced_promise<void>,
                     decltype(taskLambda) const&,
@@ -430,8 +431,20 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
                 EXPECT_NE(nullptr, expectedPromise = event->Promise);
                 EXPECT_EQ(&taskLambda, &get<0>(event->Arguments));
                 EXPECT_EQ(&eventChecker, &get<1>(event->Arguments));
-                EXPECT_EQ(&eventChecker, &get<1>(event->Arguments));
                 EXPECT_EQ(std::string("hello"), get<2>(event->Arguments));
+#else
+                using expectedEventType = create_promise<
+                    test_traced_promise<void>,
+                    traced_events_checker&,
+                    std::string&
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_NE(nullptr, expectedPromise = event->Promise);
+                EXPECT_EQ(&eventChecker, &get<0>(event->Arguments));
+                EXPECT_EQ(std::string("hello"), get<1>(event->Arguments));
+#endif
             }
             else if (eventIndex == ++checkingIndex)
             {

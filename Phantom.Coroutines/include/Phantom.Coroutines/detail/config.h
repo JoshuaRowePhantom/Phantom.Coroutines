@@ -26,9 +26,15 @@
 #if defined(__clang__)
 #define PHANTOM_COROUTINES_MSVC_INSTRINSIC
 #define PHANTOM_COROUTINES_MSVC_FORCEINLINE
+// CLang does not present the lambda object as the first reference
+// argument to the promise constructor.
+#define PHANTOM_COROUTINES_LAMBDA_REFERENCE_IS_FIRST_ARGUMENT_OF_PROMISE_CONSTRUCTOR 0
 #else
 #define PHANTOM_COROUTINES_MSVC_INSTRINSIC [[msvc::intrinsic]]
 #define PHANTOM_COROUTINES_MSVC_FORCEINLINE [[msvc::forceinline]]
+// MSVC does present the lambda object as the first reference
+// argument to the promise constructor.
+#define PHANTOM_COROUTINES_LAMBDA_REFERENCE_IS_FIRST_ARGUMENT 1
 #endif
 
 #define PHANTOM_COROUTINES_MSVC_SUPPRESS_PACKING_ALIGNMENT_WARNING __pragma(warning(suppress:4324))
