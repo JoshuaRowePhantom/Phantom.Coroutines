@@ -11,7 +11,7 @@
 #include <utility>
 #include "detail/config_macros.h"
 #include "detail/coroutine.h"
-#include "detail/final_suspend_transfer.h"
+#include "final_suspend_transfer.h"
 #include "policies.h"
 #include "type_traits.h"
 #endif

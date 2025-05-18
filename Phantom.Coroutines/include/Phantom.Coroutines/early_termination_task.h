@@ -13,7 +13,7 @@
 #include "task.h"
 #include "await_all_await_transform.h"
 #include "awaiter_wrapper.h"
-#include "detail/final_suspend_transfer.h"
+#include "final_suspend_transfer.h"
 #include "detail/variant_result_storage.h"
 #include "extensible_promise.h"
 #include "policies.h"

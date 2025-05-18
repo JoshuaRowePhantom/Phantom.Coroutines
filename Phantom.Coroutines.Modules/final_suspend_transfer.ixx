@@ -3,4 +3,4 @@ module;
 #include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.final_suspend_transfer;
 import Phantom.Coroutines.coroutine;
-#include "Phantom.Coroutines/detail/final_suspend_transfer.h"
+#include "Phantom.Coroutines/final_suspend_transfer.h"
