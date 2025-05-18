@@ -7,7 +7,7 @@
 #include <type_traits>
 #include <tuple>
 #include <utility>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/coroutine.h"
 #include "awaiter_wrapper.h"
 #include "extensible_promise.h"

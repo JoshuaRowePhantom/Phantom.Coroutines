@@ -4,7 +4,7 @@
 #include <concepts>
 #include <type_traits>
 #include <utility>
-#include "config.h"
+#include "config_macros.h"
 #include "immovable_object.h"
 #endif
 

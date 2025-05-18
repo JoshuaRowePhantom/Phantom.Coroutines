@@ -3,7 +3,7 @@ module;
 #include <future>
 #include <mutex>
 #include <concepts>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.awaiter_list;
 import Phantom.Coroutines.atomic_state;
 import Phantom.Coroutines.policies;

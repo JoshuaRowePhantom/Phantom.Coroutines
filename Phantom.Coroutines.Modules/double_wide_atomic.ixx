@@ -3,7 +3,7 @@ module;
 #include <atomic>
 #include <concepts>
 #include <type_traits>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.double_wide_atomic;
 import Phantom.Coroutines.type_traits;
 #include "Phantom.Coroutines/double_wide_atomic.h"

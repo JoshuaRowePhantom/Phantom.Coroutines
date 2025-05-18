@@ -1,7 +1,7 @@
 module;
 #include <mutex>
 #include <type_traits>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.async_sharded_reader_writer_lock;
 import Phantom.Coroutines.async_reader_writer_lock;
 import Phantom.Coroutines.direct_initialized_optional;

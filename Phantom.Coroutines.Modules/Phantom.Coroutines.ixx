@@ -17,6 +17,7 @@ export import Phantom.Coroutines.awaiter_list;
 export import Phantom.Coroutines.awaiter_wrapper;
 export import Phantom.Coroutines.await_all_await_transform;
 export import Phantom.Coroutines.await_none_await_transform;
+export import Phantom.Coroutines.config_globals;
 export import Phantom.Coroutines.consecutive_global_id;
 export import Phantom.Coroutines.consecutive_thread_id;
 export import Phantom.Coroutines.contextual_promise;

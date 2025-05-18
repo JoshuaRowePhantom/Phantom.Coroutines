@@ -1,7 +1,7 @@
 module;
 #include <assert.h>
 #include <mutex>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.async_reader_writer_lock;
 import Phantom.Coroutines.awaiter_list;
 import Phantom.Coroutines.double_wide_atomic;

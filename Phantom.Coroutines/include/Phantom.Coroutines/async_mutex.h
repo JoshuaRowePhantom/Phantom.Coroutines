@@ -2,7 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_MUTEX_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
 #include "detail/immovable_object.h"

@@ -7,7 +7,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/coroutine.h"
 #endif
 

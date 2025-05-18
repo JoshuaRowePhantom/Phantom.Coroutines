@@ -4,7 +4,7 @@
 #include <atomic>
 #include <cstddef>
 #include <utility>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);

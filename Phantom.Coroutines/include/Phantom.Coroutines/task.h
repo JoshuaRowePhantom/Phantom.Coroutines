@@ -2,7 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_TASK_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/core_task.h"
 #include "detail/coroutine.h"
 #include "policies.h"

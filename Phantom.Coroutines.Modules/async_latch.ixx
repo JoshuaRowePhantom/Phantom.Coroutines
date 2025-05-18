@@ -1,7 +1,7 @@
 module;
 #include <atomic>
 #include <cstddef>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.async_latch;
 export import Phantom.Coroutines.async_manual_reset_event;
 export import Phantom.Coroutines.policies;

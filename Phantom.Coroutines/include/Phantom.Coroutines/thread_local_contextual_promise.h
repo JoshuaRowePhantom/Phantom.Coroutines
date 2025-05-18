@@ -1,6 +1,6 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <optional>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "contextual_promise.h"
 #include "extensible_promise.h"
 #include "thread_local_context.h"

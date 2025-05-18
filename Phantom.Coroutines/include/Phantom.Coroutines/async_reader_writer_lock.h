@@ -1,7 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_READER_WRITER_LOCK_H
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_READER_WRITER_LOCK_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "awaiter_list.h"
 #include "double_wide_atomic.h"
 #include "policies.h"

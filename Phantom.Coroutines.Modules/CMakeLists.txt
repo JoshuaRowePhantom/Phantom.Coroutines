@@ -36,6 +36,7 @@ target_sources(
     "await_none_await_transform.ixx"
     "awaiter_list.ixx"
     "awaiter_wrapper.ixx"
+    "config_globals.ixx"
     "consecutive_global_id.ixx" 
     "consecutive_thread_id.ixx"
     "contextual_promise.ixx"
@@ -79,7 +80,7 @@ target_sources(
     "tracing.ixx"
     "type_traits.ixx"
     "variant_result_storage.ixx" 
- )
+)
 
 target_link_libraries(
     Phantom.Coroutines.Modules

@@ -4,7 +4,7 @@
 #include <latch>
 #include <thread>
 #include <vector>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "scheduler.h"
 #include "thread_pool_scheduler.h"
 #endif

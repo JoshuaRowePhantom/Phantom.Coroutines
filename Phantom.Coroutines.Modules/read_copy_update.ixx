@@ -6,7 +6,7 @@ module;
 #include <mutex>
 #include <thread>
 #include <unordered_set>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.read_copy_update;
 import Phantom.Coroutines.assert_same_thread;
 import Phantom.Coroutines.atomic_shared_ptr;

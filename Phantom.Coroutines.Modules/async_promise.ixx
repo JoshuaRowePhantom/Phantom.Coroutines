@@ -1,7 +1,7 @@
 module;
 #include <assert.h>
 #include <utility>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.async_promise;
 import Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.awaiter_wrapper;

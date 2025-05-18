@@ -6,7 +6,7 @@
 #include <initializer_list>
 #include <limits>
 #include <ranges>
-#include "config.h"
+#include "config_macros.h"
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);

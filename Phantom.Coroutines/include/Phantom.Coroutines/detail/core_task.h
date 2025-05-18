@@ -7,7 +7,7 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
-#include "config.h"
+#include "config_macros.h"
 #include "coroutine.h"
 #include "../extensible_promise.h"
 #include "final_suspend_transfer.h"

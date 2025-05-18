@@ -5,7 +5,7 @@ module;
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.coroutine;
 #include "Phantom.Coroutines/type_traits.h"

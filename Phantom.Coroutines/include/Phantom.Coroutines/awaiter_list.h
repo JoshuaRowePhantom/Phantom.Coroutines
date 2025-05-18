@@ -6,7 +6,7 @@
 #include <future>
 #include <mutex>
 #include <concepts>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/atomic_state.h"
 #include "policies.h"
 #endif

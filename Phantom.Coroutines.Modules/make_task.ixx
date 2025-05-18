@@ -1,7 +1,7 @@
 module;
 #include <type_traits>
 #include <utility>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.make_task;
 import Phantom.Coroutines.task;
 import Phantom.Coroutines.type_traits;

@@ -6,7 +6,7 @@
 #include <concepts>
 #include <functional>
 #include <limits>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/atomic_state.h"
 #include "detail/coroutine.h"
 #include "detail/fibonacci_heap.h"

@@ -1,7 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_LIFETIME_TRACKER_H
 #define PHANTOM_COROUTINES_INCLUDE_LIFETIME_TRACKER_H
 #if defined(PHANTOM_COROUTINES_TESTING_HEADERS)
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 #include <assert.h>
 #include <memory>
 #endif

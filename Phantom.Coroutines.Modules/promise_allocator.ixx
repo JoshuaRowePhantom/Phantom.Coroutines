@@ -1,6 +1,6 @@
 module;
 #include <memory>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.promise_allocator;
 import Phantom.Coroutines.extensible_promise;
 import Phantom.Coroutines.type_traits;

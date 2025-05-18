@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <memory>
 #include <memory_resource>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 #include "Phantom.Coroutines/promise_allocator.h"
 #include "Phantom.Coroutines/reusable_task.h"
 #include "Phantom.Coroutines/task.h"

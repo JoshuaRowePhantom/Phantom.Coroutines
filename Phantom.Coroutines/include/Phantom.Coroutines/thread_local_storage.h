@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <vector>
 #include "detail/atomic_shared_ptr.h"
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/consecutive_thread_id.h"
 #include "reusable_consecutive_global_id.h"
 #endif

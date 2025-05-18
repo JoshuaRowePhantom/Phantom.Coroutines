@@ -1,7 +1,7 @@
 module;
 #include <concepts>
 #include <utility>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.contextual_promise;
 import Phantom.Coroutines.awaiter_wrapper;
 import Phantom.Coroutines.extensible_promise;

@@ -1,6 +1,6 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <utility>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/immovable_object.h"
 #include "detail/storage_for.h"
 #include "awaiter_wrapper.h"

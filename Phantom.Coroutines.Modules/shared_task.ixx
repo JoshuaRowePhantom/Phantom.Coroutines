@@ -6,7 +6,7 @@ module;
 #include <tuple>
 #include <utility>
 #include <variant>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.shared_task;
 import Phantom.Coroutines.atomic_state;
 import Phantom.Coroutines.coroutine;

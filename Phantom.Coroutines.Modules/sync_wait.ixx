@@ -2,7 +2,7 @@ module;
 #include <assert.h>
 #include <exception>
 #include <future>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 #ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
 #include <optional>
 #endif

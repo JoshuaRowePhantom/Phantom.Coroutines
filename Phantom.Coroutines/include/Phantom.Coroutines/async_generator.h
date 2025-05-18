@@ -6,7 +6,7 @@
 #include <iterator>
 #include <variant>
 #include <type_traits>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "awaiter_wrapper.h"
 #include "extensible_promise.h"
 #include "task.h"

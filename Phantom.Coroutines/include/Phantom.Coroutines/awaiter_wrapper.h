@@ -2,7 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_AWAITER_WRAPPER_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <optional>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "extensible_promise.h"
 #include "type_traits.h"
 #endif

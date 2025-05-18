@@ -4,6 +4,6 @@ module;
 #include <concepts>
 #include <cstdint>
 #include <type_traits>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.tagged_pointer;
 #include "Phantom.Coroutines/tagged_pointer.h"

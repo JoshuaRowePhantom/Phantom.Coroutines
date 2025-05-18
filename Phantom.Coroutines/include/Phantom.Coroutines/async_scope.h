@@ -9,7 +9,7 @@
 #include <functional>
 #include <tuple>
 #include <utility>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/coroutine.h"
 #include "detail/final_suspend_transfer.h"
 #include "policies.h"

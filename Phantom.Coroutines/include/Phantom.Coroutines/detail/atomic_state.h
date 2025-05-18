@@ -8,7 +8,7 @@
 #include <optional>
 #include <tuple>
 #include <type_traits>
-#include "config.h"
+#include "config_macros.h"
 #include "coroutine.h"
 #include "Phantom.Coroutines/type_traits.h"
 #endif

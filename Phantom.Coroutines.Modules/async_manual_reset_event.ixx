@@ -1,7 +1,7 @@
 module;
 #include <atomic>
 #include <type_traits>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.async_manual_reset_event;
 import Phantom.Coroutines.atomic_state;
 import Phantom.Coroutines.coroutine;

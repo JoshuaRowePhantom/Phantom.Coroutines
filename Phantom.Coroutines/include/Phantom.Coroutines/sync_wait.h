@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <exception>
 #include <future>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/coroutine.h"
 #include "type_traits.h"
 #ifdef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE

@@ -5,7 +5,7 @@ module;
 #include <type_traits>
 #include <utility>
 #include <variant>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.core_task;
 import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.extensible_promise;

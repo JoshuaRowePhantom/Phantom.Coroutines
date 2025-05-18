@@ -7,7 +7,7 @@
 #include <mutex>
 #include <thread>
 #include <unordered_set>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/assert_same_thread.h"
 #include "detail/atomic_shared_ptr.h"
 #include "detail/scope_guard.h"

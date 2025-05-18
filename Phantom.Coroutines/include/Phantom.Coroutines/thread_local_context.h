@@ -3,7 +3,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <concepts>
 #include <optional>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);

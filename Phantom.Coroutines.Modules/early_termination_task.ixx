@@ -7,7 +7,7 @@ module;
 #include <tuple>
 #include <type_traits>
 #include <variant>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.early_termination_task;
 import Phantom.Coroutines.await_all_await_transform;
 import Phantom.Coroutines.awaiter_wrapper;

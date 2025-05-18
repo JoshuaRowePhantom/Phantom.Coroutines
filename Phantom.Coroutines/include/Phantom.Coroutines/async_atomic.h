@@ -3,7 +3,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <atomic>
 #include <concepts>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/coroutine.h"
 #include "detail/immovable_object.h"
 #include "double_wide_atomic.h"

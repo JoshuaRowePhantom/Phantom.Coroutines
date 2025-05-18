@@ -14,7 +14,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/coroutine.h"
 #include "policies.h"
 #include "read_copy_update.h"

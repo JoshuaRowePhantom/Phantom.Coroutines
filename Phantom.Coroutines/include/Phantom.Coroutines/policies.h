@@ -2,7 +2,7 @@
 #define PHANTOM_COROUTINES_INCLUDE_POLICIES_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include<concepts>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "type_traits.h"
 #endif
 

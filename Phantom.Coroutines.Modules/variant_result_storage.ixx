@@ -2,7 +2,7 @@ module;
 #include <cstddef>
 #include <type_traits>
 #include <variant>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.variant_result_storage;
 import Phantom.Coroutines.type_traits;
 #include "Phantom.Coroutines/detail/variant_result_storage.h"

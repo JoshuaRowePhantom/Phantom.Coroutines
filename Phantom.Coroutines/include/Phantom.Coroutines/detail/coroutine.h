@@ -1,7 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_COROUTINE_H
 #define PHANTOM_COROUTINES_INCLUDE_COROUTINE_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 #include <assert.h>
 #include <coroutine>
 #include <tuple>

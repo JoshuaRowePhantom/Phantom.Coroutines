@@ -3,7 +3,7 @@ module;
 #include <concepts>
 #include <mutex>
 #include <type_traits>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.async_mutex;
 import Phantom.Coroutines.atomic_state;
 import Phantom.Coroutines.awaiter_list;

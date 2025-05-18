@@ -5,7 +5,7 @@ module;
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.tracing;
 import Phantom.Coroutines.awaiter_wrapper;
 import Phantom.Coroutines.coroutine;

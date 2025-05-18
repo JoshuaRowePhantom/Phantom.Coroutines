@@ -7,7 +7,7 @@ module;
 #include <set>
 #include <type_traits>
 #include <vector>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.thread_local_storage;
 import Phantom.Coroutines.atomic_shared_ptr;
 import Phantom.Coroutines.consecutive_thread_id;

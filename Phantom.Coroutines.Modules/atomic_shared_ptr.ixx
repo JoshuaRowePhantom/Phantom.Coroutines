@@ -6,6 +6,6 @@ module;
 #include <concepts>
 #include <mutex>
 #endif
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.atomic_shared_ptr;
 #include "Phantom.Coroutines/detail/atomic_shared_ptr.h"

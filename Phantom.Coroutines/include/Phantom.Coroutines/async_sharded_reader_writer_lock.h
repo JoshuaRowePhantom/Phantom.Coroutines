@@ -3,7 +3,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <mutex>
 #include <type_traits>
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include "detail/immovable_object.h"
 #include "detail/scope_guard.h"
 #include "async_reader_writer_lock.h"

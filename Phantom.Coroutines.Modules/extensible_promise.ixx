@@ -4,7 +4,7 @@ module;
 #include <optional>
 #include <tuple>
 #include <type_traits>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.extensible_promise;
 import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.scope_guard;

@@ -1,7 +1,7 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ALIGNED_ARRAY_H
 #define PHANTOM_COROUTINES_INCLUDE_ALIGNED_ARRAY_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
-#include "detail/config.h"
+#include "detail/config_macros.h"
 #include<array>
 #include<cstddef>
 #include<compare>

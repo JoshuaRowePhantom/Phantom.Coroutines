@@ -4,7 +4,7 @@ module;
 #include <concepts>
 #include <functional>
 #include <limits>
-#include "Phantom.Coroutines/detail/config.h"
+#include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.async_sequence_barrier;
 import Phantom.Coroutines.atomic_state;
 import Phantom.Coroutines.coroutine;
