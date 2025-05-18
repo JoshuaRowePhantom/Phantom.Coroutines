@@ -1,49 +1,19 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_CONFIG_MACROS_H
 #define PHANTOM_COROUTINES_INCLUDE_CONFIG_MACROS_H
 
-#ifdef _MSVC_LANG
+#if defined(_MSVC_LANG) && defined(__clang__)
+// Using CLang in MSVC compatibility mode
+#include "config_macros_clang_msvc.h"
 
-// Bug https ://developercommunity.visualstudio.com/t/msvc-2022-c-stdfuture-still-requires-default-const/1582239
-#ifndef PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE
-#define PHANTOM_COROUTINES_FUTURE_DOESNT_ACCEPT_NOT_DEFAULT_CONSTRUCTIBLE 1
-#endif
+#elif defined(_MSVC_LANG) && !defined(__clang__)
+#include "config_macros_msvc.h"
 
-// Bug https://developercommunity.visualstudio.com/t/Incorrect-code-generation-for-symmetric/1659260?q=%22symmetric+transfer%22
-#ifndef PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
-#define PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME 1
-#endif
-
-// Bug https://developercommunity.visualstudio.com/t/Incorrect-code-generation-for-symmetric/1659260?q=%22symmetric+transfer%22
-#ifndef PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME
-#define PHANTOM_COROUTINES_SYMMETRIC_TRANSFER_INCORRECTLY_LIFTED_TO_COROUTINE_FRAME 1
-#endif
-
-// Bug https://developercommunity.visualstudio.com/t/MSVC-accepts-lambda-expression-referring/10306965
-#ifndef PHANTOM_COROUTINES_NO_REJECT_LAMBDA_WITH_INVALID_MEMBER
-#define PHANTOM_COROUTINES_NO_REJECT_LAMBDA_WITH_INVALID_MEMBER 1
-#endif
-
-#if defined(__clang__)
-#define PHANTOM_COROUTINES_MSVC_INSTRINSIC
-#define PHANTOM_COROUTINES_MSVC_FORCEINLINE
-// CLang does not present the lambda object as the first reference
-// argument to the promise constructor.
-#define PHANTOM_COROUTINES_LAMBDA_REFERENCE_IS_FIRST_ARGUMENT_OF_PROMISE_CONSTRUCTOR 0
-#else
-#define PHANTOM_COROUTINES_MSVC_INSTRINSIC [[msvc::intrinsic]]
-#define PHANTOM_COROUTINES_MSVC_FORCEINLINE [[msvc::forceinline]]
-// MSVC does present the lambda object as the first reference
-// argument to the promise constructor.
-#define PHANTOM_COROUTINES_LAMBDA_REFERENCE_IS_FIRST_ARGUMENT_OF_PROMISE_CONSTRUCTOR 1
-#endif
-
-#define PHANTOM_COROUTINES_MSVC_SUPPRESS_PACKING_ALIGNMENT_WARNING __pragma(warning(suppress:4324))
+#elif defined(__clang__) && !defined(_MSVC_LANG)
+#include "config_macros_clang.h"
 
 #else
-#define PHANTOM_COROUTINES_MSVC_INSTRINSIC
-#define PHANTOM_COROUTINES_MSVC_FORCEINLINE
-#define PHANTOM_COROUTINES_MSVC_SUPPRESS_PACKING_ALIGNMENT_WARNING
-#endif // _MSVC_LANG
+#error "Unsupported compiler"
+#endif
 
 #if !NDEBUG
 #ifndef PHANTOM_COROUTINES_THREAD_POOL_SCHEDULER_DETECT_ALL_THREADS_SLEEPING

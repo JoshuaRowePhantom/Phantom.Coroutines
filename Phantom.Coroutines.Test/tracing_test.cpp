@@ -4,6 +4,7 @@
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.config_globals;
+import Phantom.Coroutines.final_suspend_transfer;
 import Phantom.Coroutines.tracing;
 import Phantom.Coroutines.task;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
