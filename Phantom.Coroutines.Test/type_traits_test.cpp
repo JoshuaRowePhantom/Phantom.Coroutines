@@ -277,4 +277,133 @@ TEST(forward_owned_test, return_types_are_correct)
     assert_forward_owned_expected_result<Owner&&, Value&, Value&> {};
     assert_forward_owned_expected_result<Owner&&, Value&&, Value&&> {};
 }
+
+TEST(tuple_extract_convertible_elements, can_extract_by_reference)
+{
+    struct base {};
+    struct derived : base {};
+    struct not_derived {};
+
+    base base1;
+    base base2;
+    const base const_base1;
+    derived derived1;
+    derived derived2;
+    const derived const_derived1;
+    not_derived not_derived1;
+    not_derived not_derived2;
+    const not_derived const_not_derived1;
+    int int1;
+    long long1;
+
+    {
+        auto tuple = std::tie(
+            base1
+        );
+        auto result = tuple_extract_convertible_elements<base>(tuple);
+        static_assert(std::same_as<std::tuple<base&>, decltype(result)>);
+
+        ASSERT_EQ(&base1, &get<0>(result));
+    }
+
+    {
+        auto tuple = std::tie(
+            derived1
+        );
+        auto result = tuple_extract_convertible_elements<base&>(tuple);
+        static_assert(std::same_as<std::tuple<derived&>, decltype(result)>);
+
+        ASSERT_EQ(&derived1, &get<0>(result));
+    }
+    
+    {
+        auto tuple = std::tie(
+            not_derived1
+        );
+        auto result = tuple_extract_convertible_elements<base&>(tuple);
+        static_assert(std::same_as<std::tuple<>, decltype(result)>);
+    }
+
+    {
+        auto tuple = std::tie(
+            base1,
+            derived1,
+            not_derived1,
+            base2,
+            derived2,
+            not_derived2
+        );
+        auto result = tuple_extract_convertible_elements<base&>(tuple);
+        static_assert(std::same_as<std::tuple<base&, derived&, base&, derived&>, decltype(result)>);
+        ASSERT_EQ(&base1, &get<0>(result));
+        ASSERT_EQ(&derived1, &get<1>(result));
+        ASSERT_EQ(&base2, &get<2>(result));
+        ASSERT_EQ(&derived2, &get<3>(result));
+    }
+
+    {
+        auto tuple = std::tie(
+            int1,
+            long1
+        );
+        auto result = tuple_extract_convertible_elements<base&>(tuple);
+        static_assert(std::same_as<std::tuple<>, decltype(result)>);
+    }
+
+    {
+        auto tuple = std::tie(
+            int1,
+            long1
+        );
+        auto result = tuple_extract_convertible_elements<int&>(tuple);
+        static_assert(std::same_as<std::tuple<int&>, decltype(result)>);
+        ASSERT_EQ(&int1, &get<0>(result));
+    }
+
+    {
+        auto tuple = std::tie(
+            int1,
+            long1
+        );
+        auto result = tuple_extract_convertible_elements<long&>(tuple);
+        static_assert(std::same_as<std::tuple<long&>, decltype(result)>);
+        ASSERT_EQ(&long1, &get<0>(result));
+    }
+
+    {
+        const auto tuple = std::tie(
+            base1,
+            derived1,
+            not_derived1
+        );
+        auto result = tuple_extract_convertible_elements<base&>(tuple);
+        static_assert(std::same_as<std::tuple<base&, derived&>, decltype(result)>);
+        ASSERT_EQ(&base1, &get<0>(result));
+        ASSERT_EQ(&derived1, &get<1>(result));
+    }
+
+    {
+        const auto tuple = std::tie(
+            base1,
+            derived1,
+            not_derived1
+        );
+        auto result = tuple_extract_convertible_elements<const base&>(tuple);
+        static_assert(std::same_as<std::tuple<base&, derived&>, decltype(result)>);
+        ASSERT_EQ(&base1, &get<0>(result));
+        ASSERT_EQ(&derived1, &get<1>(result));
+    }
+
+    {
+        auto tuple = std::tie(
+            const_base1,
+            const_derived1,
+            const_not_derived1
+        );
+        auto result = tuple_extract_convertible_elements<const base&>(tuple);
+        static_assert(std::same_as<std::tuple<const base&, const derived&>, decltype(result)>);
+        ASSERT_EQ(&const_base1, &get<0>(result));
+        ASSERT_EQ(&const_derived1, &get<1>(result));
+    }
+}
 }

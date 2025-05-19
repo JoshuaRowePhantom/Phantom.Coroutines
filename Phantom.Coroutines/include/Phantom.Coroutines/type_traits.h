@@ -149,6 +149,50 @@ constexpr bool tuple_has_element_v<
     std::tuple<OtherType, RemainingElements...>>
     = tuple_has_element_v<Type, std::tuple<RemainingElements...>>;
 
+// Extract the elements of the tuple
+// that are convertible from the given type.
+// The result tuple uses an identical
+// type as the source tuple.
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Type,
+    typename Tuple
+>
+auto tuple_extract_convertible_elements(
+    Tuple& tuple
+)
+requires (std::tuple_size_v<Tuple> >= 0)
+{
+    auto applyToElement = [&]<size_t index>()
+    {
+        using element_type = std::tuple_element_t<index, Tuple>;
+        if constexpr (std::is_convertible_v<element_type, Type>)
+        {
+            return std::tuple<element_type>
+            {
+                std::get<index>(tuple)
+            };
+        }
+        else
+        {
+            return std::tuple{};
+        }
+    };
+    auto applyToElements = [&]<size_t... indices>(
+        std::index_sequence<indices...>)
+    {
+        return std::tuple_cat(
+            applyToElement.operator()<indices>()...
+        );
+    };
+
+    return applyToElements(
+        std::make_index_sequence<
+            std::tuple_size_v<Tuple>
+        >{}
+    );
+}
+
 template<
     is_template_instantiation<std::tuple> ... Tuples
 > struct tuple_cat_types
