@@ -22,8 +22,10 @@ template<
 >
 using coroutine_handle = std::coroutine_handle<TPromise>;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using suspend_always = std::suspend_always;
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 using suspend_never = std::suspend_never;
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -83,19 +85,6 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::suspend_never;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::noop_coroutine;
-
-PHANTOM_COROUTINES_MODULE_EXPORT
-constexpr auto operator<=>(const coroutine_handle<>& left, const coroutine_handle<> right)
-{
-    return std::operator<=>(left, right);
-}
-
-PHANTOM_COROUTINES_MODULE_EXPORT
-template<typename Promise>
-constexpr auto operator==(const coroutine_handle<>& left, const coroutine_handle<> right)
-{
-    return std::operator==(left, right);
-}
 
 }
 
