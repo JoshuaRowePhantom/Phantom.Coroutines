@@ -67,6 +67,7 @@ target_sources(
     "sequence_lock.ixx"
     "sharding.ixx"
     "shared_task.ixx"
+    "stateful_metaprogramming.ixx"
     "static_thread_pool.ixx"
     "storage_for.ixx"
     "suspend_result.ixx"

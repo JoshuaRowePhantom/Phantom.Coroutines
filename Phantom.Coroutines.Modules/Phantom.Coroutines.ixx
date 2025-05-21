@@ -47,6 +47,7 @@ export import Phantom.Coroutines.scope_guard;
 export import Phantom.Coroutines.sequence_lock;
 export import Phantom.Coroutines.sharding;
 export import Phantom.Coroutines.shared_task;
+export import Phantom.Coroutines.stateful_metaprogramming;
 export import Phantom.Coroutines.static_thread_pool;
 export import Phantom.Coroutines.storage_for;
 export import Phantom.Coroutines.suspend_result;

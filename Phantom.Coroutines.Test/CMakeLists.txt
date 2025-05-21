@@ -43,6 +43,7 @@ set(
     "sharding_test.cpp"
     "shared_task_test.cpp"
     "suspend_result_test.cpp" 
+    "stateful_metaprogramming_test.cpp"
     "sync_wait_test.cpp"
     "tagged_pointer_test.cpp"
     "task_test.cpp"
