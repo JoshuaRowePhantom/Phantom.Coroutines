@@ -52,6 +52,7 @@ set(
     "thread_pool_scheduler_test.cpp"
     "tracing_test.cpp"
     "type_traits_test.cpp"
+    "value_awaiter_test.cpp"
 )
 
 add_executable(

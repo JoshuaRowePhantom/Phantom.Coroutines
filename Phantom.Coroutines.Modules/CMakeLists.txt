@@ -80,6 +80,7 @@ target_sources(
     "thread_pool_scheduler.ixx"
     "tracing.ixx"
     "type_traits.ixx"
+    "value_awaiter.ixx"
     "variant_result_storage.ixx" 
 )
 
