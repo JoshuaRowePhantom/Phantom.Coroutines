@@ -94,6 +94,7 @@ target_sources(
     FILES
     "lifetime_tracker.ixx"
     "pmr_task.ixx"
+    "stateful_metaprogramming_test_module.ixx"
 )
 
 target_compile_definitions(
