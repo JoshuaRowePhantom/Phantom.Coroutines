@@ -53,4 +53,27 @@ static_assert(has_state<stateful_metaprogramming_test_module_label>);
 static_assert(std::same_as<int, read_state<stateful_metaprogramming_test_module_label>>);
 #endif
 
+static_assert(std::same_as<type_list<>, type_list_concatenate<>>);
+static_assert(std::same_as<type_list<int>, type_list_concatenate<type_list<int>>>);
+static_assert(std::same_as<type_list<int, bool>, type_list_concatenate<type_list<int>, type_list<bool>>>);
+static_assert(std::same_as<type_list<int, long, bool, long, char, char>, type_list_concatenate<type_list<int, long>, type_list<bool, long>, type_list<char, char>>>);
+
+static_assert(
+    std::same_as<type_list<char, int>,
+    type_list_filter<
+        []<typename Type>(type_list<Type> element)
+        {
+            if constexpr (std::same_as<Type, bool>)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        },
+        type_list<bool, char, bool, int, bool>
+    >
+>);
+
 }

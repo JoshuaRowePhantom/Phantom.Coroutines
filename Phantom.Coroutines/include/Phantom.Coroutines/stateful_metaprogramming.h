@@ -149,6 +149,51 @@ using read_variable = read_state<decltype(detail::get_current_variable_label<Lab
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename ... Types
+> struct type_list;
+
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+consteval type_list<> type_list_concatenate_fn();
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename ... Types
+>
+consteval type_list<Types...> type_list_concatenate_fn(
+    type_list<Types...> list
+)
+{
+    return list;
+}
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename ... Types1,
+    typename ... Types2,
+    typename ... Lists
+>
+consteval auto type_list_concatenate_fn(
+    type_list<Types1...> list1,
+    type_list<Types2...> list2,
+    Lists ... lists
+)
+{
+    return type_list_concatenate_fn(
+        type_list<Types1..., Types2...>{},
+        lists...);
+}
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename ... TypeLists
+>
+using type_list_concatenate = decltype(
+        type_list_concatenate_fn(TypeLists{}...)
+);
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename ... Types
 > struct type_list
 {
     using tuple_type = std::tuple<Types...>;
@@ -197,101 +242,87 @@ template<
         return false;
     }
 
-    //template<
-    //    auto predicate
-    //>
-    //auto filter(
-    //) const
-    //{
-    //    auto applyToElement = [&](auto element)
-    //    {
-    //        if constexpr (predicate(element))
-    //        {
-    //            return element{};
-    //        }
-    //        else
-    //        {
-    //            return type_list<>;
-    //        }
-    //    };
-
-
-    //}
 };
 
-type_list<> type_list_concat()
+PHANTOM_COROUTINES_MODULE_EXPORT
+consteval type_list<> type_list_concatenate_fn()
 {
     return {};
 }
 
-auto type_list_concat(
-    auto list
-)
-{
-    return list;
-}
-
-template<
-    typename List1,
-    typename List2,
-    typename ... Lists
->
-auto type_list_concat(
-    List1 list1,
-    List2 list2,
-    Lists ... lists
-)
-{
-    return type_list_concat(
-        list1.append(list2),
-        lists...);
-}
-
-// Used to represent arbitrary non-type value lists.
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    auto ... Values
-> struct value_list : type_list<decltype(Values)...>
+    auto Predicate,
+    typename ... Types
+>
+consteval auto type_list_filter_fn(
+    type_list<Types...> list
+)
 {
-    static consteval auto make_tuple()
+    auto filterElement = [&]<typename Type>(type_list<Type> element)
     {
-        return std::make_tuple(Values...);
-    }
+        if constexpr (Predicate(element))
+        {
+            return element;
+        }
+        else
+        {
+            return type_list<>{};
+        }
+    };
+
+    return type_list_concatenate_fn(
+        filterElement(type_list<Types>{})...
+    );
+}
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    auto Predicate,
+    typename TypeList
+>
+using type_list_filter = decltype(type_list_filter_fn<Predicate>(TypeList{}));
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    auto PValue
+>
+struct value
+{
+    static constexpr auto Value = PValue;
 
     template<
-        auto ... OtherValues
+        auto OtherValue
     >
-    consteval auto append(value_list<OtherValues...>) const
-    {
-        return value_list<Values..., OtherValues...>{};
-    }
-
-    template<
-        auto ... OtherValues
-    >
-    bool operator==(value_list<OtherValues...>) const
+    bool operator==(value<OtherValue>) const
     {
         return false;
     }
 
     template<
-        auto ... OtherValues
+        auto OtherValue
     >
-    bool operator!=(value_list<OtherValues...>) const
+    bool operator!=(value<OtherValue>) const
     {
         return true;
     }
 
-    bool operator==(value_list) const
+    bool operator==(value) const
     {
         return true;
     }
 
-    bool operator!=(value_list) const
+    bool operator!=(value) const
     {
         return false;
     }
 };
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    auto ... Values
+>
+using value_list = type_list<value<Values>...>;
 
 // Manipulate lists.
 PHANTOM_COROUTINES_MODULE_EXPORT
