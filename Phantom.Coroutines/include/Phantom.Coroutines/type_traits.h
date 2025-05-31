@@ -182,7 +182,7 @@ requires (std::tuple_size_v<Tuple> >= 0)
         std::index_sequence<indices...>)
     {
         return std::tuple_cat(
-            applyToElement.operator()<indices>()...
+            applyToElement.template operator()<indices>()...
         );
     };
 

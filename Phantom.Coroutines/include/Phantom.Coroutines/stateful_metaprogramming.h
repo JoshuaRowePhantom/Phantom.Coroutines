@@ -285,6 +285,24 @@ using type_list_filter = decltype(type_list_filter_fn<Predicate>(TypeList{}));
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
+    size_t Index,
+    typename ... Types
+>
+constexpr auto type_list_get_fn(type_list<Types...> list)
+{
+    static_assert(Index < sizeof...(Types), "Index out of bounds for type_list.");
+    return std::get<Index>(list.make_tuple());
+}
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    size_t Index,
+    typename TypeList
+>
+using type_list_get = decltype(type_list_get_fn<Index>(TypeList{}));
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
     auto PValue
 >
 struct value

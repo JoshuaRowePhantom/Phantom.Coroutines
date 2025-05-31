@@ -76,4 +76,28 @@ static_assert(
     >
 >);
 
+static_assert(
+    std::same_as<
+        int,
+        type_list_get<0, type_list<int, bool, long, char>>
+    >);
+
+static_assert(
+    std::same_as<
+        bool,
+        type_list_get<1, type_list<int, bool, long, char>>
+    >);
+
+static_assert(
+    std::same_as<
+        long,
+        type_list_get<2, type_list<int, bool, long, char>>
+    >);
+
+static_assert(
+    std::same_as<
+        char,
+        type_list_get<3, type_list<int, bool, long, char>>
+    >);
+
 }

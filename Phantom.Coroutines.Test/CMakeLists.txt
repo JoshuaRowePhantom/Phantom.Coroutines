@@ -28,6 +28,7 @@ set(
     "direct_initialized_optional_test.cpp"
     "double_wide_atomic_test.cpp" 
     "early_termination_task_test.cpp"
+    "friendly_coroutine_traits_test.cpp"
     "generator_test.cpp"
     "inline_scheduler_test.cpp"
     "make_Task_test.cpp" 

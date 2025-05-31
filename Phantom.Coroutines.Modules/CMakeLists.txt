@@ -50,6 +50,7 @@ target_sources(
     "extensible_promise.ixx"
     "fibonacci_heap.ixx" 
     "final_suspend_transfer.ixx"
+    "friendly_coroutine_traits.ixx"
     "generator.ixx" 
     "immovable_object.ixx"
     "inline_scheduler.ixx"

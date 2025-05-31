@@ -31,6 +31,7 @@ export import Phantom.Coroutines.expected_early_termination;
 export import Phantom.Coroutines.extensible_promise;
 export import Phantom.Coroutines.fibonacci_heap;
 export import Phantom.Coroutines.final_suspend_transfer;
+export import Phantom.Coroutines.friendly_coroutine_traits;
 export import Phantom.Coroutines.generator;
 export import Phantom.Coroutines.immovable_object;
 export import Phantom.Coroutines.inline_scheduler;
