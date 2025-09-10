@@ -61,7 +61,6 @@ consteval auto get_friendly_coroutine_traits_type()
         detail::friendly_coroutine_traits_types_list,
         stateful_metaprogramming::type_list<Result, Args...>{}
     >;
-    //return friendly_coroutine_traits_type_list{};
 
     using filtered_coroutine_traits_type_list = stateful_metaprogramming::type_list_filter
     <
@@ -84,7 +83,7 @@ consteval auto get_friendly_coroutine_traits_type()
 
     static_assert(
         assert_no_conflicting_coroutine_traits<
-            friendly_coroutine_traits_type_list,
+            filtered_coroutine_traits_type_list,
             Result,
             Args...
         >());

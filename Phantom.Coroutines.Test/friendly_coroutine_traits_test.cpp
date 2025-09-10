@@ -9,8 +9,8 @@ import Phantom.Coroutines.friendly_coroutine_traits;
 import Phantom.Coroutines.stateful_metaprogramming;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/detail/coroutine.h"
-#include "Phantom.Coroutines/detail/friendly_coroutine_traits.h"
-#include "Phantom.Coroutines/detail/stateful_metaprogramming.h"
+#include "Phantom.Coroutines/friendly_coroutine_traits.h"
+#include "Phantom.Coroutines/stateful_metaprogramming.h"
 #endif
 
 namespace Phantom::Coroutines

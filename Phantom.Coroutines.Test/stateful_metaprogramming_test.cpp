@@ -61,7 +61,7 @@ static_assert(std::same_as<type_list<int, long, bool, long, char, char>, type_li
 static_assert(
     std::same_as<type_list<char, int>,
     type_list_filter<
-        []<typename Type>(type_list<Type> element)
+        []<typename Type>(type_list<Type>)
         {
             if constexpr (std::same_as<Type, bool>)
             {
