@@ -70,7 +70,6 @@ TEST(sequence_lock_test, reads_and_writes_are_consistent)
             }
 
             auto lock = co_await outputMutex.scoped_lock_async();
-            std::cout << "Done with thread " << index << "\n";
         };
 
         async_scope<> scope;
