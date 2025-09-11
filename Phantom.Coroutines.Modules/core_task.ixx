@@ -2,6 +2,7 @@ module;
 #include <coroutine>
 #include <concepts>
 #include <exception>
+#include <functional>
 #include <type_traits>
 #include <utility>
 #include <variant>

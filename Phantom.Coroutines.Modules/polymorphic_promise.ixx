@@ -1,5 +1,7 @@
 module;
 #include<assert.h>
+#include<functional>
+#include<memory>
 #include<concepts>
 #include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.polymorphic_promise;

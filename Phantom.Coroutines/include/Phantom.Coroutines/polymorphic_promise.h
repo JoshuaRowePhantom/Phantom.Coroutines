@@ -3,6 +3,8 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <assert.h>
 #include <concepts>
+#include <functional>
+#include <memory>
 #include <type_traits>
 #include "Phantom.Coroutines/detail/config_macros.h"
 #include "Phantom.Coroutines/detail/coroutine.h"
