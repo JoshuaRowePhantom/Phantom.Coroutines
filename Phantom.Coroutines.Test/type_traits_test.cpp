@@ -406,4 +406,31 @@ TEST(tuple_extract_convertible_elements, can_extract_by_reference)
         ASSERT_EQ(&const_derived1, &get<1>(result));
     }
 }
+
+TEST(value_storage_test, can_default_construct)
+{
+    detail::value_storage<std::string> holder;
+    ASSERT_EQ("", holder.value());
+}
+
+TEST(value_storage_test, can_construct_from_arguments)
+{
+    detail::value_storage<std::string> holder{ size_t(10), 'c' };
+    ASSERT_EQ("cccccccccc", holder.value());
+}
+
+TEST(value_storage_test, can_construct_from_lambda)
+{
+    detail::value_storage<std::string> holder{ []() { return std::string("hello"); } };
+    ASSERT_EQ("hello", holder.value());
+}
+
+TEST(value_storage_test, can_get_const_value)
+{
+    detail::value_storage<std::string> holder{ "hello" };
+    ASSERT_EQ("hello", holder.value());
+    const auto& constHolder = holder;
+    ASSERT_EQ("hello", constHolder.value());
+}
+
 }

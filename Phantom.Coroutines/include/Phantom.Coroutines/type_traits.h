@@ -640,9 +640,7 @@ template<
     Value m_value;
 
 public:
-    value_storage() requires std::is_default_constructible_v<Value> {}
-
-    value_storage(
+    explicit value_storage(
         std::invocable<> auto&& invocable
     ) requires
         std::same_as<Value, std::invoke_result_t<decltype(invocable)>>
@@ -650,7 +648,17 @@ public:
         m_value { std::invoke(std::forward<decltype(invocable)>(invocable)) }
     {}
 
-protected:
+    template<
+        typename ... Args
+    >
+        requires std::constructible_from<Value, Args...>
+    value_storage(
+        Args&&... args
+    ) 
+        : m_value(std::forward<Args>(args)...)
+    {
+    }
+
     decltype(auto) value()
     {
         return (m_value);
