@@ -85,7 +85,14 @@ TEST(async_mutex_test, assign_empty_unlocks_scoped_lock)
     ASSERT_TRUE(result2);
 }
 
+// https://timsong-cpp.github.io/lwg-issues/4172
+// https://github.com/JoshuaRowePhantom/Phantom.Coroutines/issues/15
+// unique_lock self-assignment operation is broken.
+#if !PHANTOM_COROUTINES_COMPILER_CLANG || PHANTOM_COROUTINES_RUN_KNOWN_BROKEN_TESTS
 TEST(async_mutex_test, assign_self_keeps_scoped_lock)
+#else
+TEST(async_mutex_test, DISABLED_assign_self_keeps_scoped_lock)
+#endif
 {
     async_mutex<> mutex;
     auto result1 = mutex.try_scoped_lock();
@@ -186,8 +193,11 @@ ASYNC_TEST(async_mutex_test, noop_on_destroy_destructor_does_nothing)
     EXPECT_EQ(std::future_status::timeout, future.wait_for(0s));
 }
 
-#if !PHANTOM_COROUTINES_COMPILING_MODULES || !PHANTOM_COROUTINES_INCORRECT_EXCEPTION_DATA_IN_MODULES
+#if (!PHANTOM_COROUTINES_COMPILING_MODULES || !PHANTOM_COROUTINES_INCORRECT_EXCEPTION_DATA_IN_MODULES) || PHANTOM_COROUTINES_RUN_KNOWN_BROKEN_TESTS
 ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_causes_awaiters_to_get_exception)
+#else
+ASYNC_TEST(async_mutex_test, DISABLED_throw_on_destroy_destructor_causes_awaiters_to_get_exception)
+#endif
 {
     std::optional<async_mutex<throw_on_destroy>> mutex{ std::in_place };
     co_await mutex->lock_async();
@@ -202,7 +212,6 @@ ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_causes_awaiters_to_get_
     EXPECT_THROW(future.get(), std::future_error);
     co_return;
 }
-#endif
 
 ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_no_awaiters_works_fine)
 {
