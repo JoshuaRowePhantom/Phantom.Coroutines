@@ -39,6 +39,7 @@ target_sources(
     "config_globals.ixx"
     "consecutive_global_id.ixx" 
     "consecutive_thread_id.ixx"
+    "constructible_from_base.ixx"
     "contextual_promise.ixx"
     "core_task.ixx"
     "coroutine.ixx" 
@@ -58,6 +59,7 @@ target_sources(
     "nonatomic_shared_ptr.ixx"
     "Phantom.Coroutines.ixx" 
     "policies.ixx"
+    "polymorphic_promise.ixx"
     "promise_allocator.ixx" 
     "read_copy_update.ixx"
     "reusable_consecutive_global_id.ixx"
@@ -80,7 +82,7 @@ target_sources(
     "tracing.ixx"
     "type_traits.ixx"
     "value_awaiter.ixx"
-    "variant_result_storage.ixx" 
+    "variant_result_storage.ixx"
 )
 
 target_link_libraries(

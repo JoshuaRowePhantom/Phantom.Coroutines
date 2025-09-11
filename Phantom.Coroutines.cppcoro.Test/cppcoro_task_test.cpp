@@ -2,19 +2,20 @@
 #include <concepts>
 #include "cppcoro/task.hpp"
 
-static_assert(std::same_as<::Phantom::Coroutines::reusable_task<>, ::cppcoro::task<>>);
-static_assert(std::same_as<::Phantom::Coroutines::reusable_task<>, decltype(::cppcoro::make_task(std::suspend_always{}))>);
 
-namespace cppcoro
+namespace Phantom::cppcoro_test
 {
+using namespace ::cppcoro;
+static_assert(std::same_as<task<>, decltype(make_task(std::suspend_always{})) > );
+
 ASYNC_TEST(task_test, make_task_returns_task)
 {
-    auto lambda = []() -> ::Phantom::Coroutines::task<std::string>
+    auto lambda = []() -> ::cppcoro::task<std::string>
     {
         co_return "hello world";
     };
 
-    auto task = make_task(lambda());
+    auto task = cppcoro::make_task(lambda());
     static_assert(std::same_as<::cppcoro::task<std::string>, decltype(task)>);
     EXPECT_EQ("hello world", co_await task);
 }

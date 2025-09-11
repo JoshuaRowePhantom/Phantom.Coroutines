@@ -14,8 +14,6 @@ PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {
-namespace detail
-{
 
 // An extensible_promise is a promise type that can
 // be extended or wrapped by other promise types.
@@ -50,6 +48,8 @@ is_extensible_promise<Promise>
     { promise.template promise<Promise>() } -> std::same_as<Promise&>;
 };
 
+namespace detail
+{
 template<
     typename Promise
 > struct wrapper_promise_return
@@ -212,22 +212,24 @@ public:
     using AwaitTransformBases::await_transform...;
 };
 
+} // namespace detail
+
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_extensible_promise BasePromise,
     typename ... Bases
 >
 class derived_promise :
-    public derived_promise_impl<
+    public detail::derived_promise_impl<
     BasePromise,
     std::tuple<Bases...>,
-    typename filter_types
+    typename detail::filter_types
     <
-    has_await_transform_filter,
-    derived_promise_await_transform<BasePromise, Bases...>,
-    derived_promise_base<Bases>...
+        detail::has_await_transform_filter,
+        detail::derived_promise_await_transform<BasePromise, Bases...>,
+        detail::derived_promise_base<Bases>...
     >::tuple_type
-    >
+>
 {
     using derived_promise::derived_promise_impl::derived_promise_impl;
 };
@@ -247,7 +249,7 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename PromiseHandle
 > concept is_extensible_promise_handle = 
-is_derived_instantiation<
+detail::is_derived_instantiation<
     PromiseHandle,
     // We check for extended_promise_handle because all extensible_promise_handle
     // objects derived from extended_promise_handle, and all extended_promise_handle
@@ -323,21 +325,30 @@ public:
 
 protected:
     // Access the coroutine handle by reference.
-    decltype(auto) handle()
+    coroutine_handle_type& handle()
     {
-        return (m_coroutineHandle);
+        return m_coroutineHandle;
     }
 
     // Access the coroutine handle by reference.
-    decltype(auto) handle() const
+    const coroutine_handle_type& handle() const
     {
-        return (m_coroutineHandle);
+        return m_coroutineHandle;
     }
 
     // Access the promise by reference
-    decltype(auto) promise() const
+    Promise& promise() const
     {
         return m_coroutineHandle.promise();
+    }
+
+    void destroy()
+    {
+        if (handle())
+        {
+            handle().destroy();
+            handle() = coroutine_handle_type{};
+        }
     }
 
 public:
@@ -379,7 +390,7 @@ template<
 > class extended_promise_handle<
     PromiseHandle
 > :
-    private value_storage<PromiseHandle>
+    private detail::value_storage<PromiseHandle>
 {
     template<
         typename
@@ -424,7 +435,7 @@ protected:
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename PromiseHandle
-> concept is_extended_promise_handle = is_derived_instantiation<PromiseHandle, extended_promise_handle>;
+> concept is_extended_promise_handle = detail::is_derived_instantiation<PromiseHandle, extended_promise_handle>;
 
 // This class helps for transferring ownership of single-owner awaitables.
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -434,6 +445,9 @@ template<
     :
     public extensible_promise_handle<Promise>
 {
+protected:
+    using single_owner_promise_handle::extensible_promise_handle::destroy;
+
 public:
     using typename single_owner_promise_handle::extensible_promise_handle::coroutine_handle_type;
 
@@ -441,29 +455,26 @@ public:
         const single_owner_promise_handle&
     ) = delete;
 
-    explicit single_owner_promise_handle(
+    single_owner_promise_handle(
         Promise& promise
-    ) : extensible_promise_handle<Promise> { promise.handle() }
+    ) : extensible_promise_handle<Promise> { promise }
     {
     }
 
     explicit single_owner_promise_handle(
-        coroutine_handle_type&& other = coroutine_handle_type{}
-    )
+        coroutine_handle_type other = coroutine_handle_type{}
+    ) : extensible_promise_handle<Promise> { other }
     {
-        std::swap(
-            this->handle(),
-            other
-        );
     }
 
     single_owner_promise_handle(
         single_owner_promise_handle&& other
     )
     {
-        std::swap(
-            this->handle(),
-            other.handle()
+        using std::swap;
+        swap<extensible_promise_handle<Promise>>(
+            *this,
+            other
         );
     }
 
@@ -477,7 +488,8 @@ public:
     {
         auto temp = std::move(*this);
 
-        std::swap(
+        using std::swap;
+        swap(
             this->handle(),
             other.handle()
         );
@@ -485,18 +497,9 @@ public:
         return *this;
     }
 
-    void destroy()
-    {
-        if (this->handle())
-        {
-            this->handle().destroy();
-            this->handle() = {};
-        }
-    }
-
     [[nodiscard]] auto destroy_on_scope_exit()
     {
-        return scope_guard{ [&]() { this->destroy(); } };
+        return detail::scope_guard{ [&]() { this->destroy(); } };
     }
 
     ~single_owner_promise_handle()
@@ -504,20 +507,7 @@ public:
         destroy();
     }
 };
-}
-
-PHANTOM_COROUTINES_MODULE_EXPORT
-using detail::extensible_promise;
-PHANTOM_COROUTINES_MODULE_EXPORT
-using detail::extended_promise_handle;
-PHANTOM_COROUTINES_MODULE_EXPORT
-using detail::is_extensible_promise;
-PHANTOM_COROUTINES_MODULE_EXPORT
-using detail::is_extensible_promise_handle;
-PHANTOM_COROUTINES_MODULE_EXPORT
-using detail::extensible_promise_handle;
-PHANTOM_COROUTINES_MODULE_EXPORT
-using detail::derived_promise;
 
 }
+
 #endif

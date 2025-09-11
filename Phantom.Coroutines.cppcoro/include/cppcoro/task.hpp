@@ -12,15 +12,13 @@ template<
     typename Result = void
 > using task = ::Phantom::Coroutines::reusable_task<Result>;
 
-template<
-    typename Awaitable
-> decltype(auto) make_task(
-    Awaitable&& awaitable
+constexpr auto make_task = [](
+    auto&& awaitable
 )
 {
     return ::Phantom::Coroutines::make_task<task>(
-        std::forward<Awaitable>(awaitable));
-}
+        std::forward<decltype(awaitable)>(awaitable));
+};
 
 }
 #endif

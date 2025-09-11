@@ -198,20 +198,8 @@ private:
     }
 
 public:
-    awaiter_wrapper()
-    {
-    }
-
-    explicit awaiter_wrapper(
-        std::invocable<> auto&& awaitableFunction
-    )
-        : 
-        awaiter_wrapper_storage<Awaitable>
-    {
-        std::forward<decltype(awaitableFunction)>(awaitableFunction)
-    }
-    {}
-
+    using awaiter_wrapper::awaiter_wrapper_storage::awaiter_wrapper_storage;
+    
 public:
     decltype(auto) awaiter(
         this auto& self)

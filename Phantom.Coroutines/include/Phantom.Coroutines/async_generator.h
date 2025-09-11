@@ -29,6 +29,7 @@ is_base_promise_type_policy<T>;
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
+    typename WrappedAwaitable,
     typename Promise
 > class basic_async_generator;
 
@@ -115,6 +116,7 @@ private:
     > friend class async_generator_yield_awaiter;
     
     template<
+        typename BaseAwaitable,
         typename Promise
     > friend class basic_async_generator;
 
@@ -129,18 +131,6 @@ private:
     current_value_holder_type m_currentValue;
 
 public:
-    template<
-        typename Self
-    > auto get_return_object(
-        this Self& self
-    ) noexcept
-    {
-        return basic_async_generator<Self>
-        {
-            [&]() { return self.derived_promise<BasePromise>::get_return_object(); }
-        };
-    }
-
     template<
         typename Value
     > auto yield_value(
@@ -286,8 +276,8 @@ template<
 {
     using enum async_generator_current_value_index;
 
+    friend Generator;
     friend class async_generator_increment_awaiter<Generator>;
-    friend class basic_async_generator<typename Generator::promise_type>;
 
     using promise_type = typename Generator::promise_type;
     Generator* m_generator;
@@ -366,18 +356,12 @@ public:
     }
 };
 
-decltype(auto) get_async_generator_base_return_object(
-    auto& promise
-)
-{
-    return promise.async_generator_base_promise_type::get_return_object();
-}
-
 template<
+    typename WrappedAwaitable,
     typename Promise
 > class basic_async_generator
     :
-    public extended_promise_handle<awaiter_wrapper<decltype(get_async_generator_base_return_object(std::declval<Promise&>()))>>
+    public awaiter_wrapper<WrappedAwaitable>
 {
     friend class async_generator_increment_awaiter<basic_async_generator>;
     friend class async_generator_iterator<basic_async_generator>;
@@ -386,37 +370,17 @@ template<
         typename BasePromise
     > friend class basic_async_generator_promise;
 
-    using awaiter_wrapper_type = typename basic_async_generator::extended_promise_handle::promise_handle_type;
-    using awaitable_type = typename awaiter_wrapper_type::awaiter_type;
-
-protected:
-    decltype(auto) awaiter()
-    {
-        return basic_async_generator::extended_promise_handle::awaitable().awaiter();
-    }
+    using awaiter_wrapper_type = basic_async_generator::awaiter_wrapper;
+    using awaitable_type = awaiter_wrapper_type::awaiter_type;
 
 public:
-    using typename basic_async_generator::extended_promise_handle::promise_type;
+    using promise_type = Promise;
     using result_type = typename promise_type::result_type;
     using value_type = typename promise_type::value_type;
     using iterator_type = async_generator_iterator<basic_async_generator>;
 
 public:
-    basic_async_generator()
-    {}
-
-private:
-    basic_async_generator(
-        std::invocable<> auto&& awaitableFunction
-    ) :
-        basic_async_generator::extended_promise_handle
-    {
-        [&]()
-        {
-            return awaiter_wrapper_type{ std::forward<decltype(awaitableFunction)>(awaitableFunction) };
-        }
-    }
-    {}
+    using basic_async_generator::awaiter_wrapper::awaiter_wrapper;
 
 public:
     auto begin()
@@ -443,6 +407,12 @@ template<
     typename Result,
     typename ... Policies
 > using async_generator = basic_async_generator<
+    basic_task<
+        async_generator_promise<
+            Result,
+            Policies...
+        >
+    >,
     async_generator_promise<
         Result,
         Policies...

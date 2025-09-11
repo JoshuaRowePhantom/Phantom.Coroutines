@@ -9,6 +9,7 @@
 #include <variant>
 #include "config_macros.h"
 #include "coroutine.h"
+#include "constructible_from_base.h"
 #include "../extensible_promise.h"
 #include "../final_suspend_transfer.h"
 #include "immovable_object.h"
@@ -177,7 +178,7 @@ class core_task_awaiter_result_base<
     Promise
 >
     :
-    public extensible_promise_handle<Promise>
+    public constructible_from_base<extensible_promise_handle<Promise>>
 {
 protected:
     decltype(auto) result(
@@ -195,7 +196,7 @@ protected:
         return std::forward<decltype(self)>(self).result().await_resume();
     }
 
-    using core_task_awaiter_result_base::extensible_promise_handle::extensible_promise_handle;
+    using core_task_awaiter_result_base::constructible_from_base::constructible_from_base;
 };
 
 template<
@@ -207,7 +208,7 @@ class core_task_awaiter_result_base<
 >
     :
     public core_task_variant_result<typename Promise::result_type>,
-    public single_owner_promise_handle<Promise>
+    public constructible_from_base<single_owner_promise_handle<Promise>>
 {
 protected:
 
@@ -226,7 +227,7 @@ protected:
         return std::move(self).template core_task_awaiter_result_base<Promise>::template core_task_variant_result<typename Promise::result_type>::await_resume();
     }
 
-    using core_task_awaiter_result_base::single_owner_promise_handle::single_owner_promise_handle;
+    using core_task_awaiter_result_base::constructible_from_base::constructible_from_base;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -306,8 +307,9 @@ protected:
     }
 
 public:
-    typedef Result result_type;
-    typedef Continuation continuation_type;
+    using result_type = Result;
+    using continuation_type = Continuation;
+    using task_type = core_task<core_task_promise>;
 
     auto initial_suspend(
     ) noexcept
@@ -321,14 +323,11 @@ public:
         return final_suspend_transfer{ continuation() };
     }
 
-    auto get_return_object(
+    decltype(auto) get_return_object(
         this auto& self
     ) noexcept
     {
-        return core_task
-        {
-            self
-        };
+        return self;
     }
 
     using PromiseBase<Result>::return_exception;
@@ -343,7 +342,6 @@ template<
     public core_task_awaiter_result_base<Promise>
 {
 protected:
-
     template<
         typename Result,
         is_continuation Continuation
@@ -403,7 +401,7 @@ public:
 
         return awaiter
         {
-            self.handle()
+            self
         };
     }
 
@@ -429,7 +427,7 @@ public:
 
         return awaiter
         {
-            detail::forward_like<Self>(self.handle())
+            std::forward<Self>(self)
         };
     }
 };

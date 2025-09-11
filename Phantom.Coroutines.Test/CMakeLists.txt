@@ -35,6 +35,7 @@ set(
     "nonatomic_shared_ptr_test.cpp"
     "nonatomic_shared_ptr_test.cpp"
     "pmr_task.h" 
+    "polymorphic_promise_test.cpp"
     "promise_allocator_test.cpp" 
     "read_copy_update_test.cpp"
     "reusable_consecutive_global_id_test.cpp"
@@ -52,7 +53,7 @@ set(
     "tracing_test.cpp"
     "type_traits_test.cpp"
     "value_awaiter_test.cpp"
-)
+ )
 
 add_executable(
     Phantom.Coroutines.Test
