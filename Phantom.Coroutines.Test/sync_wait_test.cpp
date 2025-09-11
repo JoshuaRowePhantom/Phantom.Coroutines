@@ -106,3 +106,65 @@ TEST(sync_wait_test, Wait_on_never_suspend)
 {
     sync_wait(suspend_never{});
 }
+
+TEST(as_future_test, rethrows_exception_thrown_by_task)
+{
+    auto taskLambda = []() -> task<>
+    {
+        throw std::runtime_error("test error");
+        co_return;
+    };
+
+    auto future = as_future(taskLambda());
+    try
+    {
+        future.get();
+        GTEST_FAIL();
+    }
+    catch (const std::runtime_error& e)
+    {
+        ASSERT_STREQ("test error", e.what());
+    }
+}
+
+TEST(as_future_test, rethrows_exception_thrown_by_task_lambda)
+{
+    auto taskLambda = []() -> task<>
+    {
+        throw std::runtime_error("test error");
+        co_return;
+    };
+
+    auto future = as_future(taskLambda);
+    try
+    {
+        future.get();
+        GTEST_FAIL();
+    }
+    catch (const std::runtime_error& e)
+    {
+        ASSERT_STREQ("test error", e.what());
+    }
+}
+
+TEST(as_future_test, rethrows_exception_thrown_by_await_resume)
+{
+    struct awaitable : std::suspend_never
+    {
+        void await_resume() 
+        { 
+            throw std::runtime_error("test error"); 
+        }
+    };
+
+    auto future = as_future(awaitable{});
+    try
+    {
+        future.get();
+        GTEST_FAIL();
+    }
+    catch (const std::runtime_error& e)
+    {
+        ASSERT_STREQ("test error", e.what());
+    }
+}

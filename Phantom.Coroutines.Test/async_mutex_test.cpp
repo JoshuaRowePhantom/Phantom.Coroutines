@@ -1,3 +1,4 @@
+#include "Phantom.Coroutines/detail/config_macros.h"
 #include <chrono>
 #include <future>
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
@@ -185,6 +186,7 @@ ASYNC_TEST(async_mutex_test, noop_on_destroy_destructor_does_nothing)
     EXPECT_EQ(std::future_status::timeout, future.wait_for(0s));
 }
 
+#if !PHANTOM_COROUTINES_COMPILING_MODULES || !PHANTOM_COROUTINES_INCORRECT_EXCEPTION_DATA_IN_MODULES
 ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_causes_awaiters_to_get_exception)
 {
     std::optional<async_mutex<throw_on_destroy>> mutex{ std::in_place };
@@ -200,6 +202,7 @@ ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_causes_awaiters_to_get_
     EXPECT_THROW(future.get(), std::future_error);
     co_return;
 }
+#endif
 
 ASYNC_TEST(async_mutex_test, throw_on_destroy_destructor_no_awaiters_works_fine)
 {
