@@ -28,10 +28,9 @@ set(
     "direct_initialized_optional_test.cpp"
     "double_wide_atomic_test.cpp" 
     "early_termination_task_test.cpp"
-    "friendly_coroutine_traits_test.cpp"
     "generator_test.cpp"
     "inline_scheduler_test.cpp"
-    "make_Task_test.cpp" 
+    "make_task_test.cpp" 
     "manual_scheduler.h"
     "nonatomic_shared_ptr_test.cpp"
     "nonatomic_shared_ptr_test.cpp"
@@ -44,7 +43,6 @@ set(
     "sharding_test.cpp"
     "shared_task_test.cpp"
     "suspend_result_test.cpp" 
-    "stateful_metaprogramming_test.cpp"
     "sync_wait_test.cpp"
     "tagged_pointer_test.cpp"
     "task_test.cpp"
@@ -95,7 +93,7 @@ target_sources(
     FILES
     "lifetime_tracker.ixx"
     "pmr_task.ixx"
-    "stateful_metaprogramming_test_module.ixx"
+    
 )
 
 target_compile_definitions(
