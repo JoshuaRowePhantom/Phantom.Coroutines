@@ -20,7 +20,13 @@ namespace Phantom::Coroutines
 PHANTOM_COROUTINES_MODULE_EXPORT
 class extensible_promise
 {
+    // promise objects are not meant to be copied or moved
+    extensible_promise(
+        const extensible_promise&
+    ) = delete;
 public:
+    extensible_promise() = default;
+
     auto handle(
         this auto& self
     ) noexcept
@@ -451,7 +457,7 @@ protected:
 public:
     using typename single_owner_promise_handle::extensible_promise_handle::coroutine_handle_type;
 
-    explicit single_owner_promise_handle(
+    single_owner_promise_handle(
         const single_owner_promise_handle&
     ) = delete;
 
@@ -461,7 +467,17 @@ public:
     {
     }
 
-    explicit single_owner_promise_handle(
+    template<
+        typename Other
+    >
+        requires std::constructible_from<extensible_promise_handle<Promise>, Other&>
+    single_owner_promise_handle(
+        std::reference_wrapper<Other> promise
+    ) : extensible_promise_handle<Promise> { static_cast<Other&>(promise) }
+    {
+    }
+
+    single_owner_promise_handle(
         coroutine_handle_type other = coroutine_handle_type{}
     ) : extensible_promise_handle<Promise> { other }
     {

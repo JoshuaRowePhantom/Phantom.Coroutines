@@ -18,14 +18,14 @@ namespace Phantom::Coroutines::detail
 //    base(const base&) {}
 //};
 //
-//struct derived1 : constructible_from_base<base>
+//struct derived1 : construct_from_base<base>
 //{
-//    using derived1::constructible_from_base::constructible_from_base;
+//    using derived1::construct_from_base::construct_from_base;
 //};
 //
-//struct derived2 : constructible_from_base<base>
+//struct derived2 : construct_from_base<base>
 //{
-//    using derived2::constructible_from_base::constructible_from_base;
+//    using derived2::construct_from_base::construct_from_base;
 //};
 //
 //int main()
@@ -37,13 +37,13 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename T
 >
-struct constructible_from_base
+struct construct_from_base
     :
     public T
 {
     using T::T;
 
-    constructible_from_base(
+    construct_from_base(
         const T& other
     )
         requires std::constructible_from<T, const T&>
@@ -51,7 +51,7 @@ struct constructible_from_base
     {
     }
 
-    constructible_from_base(
+    construct_from_base(
         T& other
     )
         requires std::constructible_from<T, T&>
@@ -59,7 +59,7 @@ struct constructible_from_base
     {
     }
 
-    constructible_from_base(
+    construct_from_base(
         T&& other
     )
         requires std::constructible_from<T, T&&>
@@ -67,7 +67,7 @@ struct constructible_from_base
     {
     }
 
-    constructible_from_base(
+    construct_from_base(
         const T&& other
     )
         requires std::constructible_from<T, const T&&>

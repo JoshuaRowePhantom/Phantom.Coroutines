@@ -7,7 +7,7 @@ module;
 #include <variant>
 #include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.core_task;
-import Phantom.Coroutines.constructible_from_base;
+import Phantom.Coroutines.construct_from_base;
 import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.extensible_promise;
 import Phantom.Coroutines.final_suspend_transfer;

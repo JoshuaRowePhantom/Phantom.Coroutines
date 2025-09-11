@@ -19,6 +19,9 @@
 #define PHANTOM_COROUTINES_NO_REJECT_LAMBDA_WITH_INVALID_MEMBER 1
 #endif
 
+// MSVC captures the result of get_return_object as-is.
+#define PHANTOM_COROUTINES_USE_REFERENCE_WRAPPER_RETURN_TYPE_FOR_GET_RETURN_OBJECT 0
+
 // MSVC does present the lambda object as the first reference
 // argument to the promise constructor.
 #define PHANTOM_COROUTINES_LAMBDA_REFERENCE_IS_FIRST_ARGUMENT_OF_PROMISE_CONSTRUCTOR 1

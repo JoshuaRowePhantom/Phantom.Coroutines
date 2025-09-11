@@ -9,7 +9,7 @@
 #include <variant>
 #include "config_macros.h"
 #include "coroutine.h"
-#include "constructible_from_base.h"
+#include "construct_from_base.h"
 #include "../extensible_promise.h"
 #include "../final_suspend_transfer.h"
 #include "immovable_object.h"
@@ -178,7 +178,7 @@ class core_task_awaiter_result_base<
     Promise
 >
     :
-    public constructible_from_base<extensible_promise_handle<Promise>>
+    public construct_from_base<extensible_promise_handle<Promise>>
 {
 protected:
     decltype(auto) result(
@@ -196,7 +196,7 @@ protected:
         return std::forward<decltype(self)>(self).result().await_resume();
     }
 
-    using core_task_awaiter_result_base::constructible_from_base::constructible_from_base;
+    using core_task_awaiter_result_base::construct_from_base::construct_from_base;
 };
 
 template<
@@ -208,7 +208,7 @@ class core_task_awaiter_result_base<
 >
     :
     public core_task_variant_result<typename Promise::result_type>,
-    public constructible_from_base<single_owner_promise_handle<Promise>>
+    public construct_from_base<single_owner_promise_handle<Promise>>
 {
 protected:
 
@@ -227,7 +227,7 @@ protected:
         return std::move(self).template core_task_awaiter_result_base<Promise>::template core_task_variant_result<typename Promise::result_type>::await_resume();
     }
 
-    using core_task_awaiter_result_base::constructible_from_base::constructible_from_base;
+    using core_task_awaiter_result_base::construct_from_base::construct_from_base;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -323,12 +323,21 @@ public:
         return final_suspend_transfer{ continuation() };
     }
 
-    decltype(auto) get_return_object(
+#if PHANTOM_COROUTINES_USE_REFERENCE_WRAPPER_RETURN_TYPE_FOR_GET_RETURN_OBJECT
+    auto get_return_object(
+        this auto& self
+    ) noexcept
+    {
+        return std::ref(self);
+    }
+#else
+    auto& get_return_object(
         this auto& self
     ) noexcept
     {
         return self;
     }
+#endif
 
     using PromiseBase<Result>::return_exception;
     using PromiseBase<Result>::return_variant_result;
@@ -379,10 +388,11 @@ template<
 >
 class [[nodiscard]] core_task
     :
-    public single_owner_promise_handle<Promise>
+    public construct_from_base<single_owner_promise_handle<Promise>>
 {
 public:
-    using single_owner_promise_handle<Promise>::single_owner_promise_handle;
+    using core_task::construct_from_base::construct_from_base;
+    using single_owner_promise_handle = core_task::construct_from_base;
     using promise_type = Promise;
     static constexpr bool is_reusable = promise_type::is_reusable;
 
