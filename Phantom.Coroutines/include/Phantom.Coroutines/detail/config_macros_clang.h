@@ -4,7 +4,7 @@
 #define PHANTOM_COROUTINES_MSVC_FORCEINLINE
 #define PHANTOM_COROUTINES_MSVC_SUPPRESS_PACKING_ALIGNMENT_WARNING
 #define PHANTOM_COROUTINES_MSVC_PUSH_DISABLE_WARNING(warnings)
-#define PHANTOM_COROUTINES_MSVC_POP()
+#define PHANTOM_COROUTINES_MSVC_POP_WARNINGS()
 
 // CLang captures the result of get_return_object using auto,
 // which decays reference types. Therefore, get_return_object

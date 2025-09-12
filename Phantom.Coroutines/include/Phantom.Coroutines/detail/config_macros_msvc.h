@@ -33,4 +33,4 @@
 #define PHANTOM_COROUTINES_MSVC_SUPPRESS_PACKING_ALIGNMENT_WARNING __pragma(warning(suppress:4324))
 
 #define PHANTOM_COROUTINES_MSVC_PUSH_DISABLE_WARNING(warnings) __pragma(warning(push)) __pragma(warning(disable: warnings))
-#define PHANTOM_COROUTINES_MSVC_POP() __pragma(warning(pop))
+#define PHANTOM_COROUTINES_MSVC_POP_WARNINGS() __pragma(warning(pop))
