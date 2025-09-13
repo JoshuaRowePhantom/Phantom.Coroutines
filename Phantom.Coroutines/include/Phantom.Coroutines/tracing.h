@@ -169,7 +169,7 @@ struct promise_result_event
 PHANTOM_COROUTINES_MODULE_EXPORT
 struct exception_event
 {
-    std::exception_ptr exception;
+    std::exception_ptr Exception;
 };
 
 // Base for all tracing events that refer to an awaiter.

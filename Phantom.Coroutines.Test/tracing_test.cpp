@@ -137,6 +137,150 @@ struct tracing_tests : testing::Test
         EXPECT_EQ(true, event->is_co_yield);
         EXPECT_EQ(false, event->is_final_suspend);
     }
+
+    template<
+        typename AwaitReadyLambda,
+        typename AwaitSuspendLambda,
+        typename AwaitResumeLambda
+    >
+    struct test_awaiter_type
+    {
+        AwaitReadyLambda await_ready_lambda;
+        AwaitSuspendLambda await_suspend_lambda;
+        AwaitResumeLambda await_resume_lambda;
+
+        auto await_ready()
+        {
+            return await_ready_lambda();
+        }
+
+        auto await_suspend(auto handle)
+        {
+            return await_suspend_lambda(handle);
+        }
+
+        auto await_resume()
+        {
+            return await_resume_lambda();
+        }
+
+        auto with_await_ready(auto lambda)
+        {
+            return test_awaiter_type<
+                decltype(lambda),
+                AwaitSuspendLambda,
+                AwaitResumeLambda
+            >
+            {
+                .await_ready_lambda = lambda,
+                .await_suspend_lambda = await_suspend_lambda,
+                .await_resume_lambda = await_resume_lambda,
+            };
+        }
+
+        auto with_await_ready_false()
+        {
+            return with_await_ready([]() { return false; });
+        }
+
+        auto with_await_ready_true()
+        {
+            return with_await_ready([]() { return true; });
+        }
+
+        auto with_await_ready_exception(auto exception)
+        {
+            return with_await_ready([exception]() -> bool { throw exception; });
+        }
+
+        auto with_await_suspend(auto lambda)
+        {
+            return test_awaiter_type<
+                AwaitReadyLambda,
+                decltype(lambda),
+                AwaitResumeLambda
+            >
+            {
+                .await_ready_lambda = await_ready_lambda,
+                .await_suspend_lambda = lambda,
+                .await_resume_lambda = await_resume_lambda,
+            };
+        }
+
+        auto with_await_suspend_false()
+        {
+            return with_await_suspend([](auto) { return false; });
+        }
+
+        auto with_await_suspend_true()
+        {
+            return with_await_suspend([](auto) { return true; });
+        }
+
+        template<
+            typename Result
+        >
+        auto with_await_suspend_exception(auto exception)
+        {
+            return with_await_suspend([exception](auto) -> Result { throw exception; });
+        }
+
+        auto with_await_resume(auto lambda)
+        {
+            return test_awaiter_type<
+                AwaitReadyLambda,
+                AwaitSuspendLambda,
+                decltype(lambda)
+            >
+            {
+                .await_ready_lambda = await_ready_lambda,
+                .await_suspend_lambda = await_suspend_lambda,
+                .await_resume_lambda = lambda,
+            };
+        }
+
+        auto with_await_resume_void()
+        {
+            return with_await_resume([]() { return; });
+        }
+
+        auto with_await_resume_value(auto value)
+        {
+            return with_await_resume([value]() { return value; });
+        }
+
+        template<
+            typename Result
+        >
+        auto with_await_resume_exception(auto exception)
+        {
+            return with_await_resume([exception]() -> Result { throw exception; });
+        }
+    };
+
+    auto test_awaiter()
+    {
+        return test_awaiter_type
+        {
+            .await_ready_lambda = []() { return true; },
+            .await_suspend_lambda = [](auto) { return; },
+            .await_resume_lambda = []() { return; },
+        };
+    }
+
+    template<
+        typename Exception
+    >
+    task<> expect_exception(auto task)
+    {
+        try
+        {
+            co_await std::forward<decltype(task)>(task);
+            EXPECT_FALSE(true);
+        }
+        catch(Exception)
+        { }
+    }
 };
 } // namespace Phantom::Coroutines::tracing
 
@@ -526,6 +670,77 @@ ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_ready_true_void_result)
 
     co_await taskLambda(eventChecker, "hello", filters::is_co_await);
     EXPECT_EQ(4, eventIndex);
+}
+
+ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_ready_exception)
+{
+    auto awaiter = test_awaiter()
+        .with_await_ready_exception(std::runtime_error("await_ready_exception"));
+
+    using awaiter_type = decltype(awaiter);
+
+    auto taskLambda = [&](
+        traced_events_checker& eventsChecker,
+        std::string inputArgument,
+        filters::is_co_await_fn
+        ) -> test_traced_task<>
+    {
+        co_await awaiter;
+    };
+
+    using traced_awaiter = traced_awaiter<
+        trace_sink<filters::is_co_await_fn>,
+        awaiter_type,
+        co_await_awaiter
+    >;
+
+    traced_awaiter* expectedAwaiter = nullptr;
+
+    int eventIndex = 0;
+    traced_events_checker eventChecker
+    {
+        [&](const std::any& anyEvent)
+        {
+            using namespace events;
+
+            ++eventIndex;
+            // We do this checkingIndex so that when trace messages are
+            // added or removed we don't have to change every index,
+            // we just insert code into the right place.
+            int checkingIndex = 0;
+            if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_begin<
+                    traced_awaiter
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                expectedAwaiter = event->Awaiter;
+                EXPECT_EQ(false, filters::has_result(*event).value);
+                ExpectIsCoAwait(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_exception<
+                    traced_awaiter
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedAwaiter, event->Awaiter);
+                EXPECT_THROW(std::rethrow_exception(event->Exception), std::runtime_error);
+                ExpectIsCoAwait(event);
+            }
+            else
+            {
+                EXPECT_FALSE(true);
+            }
+        }
+    };
+
+    co_await expect_exception<std::runtime_error>(taskLambda(eventChecker, "hello", filters::is_co_await));
+    EXPECT_EQ(2, eventIndex);
 }
 
 }
