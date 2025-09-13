@@ -5,16 +5,21 @@
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.config_globals;
+import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.final_suspend_transfer;
+import Phantom.Coroutines.polymorphic_promise;
 import Phantom.Coroutines.tracing;
 import Phantom.Coroutines.task;
+import Phantom.Coroutines.type_traits;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/detail/config_globals.h"
+#include "Phantom.Coroutines/polymorphic_promise.h"
 #include "Phantom.Coroutines/tracing.h"
 #include "Phantom.Coroutines/task.h"
+#include "Phantom.Coroutines/type_traits.h"
 #endif
 
-namespace Phantom::Coroutines
+namespace Phantom::Coroutines::tracing
 {
 
 struct tracing_tests : testing::Test
@@ -41,69 +46,136 @@ struct tracing_tests : testing::Test
         }
     };
 
+    template<
+        typename Filter
+    >
     struct trace_sink
     {
         traced_events_checker& checker;
-
+        
         trace_sink(
             auto&... args
         ) :
             checker(get<traced_events_checker&>(std::tie(args...)))
-        { }
+        {
+
+        }
 
         void operator()(const auto& traceEvent)
         {
-            checker(&traceEvent);
+            if (Filter{}(traceEvent))
+            {
+                checker(&traceEvent);
+            }
         }
     };
 
     template<
-        typename T
+        typename Result,
+        typename Filter
     >
-    using test_traced_promise = tracing::traced_promise<
-        trace_sink,
-        task_promise<T>
+    using test_traced_promise = traced_promise<
+        trace_sink<Filter>,
+        polymorphic_promise<task_promise<Result>>
     >;
 
     template<
         typename T = void
     >
-    using test_traced_task = basic_task<test_traced_promise<T>>;
+    using test_traced_task = basic_task<polymorphic_promise<task_promise<T>>>;
+
+    template<
+        typename EventType
+    >
+    auto CastEventType(
+        const std::any& anyEvent)
+    {
+        // Get human-readable string for debugging purposes.
+        std::string expectedTypeName = typeid(const EventType*).name();
+        std::string actualTypeName = anyEvent.type().name();
+        EXPECT_EQ(expectedTypeName, actualTypeName);
+
+        return std::any_cast<const EventType*>(anyEvent);
+    }
+
+    void ExpectIsInitialSuspend(
+        const auto* event
+    )
+    {
+        EXPECT_EQ(true, event->is_initial_suspend);
+        EXPECT_EQ(false, event->is_co_await);
+        EXPECT_EQ(false, event->is_co_yield);
+        EXPECT_EQ(false, event->is_final_suspend);
+    }
+
+    void ExpectIsFinalSuspend(
+        const auto* event
+    )
+    {
+        EXPECT_EQ(false, event->is_initial_suspend);
+        EXPECT_EQ(false, event->is_co_await);
+        EXPECT_EQ(false, event->is_co_yield);
+        EXPECT_EQ(true, event->is_final_suspend);
+    }
+
+    void ExpectIsCoAwait(
+        const auto* event
+    )
+    {
+        EXPECT_EQ(false, event->is_initial_suspend);
+        EXPECT_EQ(true, event->is_co_await);
+        EXPECT_EQ(false, event->is_co_yield);
+        EXPECT_EQ(false, event->is_final_suspend);
+    }
+
+    void ExpectIsCoYield(
+        const auto* event
+    )
+    {
+        EXPECT_EQ(false, event->is_initial_suspend);
+        EXPECT_EQ(false, event->is_co_await);
+        EXPECT_EQ(true, event->is_co_yield);
+        EXPECT_EQ(false, event->is_final_suspend);
+    }
+};
+} // namespace Phantom::Coroutines::tracing
+
+namespace std
+{
+template<
+    typename Result,
+    typename ... Args
+>
+struct coroutine_traits<
+    Phantom::Coroutines::tracing::tracing_tests::test_traced_task<Result>,
+    Args...
+>
+{
+    static constexpr auto get_filter(const Args& ... args)
+    {
+        auto tuple = std::tie(args...);
+        auto filter = Phantom::Coroutines::detail::tuple_extract_convertible_elements<
+            const Phantom::Coroutines::tracing::filters::filter&
+        >(tuple);
+
+        if constexpr (std::same_as<std::tuple<>, decltype(filter)>)
+        {
+            return Phantom::Coroutines::tracing::filters::any_event;
+        }
+        else
+        {
+            return get<0>(filter);
+        }
+    }
+
+    using filter_type = decltype(get_filter(std::declval<Args>()...));
+    using promise_type = Phantom::Coroutines::tracing::tracing_tests::test_traced_promise<Result, filter_type>;
 };
 
-template<
-    typename EventType
->
-auto CastEventType(
-    const std::any& anyEvent)
-{
-    // Get human-readable string for debugging purposes.
-    std::string expectedTypeName = typeid(const EventType*).name();
-    std::string actualTypeName = anyEvent.type().name();
-    EXPECT_EQ(expectedTypeName, actualTypeName);
-
-    return std::any_cast<const EventType*>(anyEvent);
 }
 
-void ExpectIsInitialSuspend(
-    const auto* event
-)
+namespace Phantom::Coroutines::tracing
 {
-    EXPECT_EQ(true, event->is_initial_suspend);
-    EXPECT_EQ(false, event->is_co_await);
-    EXPECT_EQ(false, event->is_co_yield);
-    EXPECT_EQ(false, event->is_final_suspend);
-}
-
-void ExpectIsFinalSuspend(
-    const auto* event
-)
-{
-    EXPECT_EQ(false, event->is_initial_suspend);
-    EXPECT_EQ(false, event->is_co_await);
-    EXPECT_EQ(false, event->is_co_yield);
-    EXPECT_EQ(true, event->is_final_suspend);
-}
 
 ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
 {
@@ -115,32 +187,33 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
     {
         co_return;
     };
-    PHANTOM_COROUTINES_MSVC_POP()
+    PHANTOM_COROUTINES_MSVC_POP_WARNINGS()
 
-    int eventIndex = 0;
-    test_traced_promise<void>* expectedPromise = nullptr;
+    using expected_promise_type = coroutine_function_traits<decltype(&decltype(taskLambda)::operator())>::promise_type;
+    expected_promise_type* expectedPromise = nullptr;
     
-    using initialSuspendAwaiter = tracing::traced_awaiter<
-        trace_sink,
+    using initialSuspendAwaiter = traced_awaiter<
+        trace_sink<filters::any_event_fn>,
         std::suspend_always,
-        tracing::initial_suspend_awaiter
+        initial_suspend_awaiter
     >;
 
     initialSuspendAwaiter* expectedInitialSuspendAwaiter = nullptr;
     
-    using finalSuspendAwaiter = tracing::traced_awaiter<
-        trace_sink,
-        detail::final_suspend_transfer,
-        tracing::final_suspend_awaiter
+    using finalSuspendAwaiter = traced_awaiter<
+        trace_sink<filters::any_event_fn>,
+        final_suspend_transfer,
+        final_suspend_awaiter
     >;
 
     finalSuspendAwaiter* expectedFinalSuspendAwaiter = nullptr;
 
+    int eventIndex = 0;
     traced_events_checker eventChecker
     {
-        [&](this auto& self, const std::any& anyEvent)
+        [&](const std::any& anyEvent)
         {
-            using namespace tracing::events;
+            using namespace events;
             
             ++eventIndex;
             // We do this checkingIndex so that when trace messages are
@@ -152,7 +225,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
                 if constexpr (Config::Lambda_Reference_Is_First_Argument_Of_Promise_Constructor)
                 {
                     using expectedEventType = create_promise<
-                        test_traced_promise<void>,
+                        expected_promise_type,
                         decltype(taskLambda) const&,
                         traced_events_checker&,
                         std::string&
@@ -168,7 +241,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
                 else
                 {
                     using expectedEventType = create_promise<
-                        test_traced_promise<void>,
+                        expected_promise_type,
                         traced_events_checker&,
                         std::string&
                     >;
@@ -212,7 +285,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
             {
                 using expectedEventType = await_suspend_begin<
                     initialSuspendAwaiter,
-                    std::coroutine_handle<test_traced_promise<void>>
+                    std::coroutine_handle<expected_promise_type>
                 >;
 
                 auto event = CastEventType<expectedEventType>(anyEvent);
@@ -226,7 +299,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
                 using expectedEventType = await_suspend_result<
                     initialSuspendAwaiter,
                     void,
-                    std::coroutine_handle<test_traced_promise<void>>
+                    std::coroutine_handle<expected_promise_type>
                 >;
 
                 auto event = CastEventType<expectedEventType>(anyEvent);
@@ -265,7 +338,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
             else if (eventIndex == ++checkingIndex)
             {
                 using expectedEventType = return_void_begin<
-                    test_traced_promise<void>
+                    expected_promise_type
                 >;
 
                 auto event = CastEventType<expectedEventType>(anyEvent);
@@ -275,7 +348,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
             else if (eventIndex == ++checkingIndex)
             {
                 using expectedEventType = return_void_result<
-                    test_traced_promise<void>,
+                    expected_promise_type,
                     void
                 >;
 
@@ -316,7 +389,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
             {
                 using expectedEventType = await_suspend_begin<
                     finalSuspendAwaiter,
-                    std::coroutine_handle<test_traced_promise<void>>
+                    std::coroutine_handle<expected_promise_type>
                 >;
 
                 auto event = CastEventType<expectedEventType>(anyEvent);
@@ -330,7 +403,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
                 using expectedEventType = await_suspend_result<
                     finalSuspendAwaiter,
                     std::coroutine_handle<void>,
-                    std::coroutine_handle<test_traced_promise<void>>
+                    std::coroutine_handle<expected_promise_type>
                 >;
 
                 auto event = CastEventType<expectedEventType>(anyEvent);
@@ -344,7 +417,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
             else if (eventIndex == ++checkingIndex)
             {
                 using expectedEventType = destroy_promise<
-                    test_traced_promise<void>
+                    expected_promise_type
                 >;
 
                 auto event = CastEventType<expectedEventType>(anyEvent);
@@ -362,5 +435,97 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
     EXPECT_EQ(14, eventIndex);
 }
 
+ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_ready_true_void_result)
+{
+    using awaiter_type = Coroutines::detail::suspend_never;
+
+    auto taskLambda = [](
+        traced_events_checker& eventsChecker,
+        std::string inputArgument,
+        filters::is_co_await_fn
+        ) -> test_traced_task<>
+    {
+        co_await awaiter_type{};
+    };
+
+    using traced_awaiter = traced_awaiter<
+        trace_sink<filters::is_co_await_fn>,
+        awaiter_type,
+        co_await_awaiter
+    >;
+
+    traced_awaiter* expectedAwaiter = nullptr;
+
+    int eventIndex = 0;
+    traced_events_checker eventChecker
+    {
+        [&](const std::any& anyEvent)
+        {
+            using namespace events;
+
+            ++eventIndex;
+            // We do this checkingIndex so that when trace messages are
+            // added or removed we don't have to change every index,
+            // we just insert code into the right place.
+            int checkingIndex = 0;
+            if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_begin<
+                    traced_awaiter
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                expectedAwaiter = event->Awaiter;
+                EXPECT_EQ(false, filters::has_result(*event).value);
+                ExpectIsCoAwait(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_result<
+                    traced_awaiter,
+                    bool
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedAwaiter, event->Awaiter);
+                EXPECT_EQ(true, event->Result);
+                ExpectIsCoAwait(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_resume_begin<
+                    traced_awaiter
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedAwaiter, event->Awaiter);
+                ExpectIsCoAwait(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_resume_result<
+                    traced_awaiter,
+                    void
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedAwaiter, event->Awaiter);
+                EXPECT_EQ(true, event->is_void_result);
+                ExpectIsCoAwait(event);
+            }
+            else
+            {
+                EXPECT_FALSE(true);
+            }
+        }
+    };
+
+    co_await taskLambda(eventChecker, "hello", filters::is_co_await);
+    EXPECT_EQ(4, eventIndex);
+}
 
 }

@@ -1326,6 +1326,14 @@ struct filter
     }
 };
 
+struct any_event_fn : filter
+{
+    constexpr std::true_type operator()(const events::event&) const noexcept {
+        return {};
+    }
+};
+constexpr any_event_fn any_event{};
+
 struct has_arguments_fn : filter {
     using filter::operator();
     template<typename... Arguments>
@@ -1470,7 +1478,7 @@ struct is_initial_suspend_fn : filter {
     using filter::operator();
     template<typename Awaiter>
     constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
-        return std::bool_constant<decltype(event)::is_initial_suspend>{};
+        return std::bool_constant<event.is_initial_suspend>{};
     }
 };
 constexpr is_initial_suspend_fn is_initial_suspend{};
@@ -1479,7 +1487,7 @@ struct is_final_suspend_fn : filter {
     using filter::operator();
     template<typename Awaiter>
     constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
-        return std::bool_constant<decltype(event)::is_final_suspend>{};
+        return std::bool_constant<event.is_final_suspend>{};
     }
 };
 constexpr is_final_suspend_fn is_final_suspend{};
@@ -1488,7 +1496,7 @@ struct is_co_yield_fn : filter {
     using filter::operator();
     template<typename Awaiter>
     constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
-        return std::bool_constant<decltype(event)::is_co_yield>{};
+        return std::bool_constant<event.is_co_yield>{};
     }
 };
 constexpr is_co_yield_fn is_co_yield{};
@@ -1497,7 +1505,7 @@ struct is_co_await_fn : filter {
     using filter::operator();
     template<typename Awaiter>
     constexpr auto operator()(const events::awaiter_event<Awaiter>& event) const noexcept {
-        return std::bool_constant<decltype(event)::is_co_await>{};
+        return std::bool_constant< event.is_co_await>{};
     }
 };
 constexpr is_co_await_fn is_co_await{};
@@ -1522,13 +1530,27 @@ template<
 > constexpr check_constexpr_fn<Event> check_constexpr{};
 
 constexpr auto constant_filtered_trace_sink(
-    auto&& traceSink,
-    auto filter
+    auto filter,
+    auto&& traceSink
 )
 {
     return [traceSink = std::forward<decltype(traceSink)>(traceSink), filter](const auto& event)
     {
         if constexpr (filter(event))
+        {
+            traceSink(event);
+        }
+    };
+}
+
+constexpr auto runtime_filtered_trace_sink(
+    auto filter,
+    auto&& traceSink
+)
+{
+    return [traceSink = std::forward<decltype(traceSink)>(traceSink), filter](const auto& event)
+    {
+        if (filter(event))
         {
             traceSink(event);
         }
