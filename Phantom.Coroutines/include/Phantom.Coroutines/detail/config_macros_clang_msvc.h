@@ -19,3 +19,9 @@
 // CLang targetting Windows has a bug where exception data is not correctly when compiling with modules.
 // https://github.com/llvm/llvm-project/issues/53486
 #define PHANTOM_COROUTINES_INCORRECT_EXCEPTION_DATA_IN_MODULES 1
+
+#define PHANTOM_COROUTINES_CLANG_PUSH_DISABLE_WARNING(warnings) _Pragma("clang diagnostic push") _Pragma(warnings)
+#define PHANTOM_COROUTINES_CLANG_POP_WARNINGS() _Pragma("clang diagnostic pop") 
+
+#define PHANTOM_COROUTINES_PUSH_DISABLE_INTERNAL_LINKAGE_WARNING() PHANTOM_COROUTINES_CLANG_PUSH_DISABLE_WARNING("clang diagnostic ignored \"-Wundefined-internal\"")
+#define PHANTOM_COROUTINES_POP_WARNINGS() PHANTOM_COROUTINES_CLANG_POP_WARNINGS()

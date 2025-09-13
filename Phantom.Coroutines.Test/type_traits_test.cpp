@@ -1,14 +1,19 @@
 #include <gtest/gtest.h>
+#include "Phantom.Coroutines/detail/config_macros.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.type_traits;
+import Phantom.Coroutines.value_awaiter;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/type_traits.h"
+#include "Phantom.Coroutines/value_awaiter.h"
 #endif
 #include <tuple>
 #include <type_traits>
 #include "detail/awaiters.h"
+
+PHANTOM_COROUTINES_PUSH_DISABLE_INTERNAL_LINKAGE_WARNING()
 
 namespace Phantom::Coroutines::detail
 {
@@ -58,13 +63,118 @@ template<
 static_assert(std::is_same_v<
     std::tuple<>,
     typename filter_tuple_types<FilterTupleTypesTestFilter, std::tuple<>>::tuple_type
-    >);
+>);
 
 static_assert(std::is_same_v<
     std::tuple<int, int, bool>,
     typename filter_tuple_types<FilterTupleTypesTestFilter, std::tuple<char, int, double, struct foo, int, float, bool>>::tuple_type
-    >);
+>);
+
+struct test_coroutine_function_traits_task
+{
+};
+
+struct get_promise
+{
+};
+
+template<
+    typename ... Args
+>
+struct test_coroutine_function_traits_promise
+{
+    std::suspend_always initial_suspend();
+    std::suspend_always final_suspend() noexcept;
+    void return_void();
+    void unhandled_exception();
+    test_coroutine_function_traits_task get_return_object();
+    
+    value_awaiter<test_coroutine_function_traits_promise&> await_transform(get_promise);
+
+    using arguments_tuple_type = std::tuple<Args...>;
+};
+
 }
+}
+
+namespace std
+{
+template<
+    typename ... Args
+>
+struct coroutine_traits<
+    Phantom::Coroutines::detail::test_coroutine_function_traits_task,
+    Args...
+>
+{
+    using promise_type = Phantom::Coroutines::detail::test_coroutine_function_traits_promise<Args...>;
+};
+}
+
+namespace Phantom::Coroutines::detail
+{
+namespace
+{
+static_assert(std::same_as<
+    std::coroutine_traits<test_coroutine_function_traits_task>,
+    coroutine_function_traits<test_coroutine_function_traits_task()>::coroutine_traits_type
+>);
+
+static_assert(std::same_as<
+    test_coroutine_function_traits_promise<>, 
+    coroutine_function_traits<test_coroutine_function_traits_task()>::promise_type
+>);
+
+test_coroutine_function_traits_task test_coroutine_function_traits_free_function(int)
+{
+    auto& promise = co_await get_promise{};
+    static_assert(std::same_as<test_coroutine_function_traits_promise<int>&, decltype(promise)>);
+}
+
+struct test_coroutine_function_traits_structure
+{
+    test_coroutine_function_traits_task test_coroutine_function_traits_member_function(int) const
+    {
+        auto& promise = co_await get_promise{};
+        static_assert(std::same_as<test_coroutine_function_traits_promise<const test_coroutine_function_traits_structure &, int>&, decltype(promise)>);
+    }
+
+    template<typename Value>
+    void verify_test_coroutine_function_traits_capturing_lambda(Value value) const;
+
+    auto test_coroutine_function_traits_capturing_lambda() const
+    {
+        auto lambda = [&]<typename Lambda>(const Lambda&) -> test_coroutine_function_traits_task
+        {
+            auto& promise = co_await get_promise{};
+            using arguments_tuple_type = typename std::remove_cvref_t<decltype(promise)>::arguments_tuple_type;
+            static_assert(std::tuple_size_v<arguments_tuple_type> == 2);
+            static_assert(std::same_as<const Lambda&, std::tuple_element_t<0, arguments_tuple_type>>);
+            static_assert(std::same_as<const Lambda&, std::tuple_element_t<1, arguments_tuple_type>>);
+        };
+        lambda(lambda);
+    }
+
+};
+
+template<typename Value>
+void test_coroutine_function_traits_structure::verify_test_coroutine_function_traits_capturing_lambda(Value value) const
+{
+    static_assert(std::same_as<const decltype(value)&, decltype(test_coroutine_function_traits_capturing_lambda())>);
+}
+
+auto test_coroutine_function_traits_lambda = [](
+    this auto& self,
+    int
+) -> test_coroutine_function_traits_task
+{
+    auto& promise = co_await get_promise{};
+    static_assert(std::same_as<test_coroutine_function_traits_promise<long long>&, decltype(promise)>);
+};
+static_assert(std::same_as<test_coroutine_function_traits_task, decltype(test_coroutine_function_traits_lambda(0))>);
+
+}
+
 
 // Verify that tuple_has_element_v works
 static_assert(false == tuple_has_element_v<int, std::tuple<>>);
@@ -434,3 +544,6 @@ TEST(value_storage_test, can_get_const_value)
 }
 
 }
+
+// Pop disabling internal linkage warnings
+PHANTOM_COROUTINES_POP_WARNINGS()

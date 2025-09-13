@@ -1,4 +1,5 @@
 #include <concepts>
+#include <tuple>
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)

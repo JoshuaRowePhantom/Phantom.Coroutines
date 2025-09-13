@@ -1,6 +1,7 @@
-#ifndef PHANTOM_COROUTINES_INCLUDE_TYPE_TRAITS_H
-#define PHANTOM_COROUTINES_INCLUDE_TYPE_TRAITS_H
+#ifndef PHANTOM_COROUTINES_INCLUDE_FUNCTION_TRAITS_H
+#define PHANTOM_COROUTINES_INCLUDE_FUNCTION_TRAITS_H
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
+#include <cstddef>
 #include <concepts>
 #include <tuple>
 #include <type_traits>
@@ -20,6 +21,7 @@ struct function_traits
 };
 
 // Handle pointers to functions
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Function
 >
@@ -66,6 +68,7 @@ struct function_traits<
 #define PHANTOM_COROUTINE_FUNCTION_TRAITS_RVALUE_REF_QUALIFIED_VALUE_rvalue true
 
 #define PHANTOM_COROUTINE_FUNCTION_TRAITS_VARIATION(const_keyword, volatile_keyword, noexcept_keyword, ref_token) \
+    PHANTOM_COROUTINES_MODULE_EXPORT \
     template< \
         typename ReturnType, \
         typename... Args \

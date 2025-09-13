@@ -9,6 +9,7 @@
 #include <utility>
 #include "detail/config_macros.h"
 #include "detail/coroutine.h"
+#include "function_traits.h"
 #endif
 
 static_assert(PHANTOM_COROUTINES_IS_CONFIGURED);
@@ -669,6 +670,40 @@ public:
         return (m_value);
     }
 };
+
+template<
+    typename ReturnType,
+    typename ArgsTuple
+>
+struct coroutine_function_traits_from_arguments_tuple;
+
+template<
+    typename ReturnType,
+    typename ... Args
+>
+struct coroutine_function_traits_from_arguments_tuple<
+    ReturnType,
+    std::tuple<Args...>
+>
+{
+    using coroutine_traits_type = std::coroutine_traits<ReturnType, Args...>;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Function
+> struct coroutine_function_traits
+    :
+    function_traits<Function>,
+    coroutine_function_traits_from_arguments_tuple
+    <
+        typename function_traits<Function>::return_type,
+        typename function_traits<Function>::arguments_tuple_type
+    >
+{
+    using promise_type = typename coroutine_function_traits::coroutine_traits_type::promise_type;
+};
+
 }
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -697,6 +732,8 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_get_return_object_on_allocation_failure;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_yield_value;
+PHANTOM_COROUTINES_MODULE_EXPORT
+using detail::coroutine_function_traits;
 
 } // namespace Phantom::Coroutines
 #endif
