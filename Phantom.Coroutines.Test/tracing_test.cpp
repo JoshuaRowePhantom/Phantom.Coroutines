@@ -586,7 +586,7 @@ ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_ready_true_void_result)
     auto taskLambda = [](
         traced_events_checker& eventsChecker,
         std::string inputArgument,
-        filters::is_co_await_fn
+        filters::is_co_await_fn = {}
         ) -> test_traced_task<>
     {
         co_await awaiter_type{};
@@ -668,7 +668,7 @@ ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_ready_true_void_result)
         }
     };
 
-    co_await taskLambda(eventChecker, "hello", filters::is_co_await);
+    co_await taskLambda(eventChecker, "hello");
     EXPECT_EQ(4, eventIndex);
 }
 
@@ -682,7 +682,7 @@ ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_ready_exception)
     auto taskLambda = [&](
         traced_events_checker& eventsChecker,
         std::string inputArgument,
-        filters::is_co_await_fn
+        filters::is_co_await_fn = {}
         ) -> test_traced_task<>
     {
         co_await awaiter;
@@ -739,7 +739,7 @@ ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_ready_exception)
         }
     };
 
-    co_await expect_exception<std::runtime_error>(taskLambda(eventChecker, "hello", filters::is_co_await));
+    co_await expect_exception<std::runtime_error>(taskLambda(eventChecker, "hello"));
     EXPECT_EQ(2, eventIndex);
 }
 
