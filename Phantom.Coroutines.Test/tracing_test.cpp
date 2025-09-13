@@ -8,12 +8,14 @@ import Phantom.Coroutines.config_globals;
 import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.final_suspend_transfer;
 import Phantom.Coroutines.polymorphic_promise;
+import Phantom.Coroutines.sync_wait;
 import Phantom.Coroutines.tracing;
 import Phantom.Coroutines.task;
 import Phantom.Coroutines.type_traits;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/detail/config_globals.h"
 #include "Phantom.Coroutines/polymorphic_promise.h"
+#include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/tracing.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/type_traits.h"
@@ -53,6 +55,16 @@ struct tracing_tests : testing::Test
     {
         traced_events_checker& checker;
         
+        trace_sink(
+            trace_sink& other
+        ) : checker{ other.checker }
+        { }
+        
+        trace_sink(
+            const trace_sink& other
+        ) : checker{ other.checker }
+        { }
+
         trace_sink(
             auto&... args
         ) :
@@ -138,30 +150,61 @@ struct tracing_tests : testing::Test
         EXPECT_EQ(false, event->is_final_suspend);
     }
 
+    struct test_awaiter_type_lambdas
+    {
+        static constexpr auto await_ready_false = []() { return false; };
+        static constexpr auto await_ready_true = []() { return true; };
+        static auto await_ready_exception(auto exception)
+        {
+            return [exception]() -> bool { throw exception; };
+        }
+        static constexpr auto await_suspend_false = [](auto) { return false; };
+        static constexpr auto await_suspend_true = [](std::coroutine_handle<> handle) { handle.resume(); return true; };
+        static constexpr auto await_suspend_void = [](std::coroutine_handle<> handle) { handle.resume(); };
+        static auto await_suspend_exception(auto exception)
+        {
+            return [exception](auto) -> auto { throw exception; };
+        }
+        static constexpr auto await_resume_void = []() { return; };
+        static auto await_resume_value(auto value)
+        {
+            return [value]() { return value; };
+        }
+        static auto await_resume_exception(auto exception)
+        {
+            return [exception]() -> auto { throw exception; };
+        }
+    };
+
     template<
         typename AwaitReadyLambda,
         typename AwaitSuspendLambda,
         typename AwaitResumeLambda
     >
     struct test_awaiter_type
+        :
+        test_awaiter_type_lambdas
     {
         AwaitReadyLambda await_ready_lambda;
         AwaitSuspendLambda await_suspend_lambda;
         AwaitResumeLambda await_resume_lambda;
 
-        auto await_ready()
+        auto await_ready(
+            auto&&... args)
         {
-            return await_ready_lambda();
+            return await_ready_lambda(std::forward<decltype(args)>(args)...);
         }
 
-        auto await_suspend(auto handle)
+        auto await_suspend(
+            auto&&... args)
         {
-            return await_suspend_lambda(handle);
+            return await_suspend_lambda(std::forward<decltype(args)>(args)...);
         }
 
-        auto await_resume()
+        auto await_resume(
+            auto&&... args)
         {
-            return await_resume_lambda();
+            return await_resume_lambda(std::forward<decltype(args)>(args)...);
         }
 
         auto with_await_ready(auto lambda)
@@ -180,17 +223,17 @@ struct tracing_tests : testing::Test
 
         auto with_await_ready_false()
         {
-            return with_await_ready([]() { return false; });
+            return with_await_ready(await_ready_false);
         }
 
         auto with_await_ready_true()
         {
-            return with_await_ready([]() { return true; });
+            return with_await_ready(await_ready_true);
         }
 
         auto with_await_ready_exception(auto exception)
         {
-            return with_await_ready([exception]() -> bool { throw exception; });
+            return with_await_ready(await_ready_exception(exception));
         }
 
         auto with_await_suspend(auto lambda)
@@ -209,12 +252,17 @@ struct tracing_tests : testing::Test
 
         auto with_await_suspend_false()
         {
-            return with_await_suspend([](auto) { return false; });
+            return with_await_suspend(await_suspend_false);
         }
 
         auto with_await_suspend_true()
         {
-            return with_await_suspend([](auto) { return true; });
+            return with_await_suspend(await_suspend_true);
+        }
+
+        auto with_await_suspend_void()
+        {
+            return with_await_suspend(await_suspend_void);
         }
 
         template<
@@ -222,7 +270,7 @@ struct tracing_tests : testing::Test
         >
         auto with_await_suspend_exception(auto exception)
         {
-            return with_await_suspend([exception](auto) -> Result { throw exception; });
+            return with_await_suspend(await_suspend_exception(exception));
         }
 
         auto with_await_resume(auto lambda)
@@ -241,12 +289,12 @@ struct tracing_tests : testing::Test
 
         auto with_await_resume_void()
         {
-            return with_await_resume([]() { return; });
+            return with_await_resume(await_resume_void);
         }
 
         auto with_await_resume_value(auto value)
         {
-            return with_await_resume([value]() { return value; });
+            return with_await_resume(await_resume_value(value));
         }
 
         template<
@@ -254,7 +302,7 @@ struct tracing_tests : testing::Test
         >
         auto with_await_resume_exception(auto exception)
         {
-            return with_await_resume([exception]() -> Result { throw exception; });
+            return with_await_resume(await_resume_exception(exception));
         }
     };
 
@@ -262,10 +310,13 @@ struct tracing_tests : testing::Test
     {
         return test_awaiter_type
         {
-            .await_ready_lambda = []() { return true; },
-            .await_suspend_lambda = [](auto) { return; },
-            .await_resume_lambda = []() { return; },
-        };
+            .await_ready_lambda = []() {},
+            .await_suspend_lambda = []() {},
+            .await_resume_lambda = []() {}
+        }
+        .with_await_ready_true()
+        .with_await_suspend_void()
+        .with_await_resume_void();
     }
 
     template<
@@ -741,6 +792,134 @@ ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_ready_exception)
 
     co_await expect_exception<std::runtime_error>(taskLambda(eventChecker, "hello"));
     EXPECT_EQ(2, eventIndex);
+}
+
+ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_suspend_void_result)
+{
+    auto awaiter = test_awaiter()
+        .with_await_ready_false()
+        .with_await_suspend_void()
+        .with_await_resume_void();
+
+    using awaiter_type = decltype(awaiter);
+
+    auto taskLambda = [&](
+        traced_events_checker& eventsChecker,
+        std::string inputArgument,
+        filters::is_co_await_fn = {}
+        ) -> test_traced_task<>
+    {
+        co_await awaiter;
+    };
+
+    using expected_promise_type = coroutine_function_traits<decltype(&decltype(taskLambda)::operator())>::promise_type;
+
+    using traced_awaiter = traced_awaiter<
+        trace_sink<filters::is_co_await_fn>,
+        awaiter_type,
+        co_await_awaiter
+    >;
+
+    traced_awaiter* expectedAwaiter = nullptr;
+
+    int eventIndex = 0;
+    traced_events_checker eventChecker
+    {
+        [&](const std::any& anyEvent)
+        {
+            using namespace events;
+
+            ++eventIndex;
+            // We do this checkingIndex so that when trace messages are
+            // added or removed we don't have to change every index,
+            // we just insert code into the right place.
+            int checkingIndex = 0;
+            if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_begin<
+                    traced_awaiter
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                expectedAwaiter = event->Awaiter;
+                EXPECT_EQ(false, filters::has_result(*event).value);
+                ExpectIsCoAwait(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_ready_result<
+                    traced_awaiter,
+                    bool
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedAwaiter, event->Awaiter);
+                EXPECT_EQ(false, event->Result);
+                ExpectIsCoAwait(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_suspend_begin<
+                    traced_awaiter,
+                    std::coroutine_handle<expected_promise_type>
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedAwaiter, event->Awaiter);
+                EXPECT_EQ(true, static_cast<bool>(get<0>(event->Arguments)));
+                ExpectIsCoAwait(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_resume_begin<
+                    traced_awaiter
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedAwaiter, event->Awaiter);
+                ExpectIsCoAwait(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_resume_result<
+                    traced_awaiter,
+                    void
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedAwaiter, event->Awaiter);
+                EXPECT_EQ(true, event->is_void_result);
+                ExpectIsCoAwait(event);
+            }
+            else if (eventIndex == ++checkingIndex)
+            {
+                using expectedEventType = await_suspend_result<
+                    traced_awaiter,
+                    void,
+                    std::coroutine_handle<expected_promise_type>
+                >;
+
+                auto event = CastEventType<expectedEventType>(anyEvent);
+
+                EXPECT_EQ(expectedAwaiter, event->Awaiter);
+                EXPECT_EQ(true, event->is_void_result);
+                ExpectIsCoAwait(event);
+            }
+            else
+            {
+                EXPECT_FALSE(true);
+            }
+        }
+    };
+
+    sync_wait(taskLambda(eventChecker, "hello"));
+    EXPECT_EQ(6, eventIndex);
+    co_return;
 }
 
 }

@@ -297,6 +297,15 @@ struct await_suspend_begin
 };
 
 // Trace result from an await_suspend method.
+// Note that it is _highly likely_ that the TAwaiter parameter
+// to await_suspend_result is not valid anymore, since
+// the coroutine may have been destroyed if the await_suspend
+// allowed resuming the coroutine either in a nested fashion
+// or on another thread. In these cases, the awaiter object
+// is likely a temporary object that has been destroyed,
+// and should likely not be inspected.
+// For these reasons, the await_suspend_result event
+// might be emitted _after_ the await_resume events.
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaiter,
@@ -660,9 +669,9 @@ template<
 >
 struct trace_sink_accessor
 {
-    TraceSink& m_traceSink;
+    TraceSink m_traceSink;
 
-    auto& trace_sink() const
+    auto& trace_sink()
     {
         return m_traceSink;
     }
@@ -713,12 +722,18 @@ struct traced_awaiter :
             Arguments...
         >;
 
+        // We capture these variables here because
+        // the await_suspend_result event may be emitted
+        // after the awaiter has been destroyed.
+        auto traceSink = awaiter.traced_awaiter::trace_sink();
+        auto sourceLocation = awaiter.traced_awaiter::m_sourceLocation;
+
         try
         {
-            awaiter.traced_awaiter::trace_sink()(
+            traceSink(
                 begin_event_type
                 {
-                    awaiter.traced_awaiter::m_sourceLocation,
+                    sourceLocation,
                     &awaiter,
                     traceArguments
                 });
@@ -726,10 +741,10 @@ struct traced_awaiter :
             if constexpr (std::same_as<void, result_type>)
             {
                 call();
-                awaiter.traced_awaiter::trace_sink()(
+                traceSink(
                     result_event_type
                     {
-                        awaiter.traced_awaiter::m_sourceLocation,
+                        sourceLocation,
                         &awaiter,
                         traceArguments,
                     });
@@ -738,10 +753,10 @@ struct traced_awaiter :
             {
                 decltype(auto) result = call();
 
-                awaiter.traced_awaiter::trace_sink()(
+                traceSink(
                     result_event_type
                     {
-                        awaiter.traced_awaiter::m_sourceLocation,
+                        sourceLocation,
                         &awaiter,
                         traceArguments,
                         result,
@@ -752,10 +767,10 @@ struct traced_awaiter :
         }
         catch (...)
         {
-            awaiter.traced_awaiter::trace_sink()(
+            traceSink(
                 exception_event_type
                 {
-                    awaiter.traced_awaiter::m_sourceLocation,
+                    sourceLocation,
                     &awaiter,
                     traceArguments,
                     std::current_exception(),
