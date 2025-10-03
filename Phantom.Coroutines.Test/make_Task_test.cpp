@@ -30,7 +30,7 @@ ASYNC_TEST(make_task, Can_make_task_returning_void)
 ASYNC_TEST(make_task, Can_make_shared_task_returning_void)
 {
     async_manual_reset_event<> event;
-    auto result = make_task<shared_task>(event);
+    auto result = make_shared_task(event);
 
     static_assert(std::same_as<shared_task<>, decltype(result)>);
 
@@ -45,7 +45,7 @@ ASYNC_TEST(make_task, Can_make_shared_task_from_task)
     {
         co_return;
     };
-    auto result = make_task<shared_task>(lambda());
+    auto result = make_shared_task(lambda());
 
     static_assert(std::same_as<shared_task<>, decltype(result)>);
 
@@ -59,7 +59,7 @@ ASYNC_TEST(make_task, Can_make_shared_task_from_task_return_value)
     {
         co_return "hello world";
     };
-    auto result = make_task<shared_task>(lambda());
+    auto result = make_shared_task(lambda());
 
     static_assert(std::same_as<shared_task<std::string>, decltype(result)>);
 
