@@ -48,13 +48,14 @@ set(
     "sync_wait_test.cpp"
     "tagged_pointer_test.cpp"
     "task_test.cpp"
+    "text_tracing_test.cpp"
     "thread_local_contextual_promise_test.cpp"
     "thread_local_storage_test.cpp"
     "thread_pool_scheduler_test.cpp"
     "tracing_test.cpp"
     "type_traits_test.cpp"
     "value_awaiter_test.cpp"
- )
+)
 
 add_executable(
     Phantom.Coroutines.Test
