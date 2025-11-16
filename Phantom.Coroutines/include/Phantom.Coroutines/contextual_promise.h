@@ -78,7 +78,7 @@ public derived_promise<BasePromise>
             self.m_bSuspended = true;
             if (std::same_as<DoLeaveOnSuspend, Leave>)
             {
-                self.extensible_promise_handle<Promise>::promise().leave();
+                self.template extensible_promise_handle<Promise>::promise().leave();
             }
             return self.awaiter().await_suspend(std::forward<decltype(args)>(args)...);
         }
@@ -96,7 +96,7 @@ public derived_promise<BasePromise>
             {
                 if (self.m_bSuspended)
                 {
-                    self.extensible_promise_handle<Promise>::promise().enter();
+                    self.template extensible_promise_handle<Promise>::promise().enter();
                 }
             }
             return self.awaiter().await_resume(std::forward<decltype(args)>(args)...);
@@ -135,7 +135,7 @@ public:
             self,
             [&]() -> decltype(auto)
             {
-                return self.derived_promise<BasePromise>::initial_suspend();
+                return self.template derived_promise<BasePromise>::initial_suspend();
             }
         };
     }
@@ -153,7 +153,7 @@ public:
             self,
             [&]() noexcept -> decltype(auto)
             {
-                return self.derived_promise<BasePromise>::final_suspend();
+                return self.template derived_promise<BasePromise>::final_suspend();
             }
         };
     }
@@ -170,11 +170,11 @@ public:
             DoLeaveOnSuspend{},
             self,
             [&]() noexcept(noexcept(
-                self.derived_promise<BasePromise>::await_transform(
+                self.template derived_promise<BasePromise>::await_transform(
                     std::forward<decltype(awaitable)>(awaitable))
                 )) -> decltype(auto)
             {
-                return self.derived_promise<BasePromise>::await_transform(
+                return self.template derived_promise<BasePromise>::await_transform(
                     std::forward<decltype(awaitable)>(awaitable));
             }
         };
