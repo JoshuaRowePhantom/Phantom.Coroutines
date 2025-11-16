@@ -314,15 +314,15 @@ struct conflict_detector
 PHANTOM_COROUTINES_MODULE_EXPORT
 struct has_await_suspend_conflicted_name
 {
-    using await_suspend = int;
+    static int await_suspend;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Awaiter
-> concept has_await_suspend = !requires
+> concept has_await_suspend = !requires (conflict_detector<Awaiter, has_await_suspend_conflicted_name> conflictDetector, int result)
 {
-    typename conflict_detector<Awaiter, has_await_suspend_conflicted_name>::await_suspend;
+    { result = conflictDetector.await_suspend };
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -397,7 +397,7 @@ template<
     TAwaitable awaitable
     )
 {
-    { operator co_await(std::forward(awaitable)) } -> is_awaiter;
+    { operator co_await(awaitable) } -> is_awaiter;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -485,15 +485,15 @@ template<
 
 struct has_await_transform_conflicted_name
 {
-    using await_transform = int;
+    static int await_transform;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
-> concept has_await_transform = !requires
+> concept has_await_transform = !requires (conflict_detector<Promise, has_await_transform_conflicted_name> conflictDetector, int result)
 {
-    typename conflict_detector<Promise, has_await_transform_conflicted_name>::await_transform;
+    { result = conflictDetector.await_transform };
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -535,9 +535,9 @@ struct has_yield_value_conflicted_name
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
-> concept has_yield_value = !requires
+> concept has_yield_value = !requires (conflict_detector<Promise, has_yield_value_conflicted_name> conflictDetector, int result)
 {
-    typename conflict_detector<Promise, has_yield_value_conflicted_name>::yield_value;
+    { result = conflictDetector.yield_value };
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
