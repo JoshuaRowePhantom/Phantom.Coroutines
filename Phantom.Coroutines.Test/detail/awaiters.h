@@ -1,10 +1,10 @@
-#include <coroutine>
-#include <functional>
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.coroutine;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
+#include <coroutine>
+#include <functional>
 #include "Phantom.Coroutines/detail/coroutine.h"
 #endif
 

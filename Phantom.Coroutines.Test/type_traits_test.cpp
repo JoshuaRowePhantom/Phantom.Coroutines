@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include <tuple>
+#include <type_traits>
 #include "Phantom.Coroutines/detail/config_macros.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
@@ -9,8 +11,6 @@ import Phantom.Coroutines.value_awaiter;
 #include "Phantom.Coroutines/type_traits.h"
 #include "Phantom.Coroutines/value_awaiter.h"
 #endif
-#include <tuple>
-#include <type_traits>
 #include "detail/awaiters.h"
 
 PHANTOM_COROUTINES_PUSH_DISABLE_INTERNAL_LINKAGE_WARNING()

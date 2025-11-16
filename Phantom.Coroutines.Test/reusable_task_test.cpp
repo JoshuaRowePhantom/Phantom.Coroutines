@@ -1,6 +1,7 @@
 #include <string>
 #include <type_traits>
 #include <gtest/gtest.h>
+#include "async_test.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 import Phantom.Coroutines.Test.lifetime_tracker;
@@ -28,7 +29,6 @@ import Phantom.Coroutines.Test.pmr_task;
 #include "lifetime_tracker.h"
 #include "pmr_task.h"
 #endif
-#include "async_test.h"
 
 using namespace Phantom::Coroutines;
 using namespace Phantom::Coroutines::detail;

@@ -529,7 +529,7 @@ template<
 
 struct has_yield_value_conflicted_name
 {
-    using yield_value = int;
+    static int yield_value;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT

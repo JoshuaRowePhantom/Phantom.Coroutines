@@ -31,6 +31,7 @@ template<
     :
 public derived_promise<BasePromise>
 {
+    using derived_promise = derived_promise<BasePromise>;
     struct DoNotEnterOnResume {};
     struct DoNotLeaveOnSuspend {};
     struct DoEnterOnResume {};
@@ -45,8 +46,9 @@ public derived_promise<BasePromise>
         public awaiter_wrapper<Awaiter>,
         public extensible_promise_handle<Promise>
     {
+        using awaiter_wrapper = awaiter_wrapper<Awaiter>;
+        using extensible_promise_handle = extensible_promise_handle<Promise>;
         bool m_bSuspended = false;
-
     public:
         contextual_promise_awaiter(
             Enter,
@@ -54,33 +56,37 @@ public derived_promise<BasePromise>
             Promise& promise,
             std::invocable<> auto&& awaitableFunc
         ) : 
-            awaiter_wrapper<Awaiter>{ std::forward<decltype(awaitableFunc)>(awaitableFunc) },
-            extensible_promise_handle<Promise>{ promise }
+            awaiter_wrapper{ std::forward<decltype(awaitableFunc)>(awaitableFunc) },
+            extensible_promise_handle{ promise }
         {}
 
         bool await_ready(
             this auto& self,
             auto&&... args
         ) noexcept(
-            noexcept(self.awaiter().await_ready(std::forward<decltype(args)>(args)...))
+            noexcept(self.awaiter_wrapper::awaiter().await_ready(
+                std::forward<decltype(args)>(args)...))
             )
         {
-            return self.awaiter().await_ready(std::forward<decltype(args)>(args)...);
+            return self.awaiter_wrapper::awaiter().await_ready(
+                std::forward<decltype(args)>(args)...);
         }
 
         auto await_suspend(
             this auto& self,
             auto&&... args
         ) noexcept(
-            noexcept(self.awaiter().await_suspend(std::forward<decltype(args)>(args)...))
+            noexcept(self.awaiter_wrapper::awaiter().await_suspend(
+                std::forward<decltype(args)>(args)...))
             )
         {
             self.m_bSuspended = true;
             if (std::same_as<DoLeaveOnSuspend, Leave>)
             {
-                self.template extensible_promise_handle<Promise>::promise().leave();
+                self.extensible_promise_handle::promise().leave();
             }
-            return self.awaiter().await_suspend(std::forward<decltype(args)>(args)...);
+            return self.awaiter_wrapper::awaiter().await_suspend(
+                std::forward<decltype(args)>(args)...);
         }
 
         auto await_resume(
@@ -96,10 +102,10 @@ public derived_promise<BasePromise>
             {
                 if (self.m_bSuspended)
                 {
-                    self.template extensible_promise_handle<Promise>::promise().enter();
+                    self.extensible_promise_handle::promise().enter();
                 }
             }
-            return self.awaiter().await_resume(std::forward<decltype(args)>(args)...);
+            return self.awaiter_wrapper::awaiter().await_resume(std::forward<decltype(args)>(args)...);
         }
     };
 
@@ -118,12 +124,12 @@ public derived_promise<BasePromise>
     > contextual_promise_awaiter(Enter, Leave, Promise&, AwaitableFunc&&) -> contextual_promise_awaiter<Enter, Leave, Promise, std::invoke_result_t<AwaitableFunc>>;
 
 public:
-    using contextual_promise::derived_promise::derived_promise;
+    using derived_promise::derived_promise;
 
     auto initial_suspend(
         this auto& self
     ) noexcept(noexcept(
-        self.derived_promise<BasePromise>::initial_suspend()
+        self.derived_promise::initial_suspend()
         ))
     {
         static_assert(is_contextual_promise<decltype(self)>);
@@ -135,7 +141,7 @@ public:
             self,
             [&]() -> decltype(auto)
             {
-                return self.template derived_promise<BasePromise>::initial_suspend();
+                return self.derived_promise::initial_suspend();
             }
         };
     }
@@ -153,7 +159,7 @@ public:
             self,
             [&]() noexcept -> decltype(auto)
             {
-                return self.template derived_promise<BasePromise>::final_suspend();
+                return self.derived_promise::final_suspend();
             }
         };
     }
@@ -170,11 +176,11 @@ public:
             DoLeaveOnSuspend{},
             self,
             [&]() noexcept(noexcept(
-                self.template derived_promise<BasePromise>::await_transform(
+                self.derived_promise::await_transform(
                     std::forward<decltype(awaitable)>(awaitable))
                 )) -> decltype(auto)
             {
-                return self.template derived_promise<BasePromise>::await_transform(
+                return self.derived_promise::await_transform(
                     std::forward<decltype(awaitable)>(awaitable));
             }
         };
