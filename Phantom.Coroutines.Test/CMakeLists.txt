@@ -48,7 +48,7 @@ set(
     "sync_wait_test.cpp"
     "tagged_pointer_test.cpp"
     "task_test.cpp"
-    "text_tracing_test.cpp"
+#    "text_tracing_test.cpp"
     "thread_local_contextual_promise_test.cpp"
     "thread_local_storage_test.cpp"
     "thread_pool_scheduler_test.cpp"

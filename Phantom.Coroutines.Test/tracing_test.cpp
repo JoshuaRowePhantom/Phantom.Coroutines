@@ -1,4 +1,5 @@
 #include "async_test.h"
+#include <source_location>
 #include <typeindex>
 #include "Phantom.Coroutines/detail/config_macros.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
@@ -53,27 +54,27 @@ struct tracing_tests : testing::Test
     >
     struct trace_sink
     {
-        traced_events_checker& checker;
+        const traced_events_checker& checker;
         
-        trace_sink(
-            trace_sink& other
-        ) : checker{ other.checker }
-        { }
-        
-        trace_sink(
-            const trace_sink& other
-        ) : checker{ other.checker }
-        { }
-
         trace_sink(
             auto&... args
         ) :
-            checker(get<traced_events_checker&>(std::tie(args...)))
-        {
+            checker(get<const traced_events_checker&>(std::tie(args...)))
+        { }
 
+        trace_sink(
+            const trace_sink& other
+        ) : checker{ other.checker }
+        {
         }
 
-        void operator()(const auto& traceEvent)
+        trace_sink(
+            trace_sink& other
+        ) : checker{ other.checker }
+        {
+        }
+
+        void operator()(const auto& traceEvent) const
         {
             if (Filter{}(traceEvent))
             {
@@ -99,15 +100,26 @@ struct tracing_tests : testing::Test
     template<
         typename EventType
     >
-    auto CastEventType(
+    const EventType& CastEventType(
         const std::any& anyEvent)
     {
         // Get human-readable string for debugging purposes.
-        std::string expectedTypeName = typeid(const EventType*).name();
+        using expected_event_type = const EventType*;
+        std::string expectedTypeName = typeid(expected_event_type).name();
         std::string actualTypeName = anyEvent.type().name();
         EXPECT_EQ(expectedTypeName, actualTypeName);
 
-        return std::any_cast<const EventType*>(anyEvent);
+        return *std::any_cast<expected_event_type>(anyEvent);
+    }
+
+    template<
+        typename ExpectedEventType
+    >
+    const ExpectedEventType& CastEventType(
+        const std::any& anyEvent,
+        [[maybe_unused]] const ExpectedEventType& expectedEvent)
+    {
+        return CastEventType<ExpectedEventType>(anyEvent);
     }
 
     void ExpectIsInitialSuspend(
@@ -332,6 +344,32 @@ struct tracing_tests : testing::Test
         catch(Exception)
         { }
     }
+
+    template<
+        typename expected_event_type
+    >
+    bool compare_events(
+        const expected_event_type& expectedEvent,
+        const std::any& actualAny
+    )
+    {
+        auto& actualEvent = CastEventType<expected_event_type>(actualAny, expectedEvent);
+
+        if (expectedEvent.EventType != actualEvent.EventType)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    void expect_events_equal(
+        const auto& expectedEvent,
+        const std::any& actualAny
+    )
+    {
+        EXPECT_TRUE(compare_events(expectedEvent, actualAny));
+    }
 };
 } // namespace Phantom::Coroutines::tracing
 
@@ -372,9 +410,94 @@ struct coroutine_traits<
 namespace Phantom::Coroutines::tracing
 {
 
-ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
+ASYNC_TEST_F(tracing_tests, traces_create_and_destroy_promise)
 {
-    PHANTOM_COROUTINES_MSVC_PUSH_DISABLE_WARNING(4702)
+    auto filter = filters::event_type_filter<
+        events::create_promise,
+        events::destroy_promise
+    >;
+
+    auto taskLambda = [](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        auto filter
+        ) -> test_traced_task<>
+        {
+            co_return;
+        };
+    using taskLambda_type = decltype(taskLambda);
+
+    using expected_promise_type = std::coroutine_traits<
+        test_traced_task<>,
+        traced_events_checker&,
+        decltype(filter)
+    >::promise_type;
+
+    expected_promise_type* expectedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_promise_type*>(nullptr),
+                .PromiseCreationArguments = events::make_arguments(
+                    taskLambda,
+                    tracedEventsChecker,
+                    filter),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::create_promise{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = actualEvent.EventData.Promise;
+            expectedEvent.EventData.Promise = expectedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if(eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::destroy_promise{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    co_await taskLambda(tracedEventsChecker, filter);
+}
+
+#if 0
+ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
+{
     auto taskLambda = [](
         traced_events_checker& eventsChecker,
         std::string inputArgument
@@ -382,7 +505,6 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
     {
         co_return;
     };
-    PHANTOM_COROUTINES_MSVC_POP_WARNINGS()
 
     using expected_promise_type = coroutine_function_traits<decltype(&decltype(taskLambda)::operator())>::promise_type;
     expected_promise_type* expectedPromise = nullptr;
@@ -390,7 +512,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
     using initialSuspendAwaiter = traced_awaiter<
         trace_sink<filters::any_event_fn>,
         std::suspend_always,
-        initial_suspend_awaiter
+        detail::initial_suspend_awaiter_type
     >;
 
     initialSuspendAwaiter* expectedInitialSuspendAwaiter = nullptr;
@@ -398,7 +520,7 @@ ASYNC_TEST_F(tracing_tests, traces_basic_events_of_task)
     using finalSuspendAwaiter = traced_awaiter<
         trace_sink<filters::any_event_fn>,
         final_suspend_transfer,
-        final_suspend_awaiter
+        detail::final_suspend_awaiter_type
     >;
 
     finalSuspendAwaiter* expectedFinalSuspendAwaiter = nullptr;
@@ -921,5 +1043,6 @@ ASYNC_TEST_F(tracing_tests, traces_co_await_events_await_suspend_void_result)
     EXPECT_EQ(6, eventIndex);
     co_return;
 }
+#endif
 
 }

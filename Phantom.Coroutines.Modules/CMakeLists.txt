@@ -76,7 +76,7 @@ target_sources(
     "sync_wait.ixx"
     "tagged_pointer.ixx" 
     "task.ixx"
-    "text_tracing.ixx"
+#    "text_tracing.ixx"
     "thread_local_context.ixx"
     "thread_local_contextual_promise.ixx"
     "thread_local_storage.ixx" 

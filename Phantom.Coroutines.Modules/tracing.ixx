@@ -4,6 +4,8 @@ module;
 #include <source_location>
 #include <tuple>
 #include <type_traits>
+#include <typeindex>
+#include <typeinfo>
 #include <utility>
 #include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.tracing;
