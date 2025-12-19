@@ -169,14 +169,61 @@ struct empty_arguments_value
 constexpr empty_value empty{};
 constexpr empty_arguments_value empty_arguments{ };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct no_awaiter_type
+{
+    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_co_yield_awaiter = false;
+    static constexpr bool is_traced_promise_co_await_awaiter = false;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct initial_suspend_awaiter_type
+{
+    static constexpr bool is_traced_promise_initial_suspend_awaiter = true;
+    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_co_yield_awaiter = false;
+    static constexpr bool is_traced_promise_co_await_awaiter = false;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct final_suspend_awaiter_type
+{
+    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_final_suspend_awaiter = true;
+    static constexpr bool is_traced_promise_co_yield_awaiter = false;
+    static constexpr bool is_traced_promise_co_await_awaiter = false;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct co_yield_awaiter_type
+{
+    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_co_yield_awaiter = true;
+    static constexpr bool is_traced_promise_co_await_awaiter = false;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct co_await_awaiter_type
+{
+    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
+    static constexpr bool is_traced_promise_co_yield_awaiter = false;
+    static constexpr bool is_traced_promise_co_await_awaiter = true;
+};
+
 template<
     typename T
-> concept is_empty = 
+> concept is_empty =
 std::same_as<T, nullptr_t>
 ||
 std::same_as<T, empty_value>
 ||
-std::same_as<T, empty_arguments_value>;
+std::same_as<T, empty_arguments_value>
+||
+std::same_as<T, no_awaiter_type>;
 
 template<
     typename T
@@ -197,6 +244,23 @@ struct PromiseAccessor
         if constexpr (has_promise)
         {
             return self.Data.Promise;
+        }
+        else
+        {
+            return &empty;
+        }
+    }
+    
+    static constexpr bool has_traced_promise = requires(Event self)
+    {
+        { self.Data.TracedPromise } -> is_not_empty;
+    };
+
+    auto* traced_promise(this auto& self)
+    {
+        if constexpr (has_traced_promise)
+        {
+            return self.Data.TracedPromise;
         }
         else
         {
@@ -245,6 +309,41 @@ struct AwaiterAccessor
             return &empty;
         }
     }
+
+    static constexpr bool has_awaiter_type = requires(Event self)
+    {
+        { self.Data.AwaiterType } -> is_not_empty;
+    };
+
+    auto* awaiter_type(this auto& self)
+    {
+        if constexpr (has_awaiter_type)
+        {
+            return self.Data.AwaiterType;
+        }
+        else
+        {
+            return &empty;
+        }
+    }
+
+    static constexpr bool has_traced_awaiter = requires(Event self)
+    {
+        { self.Data.TracedAwaiter } -> is_not_empty;
+    };
+
+    auto* traced_awaiter(this auto& self)
+    {
+        if constexpr (has_awaiter)
+        {
+            return self.Data.TracedAwaiter;
+        }
+        else
+        {
+            return &empty;
+        }
+    }
+
 };
 
 template<
@@ -465,8 +564,11 @@ template<
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TPromise = empty_value,
+    typename TTracedPromise = empty_value,
     typename TPromiseCreationArguments = empty_arguments_value,
     typename TAwaiter = empty_value,
+    typename TTracedAwaiter = empty_value,
+    typename TAwaiterType = no_awaiter_type,
     typename TMethodArguments = empty_arguments_value,
     typename TMethodResult = empty_value,
     typename TMethodException = empty_value,
@@ -477,8 +579,11 @@ template<
 struct event_data
 {
     [[no_unique_address]] TPromise Promise = empty;
+    [[no_unique_address]] TTracedPromise TracedPromise = empty;
     [[no_unique_address]] TPromiseCreationArguments PromiseCreationArguments = empty_arguments;
     [[no_unique_address]] TAwaiter Awaiter = empty;
+    [[no_unique_address]] TTracedAwaiter TracedAwaiter = empty;
+    [[no_unique_address]] TAwaiterType AwaiterType = no_awaiter_type{};
     [[no_unique_address]] TMethodArguments MethodArguments = empty_arguments;
     [[no_unique_address]] TMethodResult MethodResult = empty;
     [[no_unique_address]] TMethodException MethodException = empty;
@@ -512,12 +617,21 @@ struct event_data
             .Promise = combine(
                 this->Promise, 
                 other.Promise),
+            .TracedPromise = combine(
+                this->TracedPromise,
+                other.TracedPromise),
             .PromiseCreationArguments = combine(
                 this->PromiseCreationArguments, 
                 other.PromiseCreationArguments),
             .Awaiter = combine(
                 this->Awaiter, 
                 other.Awaiter),
+            .TracedAwaiter = combine(
+                this->TracedAwaiter,
+                other.TracedAwaiter),
+            .AwaiterType = combine(
+                this->AwaiterType,
+                other.AwaiterType),
             .MethodArguments = combine(
                 this->MethodArguments, 
                 other.MethodArguments),
@@ -584,41 +698,6 @@ auto basic_event(
 
 namespace detail
 {
-PHANTOM_COROUTINES_MODULE_EXPORT
-struct initial_suspend_awaiter_type
-{
-    static constexpr bool is_traced_promise_initial_suspend_awaiter = true;
-    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
-    static constexpr bool is_traced_promise_co_yield_awaiter = false;
-    static constexpr bool is_traced_promise_co_await_awaiter = false;
-};
-
-PHANTOM_COROUTINES_MODULE_EXPORT
-struct final_suspend_awaiter_type
-{
-    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
-    static constexpr bool is_traced_promise_final_suspend_awaiter = true;
-    static constexpr bool is_traced_promise_co_yield_awaiter = false;
-    static constexpr bool is_traced_promise_co_await_awaiter = false;
-};
-
-PHANTOM_COROUTINES_MODULE_EXPORT
-struct co_yield_awaiter_type
-{
-    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
-    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
-    static constexpr bool is_traced_promise_co_yield_awaiter = true;
-    static constexpr bool is_traced_promise_co_await_awaiter = false;
-};
-
-PHANTOM_COROUTINES_MODULE_EXPORT
-struct co_await_awaiter_type
-{
-    static constexpr bool is_traced_promise_initial_suspend_awaiter = false;
-    static constexpr bool is_traced_promise_final_suspend_awaiter = false;
-    static constexpr bool is_traced_promise_co_yield_awaiter = false;
-    static constexpr bool is_traced_promise_co_await_awaiter = true;
-};
 
 template<
     is_trace_sink TraceSink
@@ -692,7 +771,7 @@ auto call_traced_method(
                     baseEventData.with(
                         events::event_data
                         {
-                            .MethodResult = &result
+                            .MethodResult = events::value{ result }
                         })));
             return result;
         }
@@ -707,7 +786,7 @@ auto call_traced_method(
                 baseEventData.with(
                     events::event_data
                     {
-                        .MethodException = &exception
+                        .MethodException = events::value{ exception }
                     })));
         throw;
     }
@@ -749,6 +828,7 @@ struct traced_awaiter :
                 events::event_data
                 {
                     .Awaiter = static_cast<wrapped_awaiter_type*>(&awaiter.awaiter()),
+                    .AwaiterType = AwaiterType{},
                 }),
             call);
     }
@@ -808,9 +888,9 @@ struct traced_awaiter :
         return self.traced_awaiter::call_awaiter(
             detail::method_events_group
             {
-                events::await_suspend_begin{},
-                events::await_suspend_result{},
-                events::await_suspend_exception{},
+                events::await_resume_begin{},
+                events::await_resume_result{},
+                events::await_resume_exception{},
             },
             self.get_event_data(
                 events::empty_arguments),
@@ -910,8 +990,9 @@ protected:
                 events::create_promise{},
                 events::event_data
                 {
-                    .Promise = &self,
-                    .PromiseCreationArguments = make_arguments(args...),
+                    .Promise = &self.get_underlying_promise(),
+                    .TracedPromise = &self,
+                    .PromiseCreationArguments = events::make_arguments(args...),
                 }));
     }
 
@@ -936,7 +1017,8 @@ protected:
                 .EventType = events::create_promise{},
                 .EventData = events::event_data
                 {
-                    .Promise = &self,
+                    .Promise = &self.get_underlying_promise(),
+                    .TracedPromise = &self,
                 }
             }
         );
@@ -948,7 +1030,8 @@ protected:
     {
         return events::event_data
         {
-            .Promise = &promise,
+            .Promise = &promise.get_underlying_promise(),
+            .TracedPromise = &promise,
         };
     }
 
@@ -1183,7 +1266,7 @@ public:
         {
             sourceLocation,
             [&]() { return promise.traced_promise_base::initial_suspend(); },
-            detail::initial_suspend_awaiter_type{},
+            events::initial_suspend_awaiter_type{},
             detail::trace_sink_accessor
             {
                 promise.traced_promise::m_traceSink
@@ -1204,7 +1287,7 @@ public:
         {
             sourceLocation,
             [&]() { return promise.traced_promise_base::final_suspend(); },
-            detail::final_suspend_awaiter_type{},
+            events::final_suspend_awaiter_type{},
             detail::trace_sink_accessor
             {
                 promise.traced_promise::m_traceSink
@@ -1255,7 +1338,7 @@ public:
             {
                 promise.traced_promise::m_traceSink
             },
-            detail::co_await_awaiter_type{}
+            events::co_await_awaiter_type{}
         };
     }
 
@@ -1280,11 +1363,46 @@ public:
             traceEvent);
         return suspend_never{};
     }
+
+    template<
+        typename This
+    >
+    auto& get_underlying_promise(
+        this This& self)
+    {
+        if constexpr (std::is_const_v<This>)
+        {
+            return static_cast<const BasePromise&>(self);
+        }
+        else
+        {
+            return static_cast<BasePromise&>(self);
+        }
+    }
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 namespace filters
 {
+
+struct filter;
+
+template<
+    std::derived_from<filter> Left,
+    std::derived_from<filter> Right
+>
+struct and_filter;
+
+template<
+    std::derived_from<filter> Left,
+    std::derived_from<filter> Right
+>
+struct or_filter;
+
+template<
+    std::derived_from<filter> Filter
+>
+struct not_filter;
 
 struct filter
 {
@@ -1301,27 +1419,7 @@ struct filter
         Right right
         ) noexcept
     {
-        return [=](const auto& event)
-        {
-            using leftType = decltype(left(event));
-            using rightType = decltype(right(event));
-            if constexpr (std::same_as<std::false_type, leftType>)
-            {
-                return leftType{};
-            }
-            else if constexpr (std::same_as<std::false_type, rightType>)
-            {
-                return rightType{};
-            }
-            else if constexpr (std::same_as<std::true_type, leftType> && std::same_as<std::true_type, rightType>)
-            {
-                return std::true_type{};
-            }
-            else
-            {
-                return left(event) && right(event);
-            }
-        };
+        return and_filter{ left, right };
     }
 
     template<
@@ -1333,27 +1431,7 @@ struct filter
         const Right& right
         ) noexcept
     {
-        return [=](const auto& event) 
-        {
-            using leftType = decltype(left(event));
-            using rightType = decltype(right(event));
-            if constexpr (std::same_as<std::true_type, leftType>)
-            {
-                return leftType{};
-            }
-            else if constexpr (std::same_as<std::true_type, rightType>)
-            {
-                return rightType{};
-            } 
-            else if constexpr (std::same_as<std::false_type, leftType> && std::same_as<std::false_type, rightType>)
-            {
-                return std::false_type{};
-            } 
-            else
-            {
-                return left(event) || right(event);
-            }
-        };
+        return or_filter{ left, right };
     }
 
     template<
@@ -1363,23 +1441,106 @@ struct filter
         const Filter& filter
         ) noexcept
     {
-        return [=](const auto& event) 
-        {
-            using type = decltype(filter(event));
-            if constexpr (std::same_as<std::true_type, type>)
-            {
-                return std::false_type{};
-            }
-            else if constexpr (std::same_as<std::false_type, type>)
-            {
-                return std::true_type{};
-            }
-            else
-            {
-                return !filter(event);
-            }
-        };
+        return not_filter{ filter };
     }
+};
+
+template<
+    std::derived_from<filter> Left,
+    std::derived_from<filter> Right
+>
+struct and_filter : filter
+{
+    Left left;
+    Right right;
+
+    constexpr bool operator()(
+        const auto& event
+        ) const noexcept
+    {
+        using leftType = decltype(left(event));
+        using rightType = decltype(right(event));
+
+        if constexpr (
+            std::same_as<std::false_type, leftType>
+            ||
+            std::same_as<std::false_type, rightType>)
+        {
+            return std::false_type{};
+        }
+        else if constexpr (
+            std::same_as<std::true_type, leftType> &&
+            std::same_as<std::true_type, rightType>)
+        {
+            return std::true_type{};
+        }
+        else
+        {
+            return left(event) && right(event);
+        }
+    }
+};
+
+template<
+    std::derived_from<filter> Left,
+    std::derived_from<filter> Right
+>
+struct or_filter : filter
+{
+    Left left;
+    Right right;
+
+    constexpr bool operator()(
+        const auto& event
+        ) const noexcept
+    {
+        using leftType = decltype(left(event));
+        using rightType = decltype(right(event));
+
+        if constexpr (
+            std::same_as<std::true_type, leftType>
+            ||
+            std::same_as<std::true_type, rightType>)
+        {
+            return std::true_type{};
+        }
+        else if constexpr (
+            std::same_as<std::false_type, leftType> &&
+            std::same_as<std::false_type, rightType>)
+        {
+            return std::false_type{};
+        }
+        else
+        {
+            return left(event) && right(event);
+        }
+    }
+};
+
+template<
+    std::derived_from<filter> Filter
+>
+struct not_filter : filter
+{
+    Filter filter;
+
+    static constexpr auto operator()(
+        const auto& event)
+    {
+        using type = decltype(filter(event));
+        if constexpr (std::same_as<std::true_type, type>)
+        {
+            return std::false_type{};
+        }
+        else if constexpr (std::same_as<std::false_type, type>)
+        {
+            return std::true_type{};
+        }
+        else
+        {
+            return !filter(event);
+        }
+    };
 };
 
 struct any_event_fn : filter
@@ -1406,6 +1567,29 @@ struct event_type_filter_fn : filter
         return {};
     }
 };
+
+template<
+    typename AwaiterType
+>
+struct awaiter_type_filter_fn : filter
+{
+    using filter::operator();
+    constexpr std::true_type operator()(
+        const auto& event
+        ) const noexcept
+        requires std::same_as<
+            typename std::remove_cvref_t<decltype(event)>::event_data_type::awaiter_type, 
+            AwaiterType
+        >
+    {
+        return {};
+    }
+};
+
+template<
+    typename AwaiterType
+>
+constexpr awaiter_type_filter_fn<AwaiterType> awaiter_type_filter;
 
 template<
     typename ... EventType
