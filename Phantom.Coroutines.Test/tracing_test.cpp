@@ -1382,4 +1382,116 @@ ASYNC_TEST_F(tracing_tests, traces_return_value)
     EXPECT_EQ(eventIndex, 2);
 }
 
-} // namespace Phantom::Coroutines::tracing
+ASYNC_TEST_F(tracing_tests, traces_return_value_exception)
+{
+    auto filter = 
+        filters::event_type<
+            events::return_value_begin,
+            events::return_value_exception
+        >;
+
+    struct ThrowOnCopy
+    {
+        ThrowOnCopy() = default;
+        ThrowOnCopy(const ThrowOnCopy&)
+        {
+            throw std::runtime_error("return_value exception");
+        }
+    } return_value;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<ThrowOnCopy>
+        {
+            co_return return_value;
+        };
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<ThrowOnCopy>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<ThrowOnCopy>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .MethodArguments = events::make_arguments(return_value)
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::return_value_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            std::exception_ptr actualException;
+
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .MethodArguments = events::make_arguments(return_value),
+                .MethodException = events::value{ actualException }
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::return_value_exception{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+            actualException = actualEvent.EventData.MethodException.Value;
+            
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+
+            EXPECT_THROW(
+                std::rethrow_exception(
+                    actualEvent.EventData.MethodException.Value
+                ),
+                std::runtime_error
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    co_await expect_exception<std::runtime_error>(taskLambda(tracedEventsChecker, filter));
+    EXPECT_EQ(eventIndex, 2);
+}
+
+} // namespace phantom::coroutines::test
