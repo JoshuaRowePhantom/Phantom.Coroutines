@@ -1120,5 +1120,175 @@ ASYNC_TEST_F(tracing_tests, traces_await_suspend_exception)
     EXPECT_EQ(eventIndex, 4);
 }
 
+ASYNC_TEST_F(tracing_tests, traces_await_resume_exception)
+{
+    auto filter = 
+        filters::awaiter_type<events::co_await_awaiter_type>
+        &&
+        filters::event_type<
+            events::await_ready_begin,
+            events::await_ready_result,
+            events::await_suspend_begin,
+            events::await_suspend_result,
+            events::await_resume_begin,
+            events::await_resume_exception
+        >;
+
+    auto awaiter = test_awaiter()
+        .with_await_ready_true()
+        .with_await_resume_exception<void>(std::runtime_error{ "await_resume exception" });
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            co_await awaiter;
+        };
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<void>;
+
+    using expected_awaiter_type = decltype(awaiter);
+    using expected_traced_awaiter_type = decltype(std::declval<expected_traced_promise_type&>().await_transform(awaiter));
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+    expected_awaiter_type* expectedAwaiter = nullptr;
+    expected_traced_awaiter_type* expectedTracedAwaiter = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .Awaiter = static_cast<expected_awaiter_type*>(nullptr),
+                .TracedAwaiter = static_cast<expected_traced_awaiter_type*>(nullptr),
+                .AwaiterType = events::co_await_awaiter_type{},
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::await_ready_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+            expectedAwaiter = expectedEvent.EventData.Awaiter = actualEvent.EventData.Awaiter;
+            expectedTracedAwaiter = expectedEvent.EventData.TracedAwaiter = actualEvent.EventData.TracedAwaiter;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
+                .AwaiterType = events::co_await_awaiter_type{},
+                .MethodResult = events::value { false },
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::await_ready_result{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
+                .AwaiterType = events::co_await_awaiter_type{},
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::await_resume_begin{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            std::exception_ptr actualException;
+
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
+                .AwaiterType = events::co_await_awaiter_type{},
+                .MethodException = events::value{ actualException }
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::await_resume_exception{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+            actualException = actualEvent.EventData.MethodException.Value;
+            
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+
+            EXPECT_THROW(
+                std::rethrow_exception(
+                    actualEvent.EventData.MethodException.Value
+                ),
+                std::runtime_error
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    co_await expect_exception<std::runtime_error>(taskLambda(tracedEventsChecker, filter));
+    EXPECT_EQ(eventIndex, 4);
+}
+
+
 
 } // namespace Phantom::Coroutines::tracing
