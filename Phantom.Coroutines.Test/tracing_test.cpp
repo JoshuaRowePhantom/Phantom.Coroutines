@@ -1494,4 +1494,94 @@ ASYNC_TEST_F(tracing_tests, traces_return_value_exception)
     EXPECT_EQ(eventIndex, 2);
 }
 
+
+ASYNC_TEST_F(tracing_tests, traces_unhandled_exception)
+{
+    auto filter = 
+        filters::event_type<
+            events::unhandled_exception_begin,
+            events::unhandled_exception_result
+        >;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            throw std::runtime_error("unhandled exception");
+            co_return;
+        };
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<void>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::unhandled_exception_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::unhandled_exception_result{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    co_await expect_exception<std::runtime_error>(taskLambda(tracedEventsChecker, filter));
+    EXPECT_EQ(eventIndex, 2);
+}
+
 } // namespace phantom::coroutines::test
