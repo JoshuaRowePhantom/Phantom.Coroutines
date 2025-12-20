@@ -1289,6 +1289,97 @@ ASYNC_TEST_F(tracing_tests, traces_await_resume_exception)
     EXPECT_EQ(eventIndex, 4);
 }
 
+ASYNC_TEST_F(tracing_tests, traces_return_value)
+{
+    auto filter = 
+        filters::event_type<
+            events::return_value_begin,
+            events::return_value_result
+        >;
 
+    std::string expectedReturnValue = "test return value";
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<std::string>
+        {
+            co_return expectedReturnValue;
+        };
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<std::string>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<std::string>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .MethodArguments = events::make_arguments(expectedReturnValue)
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::return_value_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .MethodArguments = events::make_arguments(expectedReturnValue)
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::return_value_result{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    auto result = co_await taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(result, expectedReturnValue);
+    EXPECT_EQ(eventIndex, 2);
+}
 
 } // namespace Phantom::Coroutines::tracing

@@ -513,18 +513,6 @@ struct await_transform_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
 struct await_transform_exception {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct initial_suspend_begin {};
-PHANTOM_COROUTINES_MODULE_EXPORT
-struct initial_suspend_result {};
-PHANTOM_COROUTINES_MODULE_EXPORT
-struct initial_suspend_exception {};
-PHANTOM_COROUTINES_MODULE_EXPORT
-struct final_suspend_begin {};
-PHANTOM_COROUTINES_MODULE_EXPORT
-struct final_suspend_result {};
-PHANTOM_COROUTINES_MODULE_EXPORT
-struct final_suspend_exception {};
-PHANTOM_COROUTINES_MODULE_EXPORT
 struct unhandled_exception_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
 struct unhandled_exception_result {};
@@ -1048,7 +1036,8 @@ protected:
             promise.traced_promise_trace_sink_storage::m_traceSink,
             events,
             sourceLocation,
-            baseEventData,
+            baseEventData.with(
+                promise.get_event_data()),
             call);
     }
 };
@@ -1096,7 +1085,7 @@ public:
             sourceLocation,
             events::event_data
             {
-                .MethodArguments = make_arguments(value),
+                .MethodArguments = events::make_arguments(value),
             },
             [&]()
             {
@@ -1128,8 +1117,7 @@ public:
         std::source_location sourceLocation = std::source_location::current()
     )
     {
-        return std::forward<TPromise>(promise).template call_promise_method(
-            std::forward<TPromise>(promise),
+        return std::forward<TPromise>(promise).call_promise_method(
             detail::method_events_group
             {
                 events::return_value_begin{},
@@ -1137,7 +1125,10 @@ public:
                 events::return_value_exception{},
             },
             sourceLocation,
-            events::event_data{},
+            events::event_data
+            {
+                .MethodArguments = events::make_arguments(value),
+            },
             [&]()
             {
                 return std::forward<TPromise>(promise).traced_promise_return_value_or_void<TraceSink, BasePromise>::traced_promise_yield_value::return_value(
