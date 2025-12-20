@@ -782,7 +782,7 @@ auto call_traced_method(
         traceSink(
             events::basic_event(
                 sourceLocation,
-                events.ResultEvent,
+                events.ExceptionEvent,
                 baseEventData.with(
                     events::event_data
                     {
@@ -1335,11 +1335,12 @@ public:
                 return promise.traced_promise_base::await_transform(
                     std::forward<decltype(awaiter)>(awaiter)); 
             },
+            events::co_await_awaiter_type{},
             detail::trace_sink_accessor
             {
                 promise.traced_promise::m_traceSink
             },
-            events::co_await_awaiter_type{}
+            promise.get_event_data()
         };
     }
 
@@ -1555,7 +1556,7 @@ constexpr any_event_fn any_event{};
 template<
     typename ... EventType
 >
-struct event_type_filter_fn : filter
+struct event_type_fn : filter
 {
     using filter::operator();
     constexpr std::true_type operator()(
@@ -1570,9 +1571,14 @@ struct event_type_filter_fn : filter
 };
 
 template<
+    typename ... EventType
+>
+event_type_fn<EventType...> event_type;
+
+template<
     typename AwaiterType
 >
-struct awaiter_type_filter_fn : filter
+struct awaiter_type_fn : filter
 {
     using filter::operator();
     constexpr std::true_type operator()(
@@ -1590,12 +1596,7 @@ struct awaiter_type_filter_fn : filter
 template<
     typename AwaiterType
 >
-constexpr awaiter_type_filter_fn<AwaiterType> awaiter_type_filter;
-
-template<
-    typename ... EventType
->
-event_type_filter_fn<EventType...> event_type_filter;
+constexpr awaiter_type_fn<AwaiterType> awaiter_type;
 
 template<
     typename Event
