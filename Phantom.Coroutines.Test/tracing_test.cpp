@@ -129,56 +129,6 @@ struct tracing_tests : testing::Test
         return CastEventType<ExpectedEventType>(anyEvent);
     }
 
-    void ExpectIsInitialSuspend(
-        const auto& event
-    )
-    {
-        static_assert(std::same_as<
-            decltype(event.EventData.AwaiterType), 
-            events::initial_suspend_awaiter_type
-        >);
-
-        EXPECT_EQ(true, event.EventData.AwaiterType.is_traced_promise_initial_suspend_awaiter);
-        EXPECT_EQ(false, event.EventData.AwaiterType.is_traced_promise_co_await_awaiter);
-        EXPECT_EQ(false, event.EventData.AwaiterType.is_traced_promise_co_yield_awaiter);
-        EXPECT_EQ(false, event.EventData.AwaiterType.is_traced_promise_final_suspend_awaiter);
-    }
-
-    void ExpectIsFinalSuspend(
-        const auto& event
-    )
-    {
-        static_assert(std::same_as<
-            decltype(event.EventData.AwaiterType),
-            events::final_suspend_awaiter_type
-        >);
-
-        EXPECT_EQ(false, event.EventData.AwaiterType.is_traced_promise_initial_suspend_awaiter);
-        EXPECT_EQ(false, event.EventData.AwaiterType.is_traced_promise_co_await_awaiter);
-        EXPECT_EQ(false, event.EventData.AwaiterType.is_traced_promise_co_yield_awaiter);
-        EXPECT_EQ(true, event.EventData.AwaiterType.is_traced_promise_final_suspend_awaiter);
-    }
-
-    void ExpectIsCoAwait(
-        const auto* event
-    )
-    {
-        EXPECT_EQ(false, event->is_initial_suspend);
-        EXPECT_EQ(true, event->is_co_await);
-        EXPECT_EQ(false, event->is_co_yield);
-        EXPECT_EQ(false, event->is_final_suspend);
-    }
-
-    void ExpectIsCoYield(
-        const auto* event
-    )
-    {
-        EXPECT_EQ(false, event->is_initial_suspend);
-        EXPECT_EQ(false, event->is_co_await);
-        EXPECT_EQ(true, event->is_co_yield);
-        EXPECT_EQ(false, event->is_final_suspend);
-    }
-
     struct test_awaiter_type_lambdas
     {
         static constexpr auto await_ready_false = []() { return false; };
@@ -372,6 +322,22 @@ struct tracing_tests : testing::Test
     {
         auto& actualEvent = CastEventType<expected_event_type>(actualAny, expectedEvent);
 
+        if (expectedEvent.EventData.Promise != actualEvent.EventData.Promise)
+        {
+            return false;
+        }
+        if (expectedEvent.EventData.TracedPromise != actualEvent.EventData.TracedPromise)
+        {
+            return false;
+        }
+        if (expectedEvent.EventData.Awaiter != actualEvent.EventData.Awaiter)
+        {
+            return false;
+        }
+        if (expectedEvent.EventData.TracedAwaiter != actualEvent.EventData.TracedAwaiter)
+        {
+            return false;
+        }
         if (expectedEvent.EventType != actualEvent.EventType)
         {
             return false;
@@ -538,10 +504,12 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
 
     // The unwrapped awaiter type - what the underlying promise's initial_suspend() returns
     using unwrapped_awaiter_type = std::suspend_always;
+    using expected_traced_awaiter_type = decltype(std::declval<expected_traced_promise_type&>().initial_suspend());
 
     expected_underlying_promise_type* expectedPromise = nullptr;
     expected_traced_promise_type* expectedTracedPromise = nullptr;
     unwrapped_awaiter_type* expectedAwaiter = nullptr;
+    expected_traced_awaiter_type* expectedTracedAwaiter = nullptr;
 
     auto eventIndex = 0;
     traced_events_checker tracedEventsChecker;
@@ -557,6 +525,7 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
                 .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
                 .Awaiter = static_cast<unwrapped_awaiter_type*>(nullptr),
+                .TracedAwaiter = static_cast<expected_traced_awaiter_type*>(nullptr),
                 .AwaiterType = events::initial_suspend_awaiter_type{},
             };
 
@@ -568,11 +537,15 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
 
             auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
 
-            expectedPromise = actualEvent.EventData.Promise;
-            expectedTracedPromise = actualEvent.EventData.TracedPromise;
-            expectedAwaiter = actualEvent.EventData.Awaiter;
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+            expectedAwaiter = expectedEvent.EventData.Awaiter = actualEvent.EventData.Awaiter;
+            expectedTracedAwaiter = expectedEvent.EventData.TracedAwaiter = actualEvent.EventData.TracedAwaiter;
 
-            ExpectIsInitialSuspend(actualEvent);
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
         }
         else if (eventIndex == ++checkingIndex)
         {
@@ -581,6 +554,7 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 .Promise = expectedPromise,
                 .TracedPromise = expectedTracedPromise,
                 .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::initial_suspend_awaiter_type{},
                 .MethodResult = events::value { false },
             };
@@ -591,8 +565,10 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 expectedEventData
             );
 
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsInitialSuspend(actualEvent);
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
         }
         else if (eventIndex == ++checkingIndex)
         {
@@ -601,6 +577,7 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 .Promise = expectedPromise,
                 .TracedPromise = expectedTracedPromise,
                 .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::initial_suspend_awaiter_type{},
                 .MethodArguments = events::make_arguments(
                     std::coroutine_handle<expected_traced_promise_type>::from_promise(*expectedTracedPromise)
@@ -613,8 +590,10 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 expectedEventData
             );
 
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsInitialSuspend(actualEvent);
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
         }
         else if (eventIndex == ++checkingIndex)
         {
@@ -623,6 +602,7 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 .Promise = expectedPromise,
                 .TracedPromise = expectedTracedPromise,
                 .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::initial_suspend_awaiter_type{},
                 .MethodArguments = events::make_arguments(
                     std::coroutine_handle<expected_traced_promise_type>::from_promise(*expectedTracedPromise)
@@ -635,8 +615,10 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 expectedEventData
             );
 
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsInitialSuspend(actualEvent);
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
         }
         else if (eventIndex == ++checkingIndex)
         {
@@ -645,6 +627,7 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 .Promise = expectedPromise,
                 .TracedPromise = expectedTracedPromise,
                 .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::initial_suspend_awaiter_type{},
             };
 
@@ -654,8 +637,10 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 expectedEventData
             );
 
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsInitialSuspend(actualEvent);
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
         }
         else if (eventIndex == ++checkingIndex)
         {
@@ -664,6 +649,7 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 .Promise = expectedPromise,
                 .TracedPromise = expectedTracedPromise,
                 .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::initial_suspend_awaiter_type{},
             };
 
@@ -673,8 +659,10 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 expectedEventData
             );
 
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsInitialSuspend(actualEvent);
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
         }
         else
         {
@@ -683,20 +671,12 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
     } };
 
     co_await taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(eventIndex, 6);
 }
 
 ASYNC_TEST_F(tracing_tests, traces_final_suspend)
 {
-    auto filter = filters::event_type_filter<
-        events::await_ready_begin,
-        events::await_ready_result,
-        events::await_suspend_begin,
-        events::await_suspend_result,
-        events::await_resume_begin,
-        events::await_resume_result
-    >
-        &&
-        filters::awaiter_type_filter<events::final_suspend_awaiter_type>;
+    auto filter = filters::awaiter_type_filter<events::final_suspend_awaiter_type>;
 
     auto taskLambda = [](
         this auto& self,
@@ -716,11 +696,13 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
     using expected_underlying_promise_type = test_underlying_promise<void>;
 
     // The unwrapped awaiter type - what the underlying promise's final_suspend() returns
-    using unwrapped_awaiter_type = std::suspend_always;
+    using expected_awaiter_type = final_suspend_transfer;
+    using expected_traced_awaiter_type = decltype(std::declval<expected_traced_promise_type&>().final_suspend());
 
     expected_underlying_promise_type* expectedPromise = nullptr;
     expected_traced_promise_type* expectedTracedPromise = nullptr;
-    unwrapped_awaiter_type* expectedAwaiter = nullptr;
+    expected_awaiter_type* expectedAwaiter = nullptr;
+    expected_traced_awaiter_type* expectedTracedAwaiter = nullptr;
 
     auto eventIndex = 0;
     traced_events_checker tracedEventsChecker;
@@ -735,7 +717,8 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
             {
                 .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
                 .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
-                .Awaiter = static_cast<unwrapped_awaiter_type*>(nullptr),
+                .Awaiter = static_cast<expected_awaiter_type*>(nullptr),
+                .TracedAwaiter = static_cast<expected_traced_awaiter_type*>(nullptr),
                 .AwaiterType = events::final_suspend_awaiter_type{},
             };
 
@@ -747,11 +730,15 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
 
             auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
 
-            expectedPromise = actualEvent.EventData.Promise;
-            expectedTracedPromise = actualEvent.EventData.TracedPromise;
-            expectedAwaiter = actualEvent.EventData.Awaiter;
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+            expectedAwaiter = expectedEvent.EventData.Awaiter = actualEvent.EventData.Awaiter;
+            expectedTracedAwaiter = expectedEvent.EventData.TracedAwaiter = actualEvent.EventData.TracedAwaiter;
 
-            ExpectIsFinalSuspend(actualEvent);
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
         }
         else if (eventIndex == ++checkingIndex)
         {
@@ -760,6 +747,7 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
                 .Promise = expectedPromise,
                 .TracedPromise = expectedTracedPromise,
                 .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::final_suspend_awaiter_type{},
                 .MethodResult = events::value { false },
             };
@@ -770,8 +758,10 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
                 expectedEventData
             );
 
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsFinalSuspend(actualEvent);
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
         }
         else if (eventIndex == ++checkingIndex)
         {
@@ -780,6 +770,7 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
                 .Promise = expectedPromise,
                 .TracedPromise = expectedTracedPromise,
                 .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::final_suspend_awaiter_type{},
                 .MethodArguments = events::make_arguments(
                     std::coroutine_handle<expected_traced_promise_type>::from_promise(*expectedTracedPromise)
@@ -792,8 +783,10 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
                 expectedEventData
             );
 
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsFinalSuspend(actualEvent);
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
         }
         else if (eventIndex == ++checkingIndex)
         {
@@ -802,10 +795,12 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
                 .Promise = expectedPromise,
                 .TracedPromise = expectedTracedPromise,
                 .Awaiter = expectedAwaiter,
+                .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::final_suspend_awaiter_type{},
                 .MethodArguments = events::make_arguments(
                     std::coroutine_handle<expected_traced_promise_type>::from_promise(*expectedTracedPromise)
-                )
+                ),
+                .MethodResult = events::value{ std::coroutine_handle<void>{} },
             };
 
             auto expectedEvent = basic_event(
@@ -814,46 +809,10 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
                 expectedEventData
             );
 
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsFinalSuspend(actualEvent);
-        }
-        else if (eventIndex == ++checkingIndex)
-        {
-            auto expectedEventData = events::event_data
-            {
-                .Promise = expectedPromise,
-                .TracedPromise = expectedTracedPromise,
-                .Awaiter = expectedAwaiter,
-                .AwaiterType = events::final_suspend_awaiter_type{},
-            };
-
-            auto expectedEvent = basic_event(
-                std::source_location(),
-                events::await_resume_begin{},
-                expectedEventData
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
             );
-
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsFinalSuspend(actualEvent);
-        }
-        else if (eventIndex == ++checkingIndex)
-        {
-            auto expectedEventData = events::event_data
-            {
-                .Promise = expectedPromise,
-                .TracedPromise = expectedTracedPromise,
-                .Awaiter = expectedAwaiter,
-                .AwaiterType = events::final_suspend_awaiter_type{},
-            };
-
-            auto expectedEvent = basic_event(
-                std::source_location(),
-                events::await_resume_result{},
-                expectedEventData
-            );
-
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            ExpectIsFinalSuspend(actualEvent);
         }
         else
         {
@@ -862,6 +821,9 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
     } };
 
     co_await taskLambda(tracedEventsChecker, filter);
+    // Note that await_resume is not expected for final_suspend_transfer,
+    // so we only expect await_ready, await_suspend events.
+    EXPECT_EQ(eventIndex, 4);
 }
 
 } // namespace Phantom::Coroutines::tracing

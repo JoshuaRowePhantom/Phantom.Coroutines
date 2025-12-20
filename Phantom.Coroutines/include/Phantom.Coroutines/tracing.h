@@ -828,6 +828,7 @@ struct traced_awaiter :
                 events::event_data
                 {
                     .Awaiter = static_cast<wrapped_awaiter_type*>(&awaiter.awaiter()),
+                    .TracedAwaiter = &awaiter,
                     .AwaiterType = AwaiterType{},
                 }),
             call);
@@ -1578,8 +1579,8 @@ struct awaiter_type_filter_fn : filter
         const auto& event
         ) const noexcept
         requires std::same_as<
-            typename std::remove_cvref_t<decltype(event)>::event_data_type::awaiter_type, 
-            AwaiterType
+            const decltype(event.EventData.AwaiterType)&,
+            const AwaiterType&
         >
     {
         return {};
