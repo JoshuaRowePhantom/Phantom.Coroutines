@@ -20,6 +20,10 @@ namespace Phantom::Coroutines::detail
 
 namespace
 {
+static_assert(true == is_empty_type_list<>);
+static_assert(false == is_empty_type_list<int>);
+static_assert(false == is_empty_type_list<int, int>);
+
 static_assert(false == is_in_types<int>);
 static_assert(true == is_in_types<int, int>);
 static_assert(false == is_in_types<int, bool>);

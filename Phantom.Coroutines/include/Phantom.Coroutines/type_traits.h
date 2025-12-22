@@ -17,6 +17,12 @@ PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename ... T
+>
+concept is_empty_type_list = (sizeof...(T) == 0);
+
 namespace detail
 {
 PHANTOM_COROUTINES_MODULE_EXPORT
