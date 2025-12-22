@@ -56,23 +56,18 @@ struct tracing_tests : testing::Test
     {
         const traced_events_checker& checker;
         
+        template<
+            typename ... Args
+        >
+            requires requires
+        {
+            get<const traced_events_checker&>(std::tie(std::declval<const Args&>()...));
+        }
         trace_sink(
-            auto&... args
+            const Args&... args
         ) :
             checker(get<const traced_events_checker&>(std::tie(args...)))
         { }
-
-        trace_sink(
-            const trace_sink& other
-        ) : checker{ other.checker }
-        {
-        }
-
-        trace_sink(
-            trace_sink& other
-        ) : checker{ other.checker }
-        {
-        }
 
         void operator()(const auto& traceEvent) const
         {
@@ -83,11 +78,95 @@ struct tracing_tests : testing::Test
         }
     };
 
+    struct throw_on_return
+    {
+        std::exception_ptr exception = std::make_exception_ptr(
+            std::runtime_error{
+                "Exception thrown on return"
+            }
+        );
+    };
+
+    template<
+        typename Result
+    >
+    struct controllable_promise_base
+        :
+        derived_promise<task_promise<Result>>
+    {
+        std::exception_ptr exception_to_throw_on_return;
+
+        using controllable_promise_base::derived_promise::derived_promise;
+        using derived_promise<task_promise<Result>>::await_transform;
+
+        Coroutines::detail::suspend_never await_transform(
+            this auto& self,
+            throw_on_return throwOnReturn)
+        {
+            self.exception_to_throw_on_return = throwOnReturn.exception;
+            return {};
+        }
+    };
+
+    template<
+        typename Result
+    >
+    struct controllable_promise_return_value_or_void
+        :
+        controllable_promise_base<Result>
+    {
+        using controllable_promise_base<Result>::controllable_promise_base;
+
+        auto return_value(
+            auto&& value)
+        {
+            if (this->exception_to_throw_on_return)
+            {
+                std::rethrow_exception(this->exception_to_throw_on_return);
+            }
+            return this->controllable_promise_base<Result>::return_value(
+                std::forward<decltype(value)>(value));
+        }
+    };
+
+    template<
+    >
+    struct controllable_promise_return_value_or_void<
+        void
+    >
+        :
+        controllable_promise_base<void>
+    {
+        using controllable_promise_base<void>::controllable_promise_base;
+
+        auto return_void()
+        {
+            if (this->exception_to_throw_on_return)
+            {
+                std::rethrow_exception(this->exception_to_throw_on_return);
+            }
+            else
+            {
+                return this->controllable_promise_base<void>::return_void();
+            }
+        }
+    };
+
+    template<
+        typename Result
+    >
+    struct controllable_promise
+        :
+        controllable_promise_return_value_or_void<Result>
+    {
+        using controllable_promise_return_value_or_void<Result>::controllable_promise_return_value_or_void;
+    };
+
     template<
         typename Result
     >
     using test_underlying_promise = polymorphic_promise<
-        task_promise<Result>
+        controllable_promise<Result>
     >;
 
     template<
@@ -102,7 +181,7 @@ struct tracing_tests : testing::Test
     template<
         typename T = void
     >
-    using test_traced_task = basic_task<polymorphic_promise<task_promise<T>>>;
+    using test_traced_task = basic_task<test_underlying_promise<T>>;
 
     template<
         typename EventType
@@ -1390,31 +1469,26 @@ ASYNC_TEST_F(tracing_tests, traces_return_value_exception)
             events::return_value_exception
         >;
 
-    struct ThrowOnCopy
-    {
-        ThrowOnCopy() = default;
-        ThrowOnCopy(const ThrowOnCopy&)
-        {
-            throw std::runtime_error("return_value exception");
-        }
-    } return_value;
+    std::string return_value = "test return value";
+    throw_on_return throw_on_return_awaiter;
 
     auto taskLambda = [&](
         this auto& self,
         traced_events_checker& eventsChecker,
         decltype(filter)
-        ) -> test_traced_task<ThrowOnCopy>
+        ) -> test_traced_task<std::string>
         {
+            co_await throw_on_return_awaiter;
             co_return return_value;
         };
 
     using expected_traced_promise_type = std::coroutine_traits<
-        test_traced_task<ThrowOnCopy>
+        test_traced_task<std::string>
         , traced_events_checker&
         , decltype(filter)
     >::promise_type;
 
-    using expected_underlying_promise_type = test_underlying_promise<ThrowOnCopy>;
+    using expected_underlying_promise_type = test_underlying_promise<std::string>;
 
     expected_underlying_promise_type* expectedPromise = nullptr;
     expected_traced_promise_type* expectedTracedPromise = nullptr;
@@ -1460,7 +1534,7 @@ ASYNC_TEST_F(tracing_tests, traces_return_value_exception)
                 .Promise = expectedPromise,
                 .TracedPromise = expectedTracedPromise,
                 .MethodArguments = events::make_arguments(return_value),
-                .MethodException = events::value{ actualException }
+                .MethodException = events::value { throw_on_return_awaiter.exception },
             };
 
             auto expectedEvent = basic_event(
@@ -1469,19 +1543,9 @@ ASYNC_TEST_F(tracing_tests, traces_return_value_exception)
                 expectedEventData
             );
 
-            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
-            actualException = actualEvent.EventData.MethodException.Value;
-            
             expect_events_equal(
                 expectedEvent,
                 actualEventAny
-            );
-
-            EXPECT_THROW(
-                std::rethrow_exception(
-                    actualEvent.EventData.MethodException.Value
-                ),
-                std::runtime_error
             );
         }
         else
@@ -1494,6 +1558,185 @@ ASYNC_TEST_F(tracing_tests, traces_return_value_exception)
     EXPECT_EQ(eventIndex, 2);
 }
 
+ASYNC_TEST_F(tracing_tests, traces_return_void)
+{
+    auto filter = 
+        filters::event_type<
+            events::return_void_begin,
+            events::return_void_result
+        >;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            co_return;
+        };
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<void>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::return_void_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::return_void_result{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    co_await taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(eventIndex, 2);
+}
+
+ASYNC_TEST_F(tracing_tests, traces_return_void_exception)
+{
+    auto filter = 
+        filters::event_type<
+            events::return_void_begin,
+            events::return_void_exception
+        >;
+
+    throw_on_return throw_on_return_awaiter;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            co_await throw_on_return_awaiter;
+            co_return;
+        };
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<void>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::return_void_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .MethodException = events::value{ throw_on_return_awaiter.exception }
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::return_void_exception{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    co_await expect_exception<std::runtime_error>(taskLambda(tracedEventsChecker, filter));
+    EXPECT_EQ(eventIndex, 2);
+}
 
 ASYNC_TEST_F(tracing_tests, traces_unhandled_exception)
 {

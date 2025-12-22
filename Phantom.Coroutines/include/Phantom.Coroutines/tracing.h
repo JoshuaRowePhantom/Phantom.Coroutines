@@ -25,6 +25,7 @@ namespace Phantom::Coroutines
 namespace tracing
 {
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TraceSink
 > concept is_trace_sink = true;
@@ -150,6 +151,7 @@ struct event :
     event_data_type EventData;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct empty_value
 {
     using value_type = void;
@@ -158,6 +160,7 @@ struct empty_value
     friend auto operator<=>(const empty_value&, const empty_value&) = default;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 struct empty_arguments_value
 {
     using value_type = std::tuple<>;
@@ -166,7 +169,9 @@ struct empty_arguments_value
     friend auto operator<=>(const empty_arguments_value&, const empty_arguments_value&) = default;
 };
 
+PHANTOM_COROUTINES_MODULE_EXPORT
 constexpr empty_value empty{};
+PHANTOM_COROUTINES_MODULE_EXPORT
 constexpr empty_arguments_value empty_arguments{ };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -946,6 +951,7 @@ namespace detail
 {
 
 // This class stored the trace sink and produces non-result-specific tracing events.
+PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_trace_sink TraceSink
 >
@@ -959,58 +965,32 @@ class traced_promise_trace_sink_storage
 public:
     using trace_sink_type = TraceSink;
 
-protected:
-    TraceSink m_traceSink;
+public:
+    trace_sink_type m_traceSink;
 
     template<
-        typename TPromise
+        typename ... Args
     >
+    requires
+        is_constructible_from_promise_arguments<trace_sink_type, Args&&...>
     traced_promise_trace_sink_storage(
-        TPromise& self,
-        const auto& ... args
-    )
-        requires std::constructible_from<TraceSink, decltype(args)...>
-    :
-    m_traceSink{ args... }
+        Args&& ... args
+    ) :
+    m_traceSink(std::forward<Args>(args)...)
     {
-        m_traceSink(
-            events::basic_event(
-                std::source_location::current(),
-                events::create_promise{},
-                events::event_data
-                {
-                    .Promise = &self.get_underlying_promise(),
-                    .TracedPromise = &self,
-                    .PromiseCreationArguments = events::make_arguments(args...),
-                }));
     }
 
+    // Allow default construction of the trace sink when arguments are provided.
     template<
-        typename TPromise
+        typename ... Args
     >
+    requires 
+        is_default_constructible_from_promise_arguments<trace_sink_type, Args&&...>
     traced_promise_trace_sink_storage(
-        TPromise& self,
-        auto& ... args
-    )
-    requires (
-        !std::constructible_from<TraceSink, decltype(args)...>
-        && std::constructible_from<TraceSink>
-    )
-    :
-    m_traceSink{}
+        Args&& ... args
+    ) :
+    m_traceSink()
     {
-        m_traceSink(
-            events::event
-            {
-                .SourceLocation = std::source_location::current(),
-                .EventType = events::create_promise{},
-                .EventData = events::event_data
-                {
-                    .Promise = &self.get_underlying_promise(),
-                    .TracedPromise = &self,
-                }
-            }
-        );
     }
 
     auto get_event_data(
@@ -1042,28 +1022,65 @@ protected:
     }
 };
 
+// This class embodies constructors for traced promises.
 template<
     is_trace_sink TraceSink,
     typename BasePromise
 >
-class traced_promise_yield_value
+class traced_promise_construction
     :
     public traced_promise_trace_sink_storage<TraceSink>,
     public derived_promise<BasePromise>
 {
 public:
     template<
-        typename TPromise
+        typename ... Args
     >
-    traced_promise_yield_value(
-        TPromise& self,
-        auto&& ... args
-    ) :
-        traced_promise_yield_value::traced_promise_trace_sink_storage{ self, std::forward<decltype(args)>(args)... },
-        traced_promise_yield_value::derived_promise{ std::forward<decltype(args)>(args)... }
+    requires 
+        std::constructible_from<traced_promise_trace_sink_storage<TraceSink>, Args&&...>
+        && 
+        std::constructible_from<derived_promise<BasePromise>, Args&&...>
+    traced_promise_construction(
+        Args&& ... args
+    ) 
+        :
+        traced_promise_construction::traced_promise_trace_sink_storage(std::forward<Args>(args)...),
+        traced_promise_construction::derived_promise(std::forward<Args>(args)... )
     {
     }
+};
 
+// This class provides an implementation of yield_value for a promise
+// if it has a yield_value implementation.
+// The main template does not provide yield_value.
+template<
+    is_trace_sink TraceSink,
+    typename BasePromise
+>
+class traced_promise_yield_value
+    :
+    public traced_promise_construction<TraceSink, BasePromise>
+{
+public:
+    using traced_promise_yield_value::traced_promise_construction::traced_promise_construction;
+};
+
+// The specialization for promises that have yield_value.
+template<
+    is_trace_sink TraceSink,
+    has_yield_value BasePromise
+>
+class traced_promise_yield_value<
+    TraceSink,
+    BasePromise
+>
+    :
+    public traced_promise_construction<TraceSink, BasePromise>
+{
+public:
+    using traced_promise_yield_value::traced_promise_construction::traced_promise_construction;
+
+    // Trace an delegate the base class's yield_value implementation.
     template<
         typename TPromise
     >
@@ -1072,7 +1089,6 @@ public:
         auto&& value,
         std::source_location sourceLocation = std::source_location::current()
     )
-        requires has_yield_value<BasePromise>
     {
         return promise.traced_promise_yield_value::call_promise_method(
             promise,
@@ -1107,6 +1123,8 @@ class traced_promise_return_value_or_void
     using traced_promise_return_value_or_void::traced_promise_yield_value::traced_promise_yield_value;
 
 public:
+    using traced_promise_return_value_or_void::traced_promise_yield_value::call_promise_method;
+
     template<
         typename TPromise,
         typename Value
@@ -1150,9 +1168,10 @@ class traced_promise_return_value_or_void<
     public traced_promise_yield_value<TraceSink, BasePromise>
 {
     using traced_promise_return_value_or_void::traced_promise_yield_value::traced_promise_yield_value;
-    using traced_promise_return_value_or_void::traced_promise_yield_value::call_promise_method;
 
 public:
+    using traced_promise_return_value_or_void::traced_promise_yield_value::call_promise_method;
+
     template<
         typename TPromise
     >
@@ -1229,11 +1248,25 @@ public:
     struct traced_promise_trace_sink_accessor;
 
 public:
+    template<
+        typename ... Args
+    >
     traced_promise(
-        auto&& ... args
-    ) :
-        traced_promise_base{ *this, std::forward<decltype(args)>(args)... }
+        Args&& ... args
+    )
+        :
+        traced_promise_base{ std::forward<Args>(args)... }
     {
+        m_traceSink(
+            events::basic_event(
+                std::source_location::current(),
+                events::create_promise{},
+                events::event_data
+                {
+                    .Promise = &this->get_underlying_promise(),
+                    .TracedPromise = this,
+                    .PromiseCreationArguments = events::make_arguments(args...),
+                }));
     }
 
     ~traced_promise()
