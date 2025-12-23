@@ -129,7 +129,7 @@ public:
     auto initial_suspend(
         this auto& self
     ) noexcept(noexcept(
-        self.derived_promise::initial_suspend()
+        self.contextual_promise::derived_promise::initial_suspend()
         ))
     {
         static_assert(is_contextual_promise<decltype(self)>);
@@ -141,7 +141,7 @@ public:
             self,
             [&]() -> decltype(auto)
             {
-                return self.derived_promise::initial_suspend();
+                return self.contextual_promise::derived_promise::initial_suspend();
             }
         };
     }
@@ -159,7 +159,7 @@ public:
             self,
             [&]() noexcept -> decltype(auto)
             {
-                return self.derived_promise::final_suspend();
+                return self.contextual_promise::derived_promise::final_suspend();
             }
         };
     }
@@ -176,11 +176,11 @@ public:
             DoLeaveOnSuspend{},
             self,
             [&]() noexcept(noexcept(
-                self.derived_promise::await_transform(
+                self.contextual_promise::derived_promise::await_transform(
                     std::forward<decltype(awaitable)>(awaitable))
                 )) -> decltype(auto)
             {
-                return self.derived_promise::await_transform(
+                return self.contextual_promise::derived_promise::await_transform(
                     std::forward<decltype(awaitable)>(awaitable));
             }
         };
