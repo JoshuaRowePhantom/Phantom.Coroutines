@@ -1,4 +1,5 @@
 #include "async_test.h"
+#include <exception>
 #include <source_location>
 #include <typeindex>
 #include "Phantom.Coroutines/detail/config_macros.h"
