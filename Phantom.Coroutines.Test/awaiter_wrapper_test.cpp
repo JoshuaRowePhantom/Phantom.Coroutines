@@ -10,8 +10,9 @@ import Phantom.Coroutines;
 #include "Phantom.Coroutines/awaiter_wrapper.h"
 #endif
 
-namespace Phantom::Coroutines::detail
+namespace Phantom::Coroutines
 {
+
 template<
     typename Awaiter
 > struct awaiter_wrapper_test_awaiter

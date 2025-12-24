@@ -13,7 +13,7 @@ import Phantom.Coroutines.value_awaiter;
 #include "Phantom.Coroutines/type_traits.h"
 #include "Phantom.Coroutines/value_awaiter.h"
 #endif
-#include "detail/awaiters.h"
+#include "awaiters.h"
 
 PHANTOM_COROUTINES_PUSH_DISABLE_INTERNAL_LINKAGE_WARNING()
 

@@ -8,7 +8,7 @@ import Phantom.Coroutines.coroutine;
 #include "Phantom.Coroutines/detail/coroutine.h"
 #endif
 
-namespace Phantom::Coroutines::detail
+namespace Phantom::Coroutines
 {
 
 // These types are used as placeholders in tests.

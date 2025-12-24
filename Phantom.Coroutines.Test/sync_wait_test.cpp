@@ -12,7 +12,7 @@ import Phantom.Coroutines.task;
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 #endif
-#include "detail/awaiters.h"
+#include "awaiters.h"
 #include <chrono>
 #include <future>
 

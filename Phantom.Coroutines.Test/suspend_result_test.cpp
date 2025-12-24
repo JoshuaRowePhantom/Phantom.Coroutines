@@ -9,13 +9,10 @@ import Phantom.Coroutines.task;
 #include "Phantom.Coroutines/suspend_result.h"
 #include "Phantom.Coroutines/task.h"
 #endif
-#include "detail/awaiters.h"
+#include "awaiters.h"
 
 namespace Phantom::Coroutines
 {
-using detail::generic_awaiter;
-using detail::get_unusable_task;
-
 ASYNC_TEST(suspend_result_test, reports_not_suspended_for_await_ready_is_true)
 {
     auto testAwaiter = generic_awaiter<void, void>
