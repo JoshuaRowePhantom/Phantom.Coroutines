@@ -1,6 +1,7 @@
 #include <string>
 #include <type_traits>
 #include <gtest/gtest.h>
+#include "Phantom.Coroutines/detail/config_macros.h"
 #include "async_test.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
@@ -279,10 +280,8 @@ ASYNC_TEST(task_test, Can_use_returned_rvalue_reference)
             co_return std::move(initialValue);
         }();
 
-        [&]() {
-            EXPECT_EQ(2, statistics.instance_count);
-            EXPECT_EQ(1, statistics.move_construction_count);
-        }();
+        EXPECT_EQ(2, statistics.instance_count);
+        EXPECT_EQ(1, statistics.move_construction_count);
     }());
 
     EXPECT_TRUE(initialValue.moved_from());
@@ -294,22 +293,22 @@ ASYNC_TEST(task_test, Can_use_returned_rvalue_reference_with_same_address)
     lifetime_statistics statistics;
     lifetime_tracker initialValue = statistics.tracker();
 
-    co_await([&]() -> task<>
+    auto taskLambda = [&]() -> task<lifetime_tracker&&>
     {
-        [&](lifetime_tracker&& endValue) {
+        co_return std::move(initialValue);
+    };
 
-            endValue.use();
-            EXPECT_EQ(1, statistics.instance_count);
-            EXPECT_EQ(0, statistics.move_construction_count);
-        }(
-            co_await[&]() -> task<lifetime_tracker&&>
-        {
-            co_return std::move(initialValue);
-        }());
-    }());
+#if PHANTOM_COROUTINES_MSVC_INCORRECTLY_COPIES_CO_AWAIT_RVALUE_REFERENCE
+    auto&& endValue = std::move(co_await taskLambda());
+#else
+    auto&& endValue = co_await taskLambda();
+#endif
 
-    EXPECT_FALSE(initialValue.moved_from());
+    static_assert(std::same_as<lifetime_tracker&&, decltype(endValue)>);
+
     EXPECT_EQ(1, statistics.instance_count);
+    EXPECT_EQ(0, statistics.move_construction_count);
+    EXPECT_EQ(std::addressof(initialValue), std::addressof(endValue));
     EXPECT_FALSE(statistics.used_after_move);
 }
 
