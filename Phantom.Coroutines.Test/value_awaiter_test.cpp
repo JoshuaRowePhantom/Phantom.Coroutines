@@ -35,7 +35,7 @@ ASYNC_TEST(value_awaiter_test, await_value_from_rvalue_returns_rvalue_reference)
     // The extra "move" is to workaround a compiler bug in MSVC where it copies the result of await_resume.
     decltype(auto) result = std::move(co_await std::move(awaiter));
 #else
-    decltype(auto) result = co_await awaiter;
+    decltype(auto) result = co_await std::move(awaiter);
 #endif
     static_assert(std::same_as<decltype(result), lifetime_tracker&&>);
     EXPECT_EQ(0, lifetimeStatistics.copy_construction_count);
