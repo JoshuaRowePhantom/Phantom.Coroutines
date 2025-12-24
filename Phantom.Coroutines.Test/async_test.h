@@ -5,6 +5,7 @@
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
+import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.reusable_task;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/reusable_task.h"

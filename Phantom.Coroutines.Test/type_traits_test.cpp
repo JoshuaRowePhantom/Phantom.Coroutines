@@ -5,9 +5,11 @@
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
+import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.value_awaiter;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
+#include "Phantom.Coroutines/detail/coroutine.h"
 #include "Phantom.Coroutines/type_traits.h"
 #include "Phantom.Coroutines/value_awaiter.h"
 #endif
@@ -87,8 +89,8 @@ template<
 >
 struct test_coroutine_function_traits_promise
 {
-    std::suspend_always initial_suspend();
-    std::suspend_always final_suspend() noexcept;
+    suspend_always initial_suspend();
+    suspend_always final_suspend() noexcept;
     void return_void();
     void unhandled_exception();
     test_coroutine_function_traits_task get_return_object();
