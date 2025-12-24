@@ -4,6 +4,7 @@
 #include "Phantom.Coroutines/detail/config_macros.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
+import Phantom.Coroutines.Test.lifetime_tracker;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.config_globals;
 import Phantom.Coroutines.coroutine;
@@ -13,6 +14,8 @@ import Phantom.Coroutines.sync_wait;
 import Phantom.Coroutines.tracing;
 import Phantom.Coroutines.task;
 import Phantom.Coroutines.type_traits;
+import Phantom.Coroutines.value_awaiter;
+import Phantom.Coroutines.Test.lifetime_tracker;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/detail/config_globals.h"
 #include "Phantom.Coroutines/polymorphic_promise.h"
@@ -20,6 +23,8 @@ import Phantom.Coroutines.type_traits;
 #include "Phantom.Coroutines/tracing.h"
 #include "Phantom.Coroutines/task.h"
 #include "Phantom.Coroutines/type_traits.h"
+#include "Phantom.Coroutines/value_awaiter.h"
+#include "lifetime_tracker.h"
 #endif
 
 namespace Phantom::Coroutines::tracing
@@ -117,14 +122,14 @@ struct tracing_tests : testing::Test
     {
         using controllable_promise_base<Result>::controllable_promise_base;
 
-        auto return_value(
+        void return_value(
             auto&& value)
         {
             if (this->exception_to_throw_on_return)
             {
                 std::rethrow_exception(this->exception_to_throw_on_return);
             }
-            return this->controllable_promise_base<Result>::return_value(
+            this->controllable_promise_base<Result>::return_value(
                 std::forward<decltype(value)>(value));
         }
     };
@@ -139,7 +144,7 @@ struct tracing_tests : testing::Test
     {
         using controllable_promise_base<void>::controllable_promise_base;
 
-        auto return_void()
+        void return_void()
         {
             if (this->exception_to_throw_on_return)
             {
@@ -472,6 +477,41 @@ struct coroutine_traits<
 namespace Phantom::Coroutines::tracing
 {
 
+ASYNC_TEST_F(tracing_tests, trace_return_value_moves_value)
+{
+    auto filter = filters::event_type<
+        events::await_resume_result
+    > && filters::awaiter_type<
+        events::co_await_awaiter_type
+    >;
+
+    lifetime_statistics lifetimeStatistics;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        auto filter
+        ) -> test_traced_task<void>
+    {
+        EXPECT_EQ(0, lifetimeStatistics.copy_construction_count);
+        EXPECT_EQ(0, lifetimeStatistics.move_construction_count);
+        auto tracker = co_await value_awaiter { lifetimeStatistics.tracker() };
+        EXPECT_EQ(0, lifetimeStatistics.copy_construction_count);
+        EXPECT_EQ(1, lifetimeStatistics.move_construction_count);
+    };
+
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&] (const std::any&)
+    {
+    } };
+
+    co_await taskLambda(
+        tracedEventsChecker,
+        filter);
+
+    EXPECT_EQ(1, lifetimeStatistics.move_construction_count);
+}
+
 ASYNC_TEST_F(tracing_tests, traces_create_and_destroy_promise)
 {
     auto filter = filters::event_type<
@@ -582,7 +622,7 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
     using expected_underlying_promise_type = test_underlying_promise<void>;
 
     // The unwrapped awaiter type - what the underlying promise's initial_suspend() returns
-    using unwrapped_awaiter_type = std::suspend_always;
+    using unwrapped_awaiter_type = suspend_always;
     using expected_traced_awaiter_type = decltype(std::declval<expected_traced_promise_type&>().initial_suspend());
 
     expected_underlying_promise_type* expectedPromise = nullptr;
@@ -1826,5 +1866,6 @@ ASYNC_TEST_F(tracing_tests, traces_unhandled_exception)
     co_await expect_exception<std::runtime_error>(taskLambda(tracedEventsChecker, filter));
     EXPECT_EQ(eventIndex, 2);
 }
+
 
 } // namespace phantom::coroutines::test

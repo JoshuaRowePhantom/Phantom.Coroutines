@@ -136,15 +136,15 @@ consteval bool operator!=(
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename EventType,
-    typename EventData,
+    typename TEventType,
+    typename TEventData,
     template<typename> typename ... Accessors
 >
 struct event : 
-    Accessors<event<EventType, EventData, Accessors...>>...
+    Accessors<event<TEventType, TEventData, Accessors...>>...
 {
-    using event_type = event_type<EventType>;
-    using event_data_type = EventData;
+    using event_type = event_type<TEventType>;
+    using event_data_type = TEventData;
     
     std::source_location SourceLocation;
     event_type EventType;
@@ -571,18 +571,18 @@ template<
 >
 struct event_data
 {
-    [[no_unique_address]] TPromise Promise = empty;
-    [[no_unique_address]] TTracedPromise TracedPromise = empty;
-    [[no_unique_address]] TPromiseCreationArguments PromiseCreationArguments = empty_arguments;
-    [[no_unique_address]] TAwaiter Awaiter = empty;
-    [[no_unique_address]] TTracedAwaiter TracedAwaiter = empty;
-    [[no_unique_address]] TAwaiterType AwaiterType = no_awaiter_type{};
-    [[no_unique_address]] TMethodArguments MethodArguments = empty_arguments;
-    [[no_unique_address]] TMethodResult MethodResult = empty;
-    [[no_unique_address]] TMethodException MethodException = empty;
-    [[no_unique_address]] TUnhandledException UnhandledException = empty;
-    [[no_unique_address]] TYieldValue YieldValue = empty;
-    [[no_unique_address]] TReturnValue ReturnValue = empty;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TPromise Promise = empty;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TTracedPromise TracedPromise = empty;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TPromiseCreationArguments PromiseCreationArguments = empty_arguments;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TAwaiter Awaiter = empty;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TTracedAwaiter TracedAwaiter = empty;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TAwaiterType AwaiterType = no_awaiter_type{};
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TMethodArguments MethodArguments = empty_arguments;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TMethodResult MethodResult = empty;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TMethodException MethodException = empty;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TUnhandledException UnhandledException = empty;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TYieldValue YieldValue = empty;
+    PHANTOM_COROUTINES_NO_UNIQUE_ADDRESS TReturnValue ReturnValue = empty;
 
     friend auto operator<=>(const event_data&, const event_data&) = default;
 
@@ -735,7 +735,7 @@ auto call_traced_method(
     std::source_location sourceLocation,
     const auto& baseEventData,
     std::invocable<> auto call
-)
+) -> std::invoke_result_t<decltype(call)>
 {
     using result_type = std::invoke_result_t<decltype(call)>;
     try
@@ -766,7 +766,7 @@ auto call_traced_method(
                         {
                             .MethodResult = events::value{ result }
                         })));
-            return result;
+            return std::forward<decltype(result)>(result);
         }
     }
     catch (...)
@@ -800,7 +800,7 @@ struct traced_awaiter :
     using awaiter_wrapper = awaiter_wrapper<Awaitable>;
     using trace_sink_accessor = traced_awaiter::trace_sink_accessor;
     using traced_awaiter::trace_sink_accessor::trace_sink;
-    using wrapped_awaiter_type = typename awaiter_wrapper::awaiter_type;
+    using wrapped_awaiter_type = std::remove_reference_t<typename awaiter_wrapper::awaiter_type>;
 
     std::source_location m_sourceLocation;
     BaseEventData m_baseEventData;
@@ -820,8 +820,8 @@ struct traced_awaiter :
             baseEventData.with(
                 events::event_data
                 {
-                    .Awaiter = static_cast<wrapped_awaiter_type*>(&awaiter.awaiter()),
-                    .TracedAwaiter = &awaiter,
+                    .Awaiter = static_cast<wrapped_awaiter_type*>(std::addressof(awaiter.awaiter())),
+                    .TracedAwaiter = std::addressof(awaiter),
                     .AwaiterType = AwaiterType{},
                 }),
             call);
@@ -855,9 +855,6 @@ struct traced_awaiter :
         Arg&& arg
         ) noexcept(noexcept(self.awaiter_wrapper::await_suspend(std::forward<Arg>(arg))))
     {
-        std::tuple<const Arg&> argumentsTuple{ arg };
-        events::arguments arguments{ argumentsTuple };
-
         return self.traced_awaiter::call_awaiter(
             detail::method_events_group
             {
@@ -866,7 +863,7 @@ struct traced_awaiter :
                 events::await_suspend_exception{},
             },
             self.get_event_data(
-                arguments),
+                make_arguments(arg)),
             [&]() -> decltype(auto)
             {
                 return self.awaiter_wrapper::await_suspend(
@@ -1129,13 +1126,13 @@ public:
         typename TPromise,
         typename Value
     >
-    decltype(auto) return_value(
+    void return_value(
         this TPromise&& promise,
         Value&& value,
         std::source_location sourceLocation = std::source_location::current()
     )
     {
-        return std::forward<TPromise>(promise).call_promise_method(
+        std::forward<TPromise>(promise).call_promise_method(
             detail::method_events_group
             {
                 events::return_value_begin{},
@@ -1149,7 +1146,7 @@ public:
             },
             [&]()
             {
-                return std::forward<TPromise>(promise).traced_promise_return_value_or_void<TraceSink, BasePromise>::traced_promise_yield_value::return_value(
+                std::forward<TPromise>(promise).traced_promise_return_value_or_void<TraceSink, BasePromise>::traced_promise_yield_value::return_value(
                     std::forward<Value>(value));
             }
         );
@@ -1175,12 +1172,12 @@ public:
     template<
         typename TPromise
     >
-    decltype(auto) return_void(
+    void return_void(
         this TPromise&& promise,
         std::source_location sourceLocation = std::source_location::current()
     )
     {
-        return std::forward<TPromise>(promise).call_promise_method(
+        std::forward<TPromise>(promise).call_promise_method(
             detail::method_events_group
             {
                 events::return_void_begin{},
@@ -1193,7 +1190,7 @@ public:
             },
             [&]()
             {
-                return std::forward<TPromise>(promise).traced_promise_return_value_or_void<TraceSink, BasePromise>::traced_promise_yield_value::return_void();
+                std::forward<TPromise>(promise).traced_promise_return_value_or_void<TraceSink, BasePromise>::traced_promise_yield_value::return_void();
             }
         );
     }
@@ -1354,7 +1351,7 @@ public:
         return traced_awaiter
         {
             sourceLocation,
-            [&]() 
+            [&]() -> decltype(auto)
             { 
                 return promise.traced_promise_base::await_transform(
                     std::forward<decltype(awaiter)>(awaiter)); 
@@ -1414,19 +1411,24 @@ namespace filters
 struct filter;
 
 template<
-    std::derived_from<filter> Left,
-    std::derived_from<filter> Right
+    typename T
+>
+concept is_filter = std::derived_from<T, filter>;
+
+template<
+    is_filter Left,
+    is_filter Right
 >
 struct and_filter;
 
 template<
-    std::derived_from<filter> Left,
-    std::derived_from<filter> Right
+    is_filter Left,
+    is_filter Right
 >
 struct or_filter;
 
 template<
-    std::derived_from<filter> Filter
+    is_filter Filter
 >
 struct not_filter;
 
@@ -1437,43 +1439,43 @@ struct filter
     }
 
     template<
-        std::derived_from<filter> Left,
-        std::derived_from<filter> Right
+        is_filter Left,
+        is_filter Right
     >
     friend constexpr auto operator&&(
         Left left,
         Right right
         ) noexcept
     {
-        return and_filter{ left, right };
+        return and_filter<Left, Right>{ left, right };
     }
 
     template<
-        std::derived_from<filter> Left,
-        std::derived_from<filter> Right
+        is_filter Left,
+        is_filter Right
     >
     friend constexpr auto operator||(
-        const Left& left, 
-        const Right& right
+        Left left, 
+        Right right
         ) noexcept
     {
-        return or_filter{ left, right };
+        return or_filter<Left, Right>{ left, right };
     }
 
     template<
-        std::derived_from<filter> Filter
+        is_filter Filter
     >
     friend constexpr auto operator!(
-        const Filter& filter
+        Filter filter
         ) noexcept
     {
-        return not_filter{ filter };
+        return not_filter<Filter>{ filter };
     }
 };
 
 template<
-    std::derived_from<filter> Left,
-    std::derived_from<filter> Right
+    is_filter Left,
+    is_filter Right
 >
 struct and_filter : filter
 {
@@ -1508,8 +1510,8 @@ struct and_filter : filter
 };
 
 template<
-    std::derived_from<filter> Left,
-    std::derived_from<filter> Right
+    is_filter Left,
+    is_filter Right
 >
 struct or_filter : filter
 {
@@ -1544,13 +1546,13 @@ struct or_filter : filter
 };
 
 template<
-    std::derived_from<filter> Filter
+    is_filter Filter
 >
 struct not_filter : filter
 {
     Filter filter;
 
-    static constexpr auto operator()(
+    constexpr auto operator()(
         const auto& event)
     {
         using type = decltype(filter(event));
@@ -1628,7 +1630,7 @@ template<
 struct check_constexpr_fn
 {
     template<
-        std::derived_from<filter> Filter
+        is_filter Filter
     > constexpr auto operator()(
         Filter filter
         ) const noexcept
