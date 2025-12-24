@@ -481,7 +481,9 @@ namespace Phantom::Coroutines::tracing
 ASYNC_TEST_F(tracing_tests, trace_return_value_moves_value)
 {
     auto filter = filters::event_type<
-        events::await_resume_result
+        events::await_resume_result,
+        // Verifies that we -only- get the result event.
+        events::await_resume_exception
     > && filters::awaiter_type<
         events::co_await_awaiter_type
     >;
@@ -511,6 +513,121 @@ ASYNC_TEST_F(tracing_tests, trace_return_value_moves_value)
         filter);
 
     EXPECT_EQ(1, lifetimeStatistics.move_construction_count);
+}
+
+ASYNC_TEST_F(tracing_tests, trace_return_value_of_non_movable_value_copies_value)
+{
+    struct value_type
+    {
+        lifetime_tracker tracker;
+
+        value_type(lifetime_statistics& lifetimeStatistics)
+            : tracker(lifetimeStatistics)
+        {
+        }
+
+        value_type(const value_type&) = default;
+        value_type(value_type&&) = delete;
+    };
+
+    static_assert(!std::is_move_constructible_v<value_type>);
+    static_assert(std::is_copy_constructible_v<value_type>);
+    static_assert(std::is_move_constructible_v<value_type&>);
+    static_assert(std::is_copy_constructible_v<value_type&>);
+
+    auto filter = filters::event_type<
+        events::await_resume_result,
+        // Verifies that we -only- get the result event.
+        events::await_resume_exception
+    > && filters::awaiter_type<
+        events::co_await_awaiter_type
+    >;
+
+    lifetime_statistics lifetimeStatistics;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        auto filter
+        ) -> test_traced_task<void>
+    {
+        EXPECT_EQ(0, lifetimeStatistics.copy_construction_count);
+        EXPECT_EQ(0, lifetimeStatistics.move_construction_count);
+        auto awaiter = value_awaiter{ value_type { lifetimeStatistics } };
+        auto result = co_await awaiter;
+        static_assert(std::same_as<value_type, decltype(result)>);
+        EXPECT_EQ(1, lifetimeStatistics.copy_construction_count);
+        EXPECT_EQ(0, lifetimeStatistics.move_construction_count);
+    };
+
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&] (const std::any&)
+    {
+    } };
+
+    co_await taskLambda(
+        tracedEventsChecker,
+        filter);
+
+    EXPECT_EQ(1, lifetimeStatistics.copy_construction_count);
+    EXPECT_EQ(0, lifetimeStatistics.move_construction_count);
+}
+
+ASYNC_TEST_F(tracing_tests, trace_return_value_of_non_copyable_value_does_not_trace_value)
+{
+    struct value_type
+    {
+        lifetime_tracker tracker;
+
+        value_type(lifetime_statistics& lifetimeStatistics)
+            : tracker(lifetimeStatistics)
+        {
+        }
+
+        value_type(const value_type&) = delete;
+    };
+
+    static_assert(!std::is_move_constructible_v<value_type>);
+    static_assert(!std::is_copy_constructible_v<value_type>);
+    static_assert(std::is_move_constructible_v<value_type&>);
+    static_assert(std::is_copy_constructible_v<value_type&>);
+
+    auto filter = filters::event_type<
+        events::await_resume_result,
+        // Verifies that we -only- get the result event.
+        events::await_resume_exception
+    > && filters::awaiter_type<
+        events::co_await_awaiter_type
+    >;
+
+    lifetime_statistics lifetimeStatistics;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        auto filter
+        ) -> test_traced_task<void>
+    {
+        EXPECT_EQ(0, lifetimeStatistics.copy_construction_count);
+        EXPECT_EQ(0, lifetimeStatistics.move_construction_count);
+        auto awaiter = value_awaiter{ value_type { lifetimeStatistics } };
+        auto& result = co_await awaiter;
+        static_assert(std::same_as<const value_type&, decltype(result)>);
+        EXPECT_EQ(0, lifetimeStatistics.copy_construction_count);
+        EXPECT_EQ(0, lifetimeStatistics.move_construction_count);
+    };
+
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&] (const std::any&)
+    {
+    } };
+
+    co_await taskLambda(
+        tracedEventsChecker,
+        filter);
+
+    EXPECT_EQ(0, lifetimeStatistics.copy_construction_count);
+    EXPECT_EQ(0, lifetimeStatistics.move_construction_count);
 }
 
 ASYNC_TEST_F(tracing_tests, traces_create_and_destroy_promise)

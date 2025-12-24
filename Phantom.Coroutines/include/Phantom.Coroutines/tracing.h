@@ -11,6 +11,7 @@
 #include <utility>
 #include "detail/config_macros.h"
 #include "detail/coroutine.h"
+#include "detail/scope_guard.h"
 #include "awaiter_wrapper.h"
 #include "extensible_promise.h"
 #include "type_traits.h"
@@ -738,6 +739,15 @@ auto call_traced_method(
 ) -> std::invoke_result_t<decltype(call)>
 {
     using result_type = std::invoke_result_t<decltype(call)>;
+    constexpr bool is_move_constructible = std::is_move_constructible_v<result_type>;
+    constexpr bool is_copy_constructible = std::is_copy_constructible_v<result_type>;
+    constexpr bool can_trace_return_value =
+        (
+            is_move_constructible
+            ||
+            is_copy_constructible
+        );
+
     try
     {
         traceSink(
@@ -745,7 +755,8 @@ auto call_traced_method(
                 sourceLocation,
                 events.BeginEvent,
                 baseEventData));
-        if constexpr (std::same_as<void, result_type>)
+
+        if (std::same_as<void, result_type>)
         {
             call();
             traceSink(
@@ -753,6 +764,30 @@ auto call_traced_method(
                     sourceLocation,
                     events.ResultEvent,
                     baseEventData));
+        }
+        else if constexpr (!can_trace_return_value)
+        {
+            auto uncaughtExceptions = std::uncaught_exceptions();
+
+            Coroutines::detail::scope_guard guard = [&]()
+            {
+                if (std::uncaught_exceptions() != uncaughtExceptions)
+                {
+                    // If the number of uncaught exceptions has changed in between
+                    // the call being performed and this guard being deactivated,
+                    // it means an exception was thrown by the call,
+                    // and we should not report a successful result.
+                    return;
+                }
+
+                 traceSink(
+                    events::basic_event(
+                        sourceLocation,
+                        events.ExceptionEvent,
+                        baseEventData));
+            };
+
+            call();
         }
         else
         {
@@ -766,7 +801,15 @@ auto call_traced_method(
                         {
                             .MethodResult = events::value{ result }
                         })));
-            return std::forward<decltype(result)>(result);
+
+            if constexpr (is_move_constructible)
+            {
+                return std::forward<decltype(result)>(result);
+            }
+            else
+            {
+                return result;
+            }
         }
     }
     catch (...)
