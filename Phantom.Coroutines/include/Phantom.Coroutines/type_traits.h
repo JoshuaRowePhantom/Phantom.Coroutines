@@ -374,8 +374,7 @@ template<
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename TAwaiter,
-    typename CoroutineHandle = coroutine_handle<>
+    typename TAwaiter
 >
 concept is_awaiter =
     requires (
@@ -409,12 +408,28 @@ template<
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaitable
-> concept is_awaitable =
+> concept has_co_await =
 has_co_await_member<TAwaitable>
 ||
-has_co_await_non_member<TAwaitable>
+has_co_await_non_member<TAwaitable>;
+
+// A simple awaiter is an awaiter that has no co_await member.
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename TAwaiter
+>
+concept is_simple_awaiter =
+is_awaiter<TAwaiter>
+&&
+!has_co_await<TAwaiter>;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename TAwaitable
+> concept is_awaitable =
+has_co_await<TAwaitable>
 ||
-is_awaiter<TAwaitable>;
+is_simple_awaiter<TAwaitable>;
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
@@ -440,7 +455,7 @@ decltype(auto) get_awaiter(
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    is_awaiter Awaiter
+    is_simple_awaiter Awaiter
 >
 decltype(auto) get_awaiter(
     Awaiter&& awaitable
@@ -720,6 +735,8 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_awaitable;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_awaiter;
+PHANTOM_COROUTINES_MODULE_EXPORT
+using detail::is_simple_awaiter;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_co_await_member;
 PHANTOM_COROUTINES_MODULE_EXPORT

@@ -18,7 +18,7 @@ template<
 >
 struct typed_awaiter
 {
-    bool await_ready() { std::unreachable(); }
+    bool await_ready() const noexcept { std::unreachable(); }
     TSuspendResult await_suspend(coroutine_handle<>) { std::unreachable(); }
     TResumeResult await_resume() { std::unreachable(); }
 };

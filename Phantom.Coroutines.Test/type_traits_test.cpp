@@ -246,6 +246,15 @@ static_assert(is_awaiter<typed_awaiter<int&>>);
 static_assert(is_awaiter<typed_awaiter<int&&>>);
 static_assert(!is_awaiter<not_awaitable>);
 
+static_assert(is_awaitable<typed_awaitable<void>>);
+static_assert(is_awaitable<typed_awaitable<void>&>);
+static_assert(is_awaitable<typed_awaitable<void>&&>);
+
+static_assert(is_simple_awaiter<typed_awaiter<void>>);
+static_assert(!is_simple_awaiter<typed_awaitable<void>>);
+static_assert(!is_simple_awaiter<typed_awaitable<void>&>);
+static_assert(!is_simple_awaiter<typed_awaitable<void>&&>);
+
 static_assert(has_co_await_member<typed_awaitable<void>>);
 static_assert(!has_co_await_member<not_awaitable>);
 
@@ -317,6 +326,48 @@ TEST(type_traits_test, get_awaiter_returns_awaiter_lvalue_as_lvalue_reference)
     decltype(auto) result = get_awaiter(awaiter);
     static_assert(std::same_as<generic_awaiter<>&, decltype(result)>);
     ASSERT_EQ(&result, &awaiter);
+}
+
+TEST(type_traits_test, get_awaiter_returns_co_await_on_awaiter_with_member_co_await)
+{
+    struct test_awaiter : generic_awaiter<bool, int>
+    {
+        generic_awaiter<bool, long> m_awaiter;
+
+        auto& operator co_await()
+        {
+            return m_awaiter;
+        }
+    } awaitable;
+
+    decltype(auto) result = get_awaiter(awaitable);
+    static_assert(std::same_as<generic_awaiter<bool, long>&, decltype(result)>);
+    ASSERT_EQ(&awaitable.m_awaiter, &result);
+}
+
+namespace
+{
+
+struct test_awaitable_with_friend_co_await : generic_awaiter<bool, int>
+{
+    generic_awaiter<bool, long> m_awaiter;
+
+    friend auto& operator co_await(
+        test_awaitable_with_friend_co_await& awaitable)
+    {
+        return awaitable.m_awaiter;
+    }
+};
+
+static_assert(has_co_await_non_member<test_awaitable_with_friend_co_await>);
+}
+
+TEST(type_traits_test, get_awaiter_returns_co_await_on_awaiter_with_friend_co_await)
+{
+    test_awaitable_with_friend_co_await awaitable;
+    decltype(auto) result = get_awaiter(awaitable);
+    static_assert(std::same_as<generic_awaiter<bool, long>&, decltype(result)>);
+    ASSERT_EQ(&awaitable.m_awaiter, &result);
 }
 
 TEST(type_traits_test, get_awaiter_returns_awaiter_rvalue_reference_as_rvalue_reference)
