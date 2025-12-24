@@ -105,9 +105,9 @@ template<
 > class awaiter_wrapper;
 
 // The is_awaiter specialization provides the behavior of wrapping
-// an actual awaiter object.
+// an actual awaiter object that has no operator co_await.
 template<
-    is_awaiter Awaiter
+    is_simple_awaiter Awaiter
 > class awaiter_wrapper<
     Awaiter
 > :

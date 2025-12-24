@@ -78,4 +78,22 @@ TEST(awaiter_wrapper_test, can_wrap_awaitable_rvalue)
     ASSERT_EQ(&wrapper.awaiter(), &awaitable.m_awaiter);
 }
 
+TEST(awaiter_wrapper_test, can_wrap_awaiter_with_co_await)
+{
+    // This class is both an awaitable and an awaiter.
+    // We check that the awaiter_wrapper picks the awaiter returned by co_await.
+    struct test_awaiter_with_co_await : generic_awaiter<void, void>
+    {
+        generic_awaiter<bool, int> m_awaiter;
+
+        auto& operator co_await()
+        {
+            return m_awaiter;
+        }
+    } awaitable;
+
+    awaiter_wrapper_test_awaiter<test_awaiter_with_co_await&&> wrapper{ [&]() -> auto&& { return std::move(awaitable); } };
+    ASSERT_EQ(&wrapper.awaiter(), &awaitable.m_awaiter);
+}
+
 }
