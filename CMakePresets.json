@@ -123,6 +123,32 @@
       }
     }
   ],
+  "buildPresets": [
+    {
+      "name": "msvc-windows-x64-debug",
+      "configurePreset": "msvc-windows-x64-debug"
+    },
+    {
+      "name": "msvc-windows-x64-release",
+      "configurePreset": "msvc-windows-x64-release"
+    },
+    {
+      "name": "clang-windows-x64-debug",
+      "configurePreset": "clang-windows-x64-debug"
+    },
+    {
+      "name": "clang-windows-x64-release",
+      "configurePreset": "clang-windows-x64-release"
+    },
+    {
+      "name": "clang-linux-x64-debug",
+      "configurePreset": "clang-linux-x64-debug"
+    },
+    {
+      "name": "clang-linux-x64-release",
+      "configurePreset": "clang-linux-x64-release"
+    }
+  ],
   "testPresets": [
     {
       "name": "msvc-windows-x64-debug-unit",
