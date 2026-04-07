@@ -102,6 +102,15 @@ struct tracing_tests : testing::Test
         );
     };
 
+    struct throw_on_unhandled_exception
+    {
+        std::exception_ptr exception = std::make_exception_ptr(
+            std::runtime_error{
+                "Exception thrown on unhandled_exception"
+            }
+        );
+    };
+
     struct tracing_return_value_tag {};
 
     template<
@@ -196,6 +205,7 @@ struct tracing_tests : testing::Test
         derived_promise<task_promise<Result>>
     {
         std::exception_ptr exception_to_throw_on_return;
+        std::exception_ptr exception_to_throw_on_unhandled_exception;
 
         using controllable_promise_base::derived_promise::derived_promise;
         using derived_promise<task_promise<Result>>::await_transform;
@@ -206,6 +216,23 @@ struct tracing_tests : testing::Test
         {
             self.exception_to_throw_on_return = throwOnReturn.exception;
             return {};
+        }
+
+        Coroutines::detail::suspend_never await_transform(
+            this auto& self,
+            throw_on_unhandled_exception throwOnUnhandledException)
+        {
+            self.exception_to_throw_on_unhandled_exception = throwOnUnhandledException.exception;
+            return {};
+        }
+
+        void unhandled_exception()
+        {
+            if (exception_to_throw_on_unhandled_exception)
+            {
+                std::rethrow_exception(exception_to_throw_on_unhandled_exception);
+            }
+            derived_promise<task_promise<Result>>::unhandled_exception();
         }
     };
 
@@ -2411,6 +2438,117 @@ ASYNC_TEST_F(tracing_tests, traces_should_trace_return_value)
 
     co_await taskLambda(tracedEventsChecker, filter, tracing_return_value_tag{});
     EXPECT_EQ(eventIndex, 2);
+}
+
+ASYNC_TEST_F(tracing_tests, traces_unhandled_exception_exception)
+{
+    // When unhandled_exception() itself throws, the traced promise emits
+    // unhandled_exception_exception and re-throws; the exception propagates
+    // to the caller of resume() just like any other exception from that method.
+    auto filter = filters::event_type<
+        events::unhandled_exception_begin,
+        events::unhandled_exception_exception
+    >;
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<void>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::unhandled_exception_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            std::exception_ptr actualException;
+
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .MethodException = events::value{ actualException },
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::unhandled_exception_exception{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+            actualException = actualEvent.EventData.MethodException.Value;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+
+            EXPECT_THROW(
+                std::rethrow_exception(
+                    actualEvent.EventData.MethodException.Value
+                ),
+                std::runtime_error
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            co_await throw_on_unhandled_exception{};
+            throw std::runtime_error("body exception");
+        };
+
+    try
+    {
+        sync_wait(taskLambda(tracedEventsChecker, filter));
+        EXPECT_FALSE(true);
+    }
+    catch (const std::runtime_error&) { }
+    EXPECT_EQ(eventIndex, 2);
+
+    co_return;
 }
 
 
