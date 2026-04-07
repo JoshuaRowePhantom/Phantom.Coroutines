@@ -1632,9 +1632,22 @@ public:
         {
             sourceLocation,
             [&]() -> decltype(auto)
-            { 
-                return promise.traced_promise_base::await_transform(
-                    std::forward<decltype(awaiter)>(awaiter)); 
+            {
+                return promise.call_promise_method(
+                    detail::method_events_group
+                    {
+                        events::await_transform_begin{},
+                        events::await_transform_result{},
+                        events::await_transform_exception{},
+                    },
+                    sourceLocation,
+                    events::event_data{},
+                    [&]() -> decltype(auto)
+                    {
+                        return promise.traced_promise_base::await_transform(
+                            std::forward<decltype(awaiter)>(awaiter));
+                    }
+                );
             },
             events::co_await_awaiter_type{},
             detail::trace_sink_accessor

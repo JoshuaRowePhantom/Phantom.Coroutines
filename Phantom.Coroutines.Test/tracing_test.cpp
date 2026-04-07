@@ -102,6 +102,15 @@ struct tracing_tests : testing::Test
         );
     };
 
+    struct throw_on_await_transform
+    {
+        std::exception_ptr exception = std::make_exception_ptr(
+            std::runtime_error{
+                "Exception thrown on await_transform"
+            }
+        );
+    };
+
     struct throw_on_unhandled_exception
     {
         std::exception_ptr exception = std::make_exception_ptr(
@@ -209,6 +218,12 @@ struct tracing_tests : testing::Test
 
         using controllable_promise_base::derived_promise::derived_promise;
         using derived_promise<task_promise<Result>>::await_transform;
+
+        Coroutines::detail::suspend_never await_transform(
+            throw_on_await_transform throwOnAwaitTransform)
+        {
+            std::rethrow_exception(throwOnAwaitTransform.exception);
+        }
 
         Coroutines::detail::suspend_never await_transform(
             this auto& self,
@@ -2538,6 +2553,201 @@ ASYNC_TEST_F(tracing_tests, traces_unhandled_exception_exception)
         {
             co_await throw_on_unhandled_exception{};
             throw std::runtime_error("body exception");
+        };
+
+    try
+    {
+        sync_wait(taskLambda(tracedEventsChecker, filter));
+        EXPECT_FALSE(true);
+    }
+    catch (const std::runtime_error&) { }
+    EXPECT_EQ(eventIndex, 2);
+
+    co_return;
+}
+
+
+ASYNC_TEST_F(tracing_tests, traces_await_transform)
+{
+    auto filter = filters::event_type<
+        events::await_transform_begin,
+        events::await_transform_result
+    >;
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<void>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::await_transform_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::await_transform_result{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            co_await std::suspend_never{};
+        };
+
+    co_await taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(eventIndex, 2);
+}
+
+ASYNC_TEST_F(tracing_tests, traces_await_transform_exception)
+{
+    auto filter = filters::event_type<
+        events::await_transform_begin,
+        events::await_transform_exception
+    >;
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<void>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::await_transform_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            std::exception_ptr actualException;
+
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .MethodException = events::value{ actualException },
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::await_transform_exception{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+            actualException = actualEvent.EventData.MethodException.Value;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+
+            EXPECT_THROW(
+                std::rethrow_exception(
+                    actualEvent.EventData.MethodException.Value
+                ),
+                std::runtime_error
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            co_await throw_on_await_transform{};
         };
 
     try
