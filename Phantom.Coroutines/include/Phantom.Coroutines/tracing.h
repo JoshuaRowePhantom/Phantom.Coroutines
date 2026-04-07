@@ -1368,8 +1368,7 @@ public:
         std::source_location sourceLocation = std::source_location::current()
     )
     {
-        return promise.traced_promise_yield_value::call_promise_method(
-            promise,
+        return std::forward<TPromise>(promise).call_promise_method(
             detail::method_events_group
             {
                 events::yield_value_begin{},
@@ -1383,7 +1382,7 @@ public:
             },
             [&]()
             {
-                return std::forward<TPromise>(promise).traced_promise_yield_value::yield_value(
+                return std::forward<TPromise>(promise).traced_promise_construction<TraceSink, BasePromise>::yield_value(
                     std::forward<decltype(value)>(value));
             }
         );

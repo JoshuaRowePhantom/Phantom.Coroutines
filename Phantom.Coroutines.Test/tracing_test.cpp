@@ -93,6 +93,101 @@ struct tracing_tests : testing::Test
         );
     };
 
+    struct throw_on_yield
+    {
+        std::exception_ptr exception = std::make_exception_ptr(
+            std::runtime_error{
+                "Exception thrown on yield"
+            }
+        );
+    };
+
+    struct tracing_return_value_tag {};
+
+    template<
+        typename Filter
+    >
+    struct trace_sink_tracing_return_value
+    {
+        const traced_events_checker& checker;
+
+        template<
+            typename ... Args
+        >
+            requires requires
+        {
+            get<const traced_events_checker&>(std::tie(std::declval<const Args&>()...));
+        }
+        trace_sink_tracing_return_value(
+            const Args&... args
+        ) :
+            checker(get<const traced_events_checker&>(std::tie(args...)))
+        { }
+
+        template<typename Event>
+        std::true_type operator()(const events::should_trace_return_value<Event>&) const
+        {
+            return {};
+        }
+
+        void operator()(const auto& traceEvent) const
+        {
+            if (Filter{}(traceEvent))
+            {
+                checker(&traceEvent);
+            }
+        }
+    };
+
+    struct controllable_yield_promise_base
+        :
+        derived_promise<task_promise<void>>
+    {
+        using controllable_yield_promise_base::derived_promise::derived_promise;
+        using derived_promise<task_promise<void>>::await_transform;
+
+        std::exception_ptr exception_to_throw_on_yield;
+
+        Coroutines::detail::suspend_never await_transform(
+            this auto& self,
+            throw_on_yield throwOnYield)
+        {
+            self.exception_to_throw_on_yield = throwOnYield.exception;
+            return {};
+        }
+
+        Coroutines::detail::suspend_never yield_value(auto&&)
+        {
+            if (exception_to_throw_on_yield)
+            {
+                std::rethrow_exception(exception_to_throw_on_yield);
+            }
+            return {};
+        }
+    };
+
+    using test_yield_underlying_promise = polymorphic_promise<
+        controllable_yield_promise_base
+    >;
+
+    template<
+        typename Filter
+    >
+    using test_traced_yield_promise = traced_promise<
+        trace_sink<Filter>,
+        test_yield_underlying_promise
+    >;
+
+    template<
+        typename Filter
+    >
+    using test_traced_yield_promise_tracing_return_value = traced_promise<
+        trace_sink_tracing_return_value<Filter>,
+        test_yield_underlying_promise
+    >;
+
+    using test_traced_yield_task = basic_task<test_yield_underlying_promise>;
+
     template<
         typename Result
     >
@@ -181,6 +276,15 @@ struct tracing_tests : testing::Test
     >
     using test_traced_promise = traced_promise<
         trace_sink<Filter>,
+        test_underlying_promise<Result>
+    >;
+
+    template<
+        typename Result,
+        typename Filter
+    >
+    using test_traced_promise_tracing_return_value = traced_promise<
+        trace_sink_tracing_return_value<Filter>,
         test_underlying_promise<Result>
     >;
 
@@ -452,6 +556,9 @@ struct coroutine_traits<
     Args...
 >
 {
+    static constexpr bool has_return_value_tracing =
+        (std::is_same_v<Phantom::Coroutines::tracing::tracing_tests::tracing_return_value_tag, Args> || ...);
+
     static constexpr auto get_filter(const Args& ... args)
     {
         auto tuple = std::tie(args...);
@@ -470,7 +577,47 @@ struct coroutine_traits<
     }
 
     using filter_type = decltype(get_filter(std::declval<Args>()...));
-    using promise_type = Phantom::Coroutines::tracing::tracing_tests::test_traced_promise<Result, filter_type>;
+    using promise_type = std::conditional_t<
+        has_return_value_tracing,
+        Phantom::Coroutines::tracing::tracing_tests::test_traced_promise_tracing_return_value<Result, filter_type>,
+        Phantom::Coroutines::tracing::tracing_tests::test_traced_promise<Result, filter_type>
+    >;
+};
+
+template<
+    typename ... Args
+>
+struct coroutine_traits<
+    Phantom::Coroutines::tracing::tracing_tests::test_traced_yield_task,
+    Args...
+>
+{
+    static constexpr bool has_return_value_tracing =
+        (std::is_same_v<Phantom::Coroutines::tracing::tracing_tests::tracing_return_value_tag, Args> || ...);
+
+    static constexpr auto get_filter(const Args& ... args)
+    {
+        auto tuple = std::tie(args...);
+        auto filter = Phantom::Coroutines::detail::tuple_extract_convertible_elements<
+            const Phantom::Coroutines::tracing::filters::filter&
+        >(tuple);
+
+        if constexpr (std::same_as<std::tuple<>, decltype(filter)>)
+        {
+            return Phantom::Coroutines::tracing::filters::any_event;
+        }
+        else
+        {
+            return get<0>(filter);
+        }
+    }
+
+    using filter_type = decltype(get_filter(std::declval<Args>()...));
+    using promise_type = std::conditional_t<
+        has_return_value_tracing,
+        Phantom::Coroutines::tracing::tracing_tests::test_traced_yield_promise_tracing_return_value<filter_type>,
+        Phantom::Coroutines::tracing::tracing_tests::test_traced_yield_promise<filter_type>
+    >;
 };
 
 }
@@ -1977,6 +2124,292 @@ ASYNC_TEST_F(tracing_tests, traces_unhandled_exception)
     } };
 
     co_await expect_exception<std::runtime_error>(taskLambda(tracedEventsChecker, filter));
+    EXPECT_EQ(eventIndex, 2);
+}
+
+ASYNC_TEST_F(tracing_tests, traces_yield_value)
+{
+    auto filter =
+        filters::event_type<
+            events::yield_value_begin,
+            events::yield_value_result
+        >;
+
+    int yieldedValue = 42;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_yield_task
+        {
+            co_yield yieldedValue;
+        };
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_yield_task,
+        traced_events_checker&,
+        decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_yield_underlying_promise;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .MethodArguments = events::make_arguments(yieldedValue),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::yield_value_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .MethodArguments = events::make_arguments(yieldedValue),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::yield_value_result{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    co_await taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(eventIndex, 2);
+}
+
+ASYNC_TEST_F(tracing_tests, traces_yield_value_exception)
+{
+    auto filter =
+        filters::event_type<
+            events::yield_value_begin,
+            events::yield_value_exception
+        >;
+
+    int yieldedValue = 42;
+    throw_on_yield throw_on_yield_awaiter;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_yield_task
+        {
+            co_await throw_on_yield_awaiter;
+            co_yield yieldedValue;
+        };
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_yield_task,
+        traced_events_checker&,
+        decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_yield_underlying_promise;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .MethodArguments = events::make_arguments(yieldedValue),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::yield_value_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .MethodArguments = events::make_arguments(yieldedValue),
+                .MethodException = events::value{ throw_on_yield_awaiter.exception },
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::yield_value_exception{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    co_await expect_exception<std::runtime_error>(taskLambda(tracedEventsChecker, filter));
+    EXPECT_EQ(eventIndex, 2);
+}
+
+ASYNC_TEST_F(tracing_tests, traces_should_trace_return_value)
+{
+    auto filter =
+        filters::event_type<
+            events::yield_value_begin,
+            events::yield_value_result
+        >;
+
+    int yieldedValue = 42;
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter),
+        tracing_return_value_tag
+        ) -> test_traced_yield_task
+        {
+            co_yield yieldedValue;
+        };
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_yield_task,
+        traced_events_checker&,
+        decltype(filter),
+        tracing_return_value_tag
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_yield_underlying_promise;
+    using expected_yield_awaiter_type = Coroutines::detail::suspend_never;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .MethodArguments = events::make_arguments(yieldedValue),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::yield_value_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .MethodArguments = events::make_arguments(yieldedValue),
+                .MethodResult = events::value{ expected_yield_awaiter_type{} },
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::yield_value_result{},
+                expectedEventData
+            );
+
+            // Verifies MethodResult is present in the event (type-checked by CastEventType).
+            CastEventType(actualEventAny, expectedEvent);
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    co_await taskLambda(tracedEventsChecker, filter, tracing_return_value_tag{});
     EXPECT_EQ(eventIndex, 2);
 }
 
