@@ -51,6 +51,7 @@ target_sources(
     "extensible_promise.ixx"
     "fibonacci_heap.ixx" 
     "final_suspend_transfer.ixx"
+    "functional.ixx"
     "function_traits.ixx"
     "generator.ixx" 
     "immovable_object.ixx"
@@ -85,7 +86,7 @@ target_sources(
     "type_traits.ixx"
     "value_awaiter.ixx"
     "variant_result_storage.ixx"
-)
+ )
 
 target_link_libraries(
     Phantom.Coroutines.Modules

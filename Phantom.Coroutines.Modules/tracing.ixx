@@ -11,6 +11,7 @@ module;
 export module Phantom.Coroutines.tracing;
 import Phantom.Coroutines.awaiter_wrapper;
 import Phantom.Coroutines.coroutine;
+import Phantom.Coroutines.functional;
 import Phantom.Coroutines.extensible_promise;
 import Phantom.Coroutines.scope_guard;
 import Phantom.Coroutines.type_traits;

@@ -13,6 +13,7 @@
 #include "detail/coroutine.h"
 #include "detail/scope_guard.h"
 #include "awaiter_wrapper.h"
+#include "functional.h"
 #include "extensible_promise.h"
 #include "type_traits.h"
 #endif
@@ -30,6 +31,12 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TraceSink
 > concept is_trace_sink = true;
+//requires
+//{
+//    trace();
+//    should_trace();
+//    should_trace_return_value;
+//};
 
 namespace events
 {
@@ -490,64 +497,174 @@ struct ReturnValueAccessor
     }
 };
 
+// The trace sink is _queried_ for should_capture_promise_creation_arguments<Event>
+// to determine whether to capture the promise creation arguments. The query is
+// in the form of:
+// * Check to see if traceSink(const should_capture_promise_creation_arguments<PromiseCreationEvent>&) is accepted.
+// * If it is not, then do not capture and trace the promise creation arguments.
+// * If it is, check the return value:
+// * If it is std::true_type, then capture and trace the promise creation arguments.
+// * If it is std::false_type, then do not capture and trace the promise creation arguments
+// * If it is bool, then check the value at runtime to determine
+//  whether to capture and trace the promise creation arguments.
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename PromiseCreationEvent
+>
+struct should_capture_promise_creation_arguments
+{
+    using event_type = PromiseCreationEvent;
+};
+
+// The trace sink is _queried_ for should_trace_return_value<Event>
+// to determine whether to trace the return value. The query is
+// in the form of:
+// * Check to see if traceSink(const should_trace_return_value<Event>&) is accepted.
+// * If it is not, then do not trace the return value.
+// * If it is, check the return value:
+// * If it is std::true_type, then trace the return value.
+// * If it is std::false_type, then do not trace the return
+// * If it is bool, then check the value at runtime to determine
+//  whether to trace the return value.
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Event
+>
+struct should_trace_return_value
+{
+    using event_type = Event;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_begin
+{
+    static constexpr bool is_begin = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_result
+{
+    static constexpr bool is_result = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_exception
+{
+    static constexpr bool is_exception = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_await_ready
+{
+    static constexpr bool is_await_ready = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_await_suspend
+{
+    static constexpr bool is_await_suspend = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_await_resume
+{
+    static constexpr bool is_await_resume = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_await_transform
+{
+    static constexpr bool is_await_transform = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_unhandled_exception
+{
+    static constexpr bool is_unhandled_exception = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_get_return_object
+{
+    static constexpr bool is_get_return_object = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_yield_value
+{
+    static constexpr bool is_yield_value = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_return_value
+{
+    static constexpr bool is_return_value = true;
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+struct event_is_return_void
+{
+    static constexpr bool is_return_void = true;
+};
+
 PHANTOM_COROUTINES_MODULE_EXPORT
 struct create_promise {};
 PHANTOM_COROUTINES_MODULE_EXPORT
 struct destroy_promise {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_ready_begin {};
+struct await_ready_begin : event_is_await_ready, event_is_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_ready_result {};
+struct await_ready_result : event_is_await_ready, event_is_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_ready_exception {};
+struct await_ready_exception : event_is_await_ready, event_is_exception {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_suspend_begin {};
+struct await_suspend_begin : event_is_await_suspend, event_is_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_suspend_result {};
+struct await_suspend_result : event_is_await_suspend, event_is_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_suspend_exception {};
+struct await_suspend_exception : event_is_await_suspend, event_is_exception {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_resume_begin {};
+struct await_resume_begin : event_is_await_resume, event_is_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_resume_result {};
+struct await_resume_result : event_is_await_resume, event_is_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_resume_exception {};
+struct await_resume_exception : event_is_await_resume, event_is_exception {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_transform_begin {};
+struct await_transform_begin : event_is_await_transform, event_is_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_transform_result {};
+struct await_transform_result : event_is_await_transform, event_is_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct await_transform_exception {};
+struct await_transform_exception : event_is_await_transform, event_is_exception {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct unhandled_exception_begin {};
+struct unhandled_exception_begin : event_is_unhandled_exception, event_is_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct unhandled_exception_result {};
+struct unhandled_exception_result : event_is_unhandled_exception, event_is_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct unhandled_exception_exception {};
+struct unhandled_exception_exception : event_is_unhandled_exception, event_is_exception {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct get_return_object_begin {};
+struct get_return_object_begin : event_is_get_return_object, event_is_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct get_return_object_result {};
+struct get_return_object_result : event_is_get_return_object, event_is_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct get_return_object_exception {};
+struct get_return_object_exception : event_is_get_return_object, event_is_exception {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct yield_value_begin {};
+struct yield_value_begin : event_is_yield_value, event_is_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct yield_value_result {};
+struct yield_value_result : event_is_yield_value, event_is_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct yield_value_exception {};
+struct yield_value_exception : event_is_yield_value, event_is_exception {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct return_value_begin {};
+struct return_value_begin : event_is_return_value, event_is_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct return_value_result {};
+struct return_value_result : event_is_return_value, event_is_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct return_value_exception {};
+struct return_value_exception : event_is_return_value, event_is_exception {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct return_void_begin {};
+struct return_void_begin : event_is_return_void, event_is_begin {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct return_void_result {};
+struct return_void_result : event_is_return_void, event_is_result {};
 PHANTOM_COROUTINES_MODULE_EXPORT
-struct return_void_exception {};
+struct return_void_exception : event_is_return_void, event_is_exception {};
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
@@ -728,6 +845,79 @@ struct method_events_group
     ExceptionEventType ExceptionEvent;
 };
 
+template<
+    typename TraceSink,
+    typename EventType,
+    typename BaseEventData,
+    typename MethodResult
+>
+struct trace_sink_should_trace_return_value_result_type
+{
+    static constexpr bool can_trace_return_value = false;
+    static constexpr bool should_query_for_trace_return_value = false;
+};
+
+template<
+    typename EventType,
+    typename BaseEventData,
+    typename MethodResult
+>
+using should_trace_return_value_query_type = events::should_trace_return_value<
+    decltype(
+        std::declval<BaseEventData>().with(
+                events::event_data
+                {
+                    .MethodResult = events::value{ std::declval<MethodResult>() }
+            })
+        ) > ;
+
+template<
+    typename TraceSink,
+    typename EventType,
+    typename BaseEventData,
+    typename MethodResult
+>
+requires 
+(
+    (
+        std::is_move_constructible_v<MethodResult>
+        ||
+        std::is_copy_constructible_v<MethodResult>
+    )
+    &&
+    std::invocable<
+        TraceSink,
+        should_trace_return_value_query_type<
+            EventType, 
+            BaseEventData, 
+            MethodResult
+        >
+    >
+)
+struct trace_sink_should_trace_return_value_result_type<
+    TraceSink,
+    EventType,
+    BaseEventData,
+    MethodResult
+>
+{
+    using query_type = should_trace_return_value_query_type<
+        EventType,
+        BaseEventData,
+        MethodResult
+    >;
+
+    using type = std::invoke_result_t<
+        TraceSink,
+        query_type>;
+
+    static constexpr bool can_trace_return_value = 
+        std::same_as<type, std::true_type>
+        || std::same_as<type, bool>;
+
+    static constexpr bool should_query_for_trace_return_value = std::same_as<type, bool>;
+};
+
 } // namespace detail
 
 auto call_traced_method(
@@ -741,22 +931,27 @@ auto call_traced_method(
     using result_type = std::invoke_result_t<decltype(call)>;
     constexpr bool is_move_constructible = std::is_move_constructible_v<result_type>;
     constexpr bool is_copy_constructible = std::is_copy_constructible_v<result_type>;
-    constexpr bool can_trace_return_value =
+    using trace_sink_should_trace_return_value_result_type = detail::trace_sink_should_trace_return_value_result_type<
+        decltype(traceSink),
+        decltype(events.ResultEvent),
+        decltype(baseEventData),
+        result_type>;
+
+    constexpr bool can_trace_return_value = 
+        trace_sink_should_trace_return_value_result_type::can_trace_return_value
+        &&
         (
             is_move_constructible
             ||
             is_copy_constructible
-        );
+            );
 
-    try
+    constexpr bool should_query_for_trace_return_value = can_trace_return_value
+        && trace_sink_should_trace_return_value_result_type::should_query_for_trace_return_value;
+
+    auto invoke_without_tracing_return_value = [&]() -> result_type
     {
-        traceSink(
-            events::basic_event(
-                sourceLocation,
-                events.BeginEvent,
-                baseEventData));
-
-        if (std::same_as<void, result_type>)
+        if constexpr (std::same_as<void, result_type>)
         {
             call();
             traceSink(
@@ -765,7 +960,7 @@ auto call_traced_method(
                     events.ResultEvent,
                     baseEventData));
         }
-        else if constexpr (!can_trace_return_value)
+        else
         {
             auto uncaughtExceptions = std::uncaught_exceptions();
 
@@ -776,39 +971,82 @@ auto call_traced_method(
                     // If the number of uncaught exceptions has changed in between
                     // the call being performed and this guard being deactivated,
                     // it means an exception was thrown by the call,
-                    // and we should not report a successful result.
+                    // and we should not report a "result" type but an "exception" type.
                     return;
-                }
+                };
 
-                 traceSink(
+                traceSink(
                     events::basic_event(
                         sourceLocation,
-                        events.ExceptionEvent,
+                        events.ResultEvent,
                         baseEventData));
             };
 
-            call();
+            return call();
+        }
+    };
+
+    try
+    {
+        traceSink(
+            events::basic_event(
+                sourceLocation,
+                events.BeginEvent,
+                baseEventData));
+
+        if constexpr (!can_trace_return_value)
+        {
+            return invoke_without_tracing_return_value();
         }
         else
         {
-            decltype(auto) result = call();
-            traceSink(
-                events::basic_event(
-                    sourceLocation,
-                    events.ResultEvent,
-                    baseEventData.with(
-                        events::event_data
-                        {
-                            .MethodResult = events::value{ result }
-                        })));
-
-            if constexpr (is_move_constructible)
+            auto invoke_with_tracing_return_value = [&]() -> result_type
             {
-                return std::forward<decltype(result)>(result);
+                decltype(auto) result = call();
+                traceSink(
+                    events::basic_event(
+                        sourceLocation,
+                        events.ResultEvent,
+                        baseEventData.with(
+                            events::event_data
+                            {
+                                .MethodResult = events::value{ result }
+                            })));
+
+                if constexpr (is_move_constructible)
+                {
+                    return auto(result);
+                }
+                else
+                {
+                    return result;
+                }
+            };
+
+            if constexpr (!should_query_for_trace_return_value)
+            {
+                return invoke_with_tracing_return_value();
             }
             else
             {
-                return result;
+                bool shouldTraceReturnValue = traceSink(
+                    events::should_trace_return_value<
+                        decltype(events::basic_event(
+                            sourceLocation,
+                            events.ResultEvent,
+                            baseEventData.with(
+                                events::event_data
+                                {
+                                    .MethodResult = events::value{ std::declval<result_type>() }
+                                })))>{});
+                if (shouldTraceReturnValue)
+                {
+                    return invoke_with_tracing_return_value();
+                }
+                else
+                {
+                    return invoke_without_tracing_return_value();
+                }
             }
         }
     }
@@ -1681,6 +1919,24 @@ struct check_constexpr_fn
         return decltype(filter(std::declval<Event>())){};
     }
 };
+
+// Return a trace sink that traces return values for events that are selected.
+template<
+    typename TraceSink
+>
+constexpr auto trace_return_value(
+    TraceSink traceSink
+)
+{
+    return composed_function
+    {
+        traceSink,
+        []<typename Event>(const events::should_trace_return_value<Event>&)
+        {
+            return std::true_type{};
+        }
+    };
+}
 
 template<
     typename Event

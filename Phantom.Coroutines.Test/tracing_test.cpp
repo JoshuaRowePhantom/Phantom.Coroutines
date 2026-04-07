@@ -1445,7 +1445,7 @@ ASYNC_TEST_F(tracing_tests, traces_await_resume_exception)
                 .Awaiter = expectedAwaiter,
                 .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::co_await_awaiter_type{},
-                .MethodResult = events::value { false },
+                .MethodResult = events::value { true },
             };
 
             auto expectedEvent = basic_event(
