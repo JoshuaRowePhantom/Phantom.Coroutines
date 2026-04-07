@@ -793,7 +793,6 @@ ASYNC_TEST_F(tracing_tests, traces_initial_suspend)
                 .Awaiter = expectedAwaiter,
                 .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::initial_suspend_awaiter_type{},
-                .MethodResult = events::value { false },
             };
 
             auto expectedEvent = basic_event(
@@ -986,7 +985,6 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
                 .Awaiter = expectedAwaiter,
                 .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::final_suspend_awaiter_type{},
-                .MethodResult = events::value { false },
             };
 
             auto expectedEvent = basic_event(
@@ -1037,7 +1035,6 @@ ASYNC_TEST_F(tracing_tests, traces_final_suspend)
                 .MethodArguments = events::make_arguments(
                     std::coroutine_handle<expected_traced_promise_type>::from_promise(*expectedTracedPromise)
                 ),
-                .MethodResult = events::value{ std::coroutine_handle<void>{} },
             };
 
             auto expectedEvent = basic_event(
@@ -1270,7 +1267,6 @@ ASYNC_TEST_F(tracing_tests, traces_await_suspend_exception)
                 .Awaiter = expectedAwaiter,
                 .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::co_await_awaiter_type{},
-                .MethodResult = events::value { false },
             };
 
             auto expectedEvent = basic_event(
@@ -1445,7 +1441,6 @@ ASYNC_TEST_F(tracing_tests, traces_await_resume_exception)
                 .Awaiter = expectedAwaiter,
                 .TracedAwaiter = expectedTracedAwaiter,
                 .AwaiterType = events::co_await_awaiter_type{},
-                .MethodResult = events::value { true },
             };
 
             auto expectedEvent = basic_event(

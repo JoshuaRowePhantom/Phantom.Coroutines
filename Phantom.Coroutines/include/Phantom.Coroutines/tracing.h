@@ -1947,11 +1947,23 @@ constexpr auto constant_filtered_trace_sink(
     auto&& traceSink
 )
 {
-    return [traceSink = std::forward<decltype(traceSink)>(traceSink), filter](const auto& event)
+    return Phantom::Coroutines::composed_function
     {
-        if constexpr (filter(event))
+        // Queries bypass the filter and propagate to the inner sink.
+        [traceSink]<typename Event>(const events::should_trace_return_value<Event>& query) -> decltype(auto)
         {
-            traceSink(event);
+            return traceSink(query);
+        },
+        [traceSink]<typename Event>(const events::should_capture_promise_creation_arguments<Event>& query) -> decltype(auto)
+        {
+            return traceSink(query);
+        },
+        [traceSink, filter](const auto& event)
+        {
+            if constexpr (filter(event))
+            {
+                traceSink(event);
+            }
         }
     };
 }
@@ -1961,11 +1973,23 @@ constexpr auto runtime_filtered_trace_sink(
     auto&& traceSink
 )
 {
-    return [traceSink = std::forward<decltype(traceSink)>(traceSink), filter](const auto& event)
+    return Phantom::Coroutines::composed_function
     {
-        if (filter(event))
+        // Queries bypass the filter and propagate to the inner sink.
+        [traceSink]<typename Event>(const events::should_trace_return_value<Event>& query) -> decltype(auto)
         {
-            traceSink(event);
+            return traceSink(query);
+        },
+        [traceSink]<typename Event>(const events::should_capture_promise_creation_arguments<Event>& query) -> decltype(auto)
+        {
+            return traceSink(query);
+        },
+        [traceSink, filter](const auto& event)
+        {
+            if (filter(event))
+            {
+                traceSink(event);
+            }
         }
     };
 }
