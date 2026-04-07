@@ -1013,7 +1013,7 @@ auto call_traced_method(
                                 .MethodResult = events::value{ result }
                             })));
 
-                if constexpr (is_move_constructible)
+                if constexpr (is_move_constructible && !std::is_reference_v<result_type>)
                 {
                     return auto(result);
                 }
@@ -1554,6 +1554,30 @@ public:
                 events::destroy_promise{},
                 get_event_data()
             ));
+    }
+
+    template<
+        typename TPromise
+    >
+    decltype(auto) get_return_object(
+        this TPromise& promise,
+        std::source_location sourceLocation = std::source_location::current()
+    )
+    {
+        return promise.call_promise_method(
+            detail::method_events_group
+            {
+                events::get_return_object_begin{},
+                events::get_return_object_result{},
+                events::get_return_object_exception{},
+            },
+            sourceLocation,
+            events::event_data{},
+            [&]() -> decltype(auto)
+            {
+                return promise.traced_promise_base::get_return_object();
+            }
+        );
     }
 
     template<

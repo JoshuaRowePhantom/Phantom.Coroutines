@@ -76,6 +76,12 @@ target_link_libraries(
     GTest::gtest_main
 )
 
+target_compile_options(
+    Phantom.Coroutines.Test
+    PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
+)
+
 if(DISABLE_LINK_MODULES)
     add_library(
         Phantom.Coroutines.Modules.Test
@@ -114,6 +120,12 @@ target_link_libraries(
     Phantom.Coroutines.Modules
     GTest::gtest
     GTest::gtest_main
+)
+
+target_compile_options(
+    Phantom.Coroutines.Modules.Test
+    PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
 )
 
 set_target_properties(
@@ -158,6 +170,12 @@ target_link_libraries(
     Phantom.Coroutines.Modules
     GTest::gtest
     GTest::gtest_main
+)
+
+target_compile_options(
+    Phantom.Coroutines.SingleModule.Test
+    PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
 )
 
 set_target_properties(

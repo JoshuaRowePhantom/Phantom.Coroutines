@@ -111,6 +111,15 @@ struct tracing_tests : testing::Test
         );
     };
 
+    struct throw_on_get_return_object
+    {
+        std::exception_ptr exception = std::make_exception_ptr(
+            std::runtime_error{
+                "Exception thrown on get_return_object"
+            }
+        );
+    };
+
     struct throw_on_unhandled_exception
     {
         std::exception_ptr exception = std::make_exception_ptr(
@@ -310,6 +319,51 @@ struct tracing_tests : testing::Test
     >
     using test_underlying_promise = polymorphic_promise<
         controllable_promise<Result>
+    >;
+
+    template<
+        typename Result
+    >
+    struct throwing_get_return_object_promise_base
+        :
+        controllable_promise_base<Result>
+    {
+        using controllable_promise_base<Result>::controllable_promise_base;
+
+        [[noreturn]] static void throw_get_return_object()
+        {
+            throw std::runtime_error("Exception thrown on get_return_object");
+        }
+
+        auto get_return_object(this auto& self)
+            -> decltype(self.template controllable_promise_base<Result>::get_return_object())
+        {
+            throw_get_return_object();
+        }
+    };
+
+    template<
+        typename Result
+    >
+    struct throwing_get_return_object_promise
+        :
+        throwing_get_return_object_promise_base<Result>
+    {
+        using throwing_get_return_object_promise_base<Result>::throwing_get_return_object_promise_base;
+    };
+
+    template<
+        typename Result = void
+    >
+    using test_throwing_get_return_object_underlying_promise = polymorphic_promise<
+        throwing_get_return_object_promise<Result>
+    >;
+
+    template<
+        typename T = void
+    >
+    using test_throwing_get_return_object_task = basic_task<
+        test_throwing_get_return_object_underlying_promise<T>
     >;
 
     template<
@@ -659,6 +713,39 @@ struct coroutine_traits<
         has_return_value_tracing,
         Phantom::Coroutines::tracing::tracing_tests::test_traced_yield_promise_tracing_return_value<filter_type>,
         Phantom::Coroutines::tracing::tracing_tests::test_traced_yield_promise<filter_type>
+    >;
+};
+
+template<
+    typename Result,
+    typename ... Args
+>
+struct coroutine_traits<
+    Phantom::Coroutines::tracing::tracing_tests::test_throwing_get_return_object_task<Result>,
+    Args...
+>
+{
+    static constexpr auto get_filter(const Args& ... args)
+    {
+        auto tuple = std::tie(args...);
+        auto filter = Phantom::Coroutines::detail::tuple_extract_convertible_elements<
+            const Phantom::Coroutines::tracing::filters::filter&
+        >(tuple);
+
+        if constexpr (std::same_as<std::tuple<>, decltype(filter)>)
+        {
+            return Phantom::Coroutines::tracing::filters::any_event;
+        }
+        else
+        {
+            return get<0>(filter);
+        }
+    }
+
+    using filter_type = decltype(get_filter(std::declval<Args>()...));
+    using promise_type = Phantom::Coroutines::tracing::traced_promise<
+        Phantom::Coroutines::tracing::tracing_tests::trace_sink<filter_type>,
+        Phantom::Coroutines::tracing::tracing_tests::test_throwing_get_return_object_underlying_promise<Result>
     >;
 };
 
@@ -2753,6 +2840,201 @@ ASYNC_TEST_F(tracing_tests, traces_await_transform_exception)
     try
     {
         sync_wait(taskLambda(tracedEventsChecker, filter));
+        EXPECT_FALSE(true);
+    }
+    catch (const std::runtime_error&) { }
+    EXPECT_EQ(eventIndex, 2);
+
+    co_return;
+}
+
+
+ASYNC_TEST_F(tracing_tests, traces_get_return_object)
+{
+    auto filter = filters::event_type<
+        events::get_return_object_begin,
+        events::get_return_object_result
+    >;
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_traced_task<>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_underlying_promise<void>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::get_return_object_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::get_return_object_result{},
+                expectedEventData
+            );
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            co_return;
+        };
+
+    co_await taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(eventIndex, 2);
+}
+
+ASYNC_TEST_F(tracing_tests, traces_get_return_object_exception)
+{
+    auto filter = filters::event_type<
+        events::get_return_object_begin,
+        events::get_return_object_exception
+    >;
+
+    using expected_traced_promise_type = std::coroutine_traits<
+        test_throwing_get_return_object_task<>
+        , traced_events_checker&
+        , decltype(filter)
+    >::promise_type;
+
+    using expected_underlying_promise_type = test_throwing_get_return_object_underlying_promise<void>;
+
+    expected_underlying_promise_type* expectedPromise = nullptr;
+    expected_traced_promise_type* expectedTracedPromise = nullptr;
+
+    auto eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        ++eventIndex;
+        auto checkingIndex = 0;
+
+        if (eventIndex == ++checkingIndex)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_underlying_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::get_return_object_begin{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+
+            expectedPromise = expectedEvent.EventData.Promise = actualEvent.EventData.Promise;
+            expectedTracedPromise = expectedEvent.EventData.TracedPromise = actualEvent.EventData.TracedPromise;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+        }
+        else if (eventIndex == ++checkingIndex)
+        {
+            std::exception_ptr actualException;
+
+            auto expectedEventData = events::event_data
+            {
+                .Promise = expectedPromise,
+                .TracedPromise = expectedTracedPromise,
+                .MethodException = events::value{ actualException },
+            };
+
+            auto expectedEvent = basic_event(
+                std::source_location(),
+                events::get_return_object_exception{},
+                expectedEventData
+            );
+
+            auto& actualEvent = CastEventType(actualEventAny, expectedEvent);
+            actualException = actualEvent.EventData.MethodException.Value;
+
+            expect_events_equal(
+                expectedEvent,
+                actualEventAny
+            );
+
+            EXPECT_THROW(
+                std::rethrow_exception(
+                    actualEvent.EventData.MethodException.Value
+                ),
+                std::runtime_error
+            );
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+    } };
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_throwing_get_return_object_task<>
+        {
+            co_return;
+        };
+
+    try
+    {
+        auto task = taskLambda(tracedEventsChecker, filter);
         EXPECT_FALSE(true);
     }
     catch (const std::runtime_error&) { }
