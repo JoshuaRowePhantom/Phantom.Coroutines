@@ -3501,4 +3501,66 @@ ASYNC_TEST_F(tracing_tests, traces_should_capture_promise_creation_arguments_boo
 }
 
 
+ASYNC_TEST_F(tracing_tests, suppress_trace_suppresses_await_transform_tracing)
+{
+    auto filter = filters::event_type<
+        events::await_transform_begin,
+        events::await_transform_result
+    >;
+
+    int eventCount = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any&)
+    {
+        ++eventCount;
+    } };
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            co_await suppress_trace{ std::suspend_never{} };
+        };
+
+    co_await taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(eventCount, 0);
+}
+
+ASYNC_TEST_F(tracing_tests, trace_sends_custom_event_to_sink)
+{
+    struct custom_trace_event : trace
+    {
+        int value;
+    };
+
+    auto filter = filters::any_event;
+
+    int customEventCount = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny)
+    {
+        if (actualEventAny.type() == typeid(const custom_trace_event*))
+        {
+            auto& actual = CastEventType<custom_trace_event>(actualEventAny);
+            EXPECT_EQ(actual.value, 42);
+            ++customEventCount;
+        }
+    } };
+
+    auto taskLambda = [&](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter)
+        ) -> test_traced_task<>
+        {
+            auto event = custom_trace_event{ .value = 42 };
+            co_await event;
+        };
+
+    co_await taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(customEventCount, 1);
+}
+
 } // namespace phantom::coroutines::test

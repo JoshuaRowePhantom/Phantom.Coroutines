@@ -1525,6 +1525,17 @@ struct trace
 {
 };
 
+namespace detail
+{
+
+template<typename T>
+struct is_suppress_trace : std::false_type {};
+
+template<typename Awaiter>
+struct is_suppress_trace<suppress_trace<Awaiter>> : std::true_type {};
+
+}
+
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     is_trace_sink TraceSink,
@@ -1690,10 +1701,17 @@ public:
         );
     }
 
+    template<
+        typename Awaiter
+    >
     auto await_transform(
         this auto& promise,
-        auto&& awaiter,
+        Awaiter&& awaiter,
         std::source_location sourceLocation = std::source_location::current()
+    )
+    requires (
+        !detail::is_suppress_trace<std::remove_cvref_t<Awaiter>>::value
+        && !std::derived_from<std::remove_cvref_t<Awaiter>, trace>
     )
     {
         return traced_awaiter
