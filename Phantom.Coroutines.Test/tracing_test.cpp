@@ -389,6 +389,135 @@ struct tracing_tests : testing::Test
     >
     using test_traced_task = basic_task<test_underlying_promise<T>>;
 
+    // --- Infrastructure for should_capture_promise_creation_arguments tests ---
+
+    struct should_capture_args_flag { bool value; };
+
+    struct capture_false_type_tag {};
+    struct capture_true_type_tag {};
+    struct capture_bool_tag {};
+
+    template<typename Result, typename Tag>
+    struct tagged_controllable_promise
+        :
+        controllable_promise<Result>
+    {
+        using controllable_promise<Result>::controllable_promise;
+    };
+
+    template<typename Result, typename Tag>
+    using test_capture_underlying_promise = polymorphic_promise<
+        tagged_controllable_promise<Result, Tag>
+    >;
+
+    template<typename T = void, typename Tag = void>
+    using test_capture_task = basic_task<test_capture_underlying_promise<T, Tag>>;
+
+    template<typename Filter>
+    struct trace_sink_not_capturing_promise_args
+    {
+        const traced_events_checker& checker;
+
+        template<typename... Args>
+            requires requires
+        {
+            get<const traced_events_checker&>(std::tie(std::declval<const Args&>()...));
+        }
+        trace_sink_not_capturing_promise_args(const Args&... args)
+            : checker(get<const traced_events_checker&>(std::tie(args...)))
+        {}
+
+        std::false_type operator()(const events::should_capture_promise_creation_arguments<events::create_promise>&) const
+        {
+            return {};
+        }
+
+        void operator()(const auto& traceEvent) const
+        {
+            if (Filter{}(traceEvent))
+            {
+                checker(&traceEvent);
+            }
+        }
+    };
+
+    template<typename Filter>
+    struct trace_sink_always_capturing_promise_args
+    {
+        const traced_events_checker& checker;
+
+        template<typename... Args>
+            requires requires
+        {
+            get<const traced_events_checker&>(std::tie(std::declval<const Args&>()...));
+        }
+        trace_sink_always_capturing_promise_args(const Args&... args)
+            : checker(get<const traced_events_checker&>(std::tie(args...)))
+        {}
+
+        std::true_type operator()(const events::should_capture_promise_creation_arguments<events::create_promise>&) const
+        {
+            return {};
+        }
+
+        void operator()(const auto& traceEvent) const
+        {
+            if (Filter{}(traceEvent))
+            {
+                checker(&traceEvent);
+            }
+        }
+    };
+
+    template<typename Filter>
+    struct trace_sink_conditionally_capturing_promise_args
+    {
+        const traced_events_checker& checker;
+        bool capture;
+
+        template<typename... Args>
+            requires requires
+        {
+            get<const traced_events_checker&>(std::tie(std::declval<const Args&>()...));
+            get<const should_capture_args_flag&>(std::tie(std::declval<const Args&>()...));
+        }
+        trace_sink_conditionally_capturing_promise_args(const Args&... args)
+            : checker(get<const traced_events_checker&>(std::tie(args...)))
+            , capture(get<const should_capture_args_flag&>(std::tie(args...)).value)
+        {}
+
+        bool operator()(const events::should_capture_promise_creation_arguments<events::create_promise>&) const
+        {
+            return capture;
+        }
+
+        void operator()(const auto& traceEvent) const
+        {
+            if (Filter{}(traceEvent))
+            {
+                checker(&traceEvent);
+            }
+        }
+    };
+
+    template<typename Result, typename Filter>
+    using test_traced_promise_not_capturing_promise_args = traced_promise<
+        trace_sink_not_capturing_promise_args<Filter>,
+        test_capture_underlying_promise<Result, capture_false_type_tag>
+    >;
+
+    template<typename Result, typename Filter>
+    using test_traced_promise_always_capturing_promise_args = traced_promise<
+        trace_sink_always_capturing_promise_args<Filter>,
+        test_capture_underlying_promise<Result, capture_true_type_tag>
+    >;
+
+    template<typename Result, typename Filter>
+    using test_traced_promise_conditionally_capturing_promise_args = traced_promise<
+        trace_sink_conditionally_capturing_promise_args<Filter>,
+        test_capture_underlying_promise<Result, capture_bool_tag>
+    >;
+
     template<
         typename EventType
     >
@@ -747,6 +876,96 @@ struct coroutine_traits<
         Phantom::Coroutines::tracing::tracing_tests::trace_sink<filter_type>,
         Phantom::Coroutines::tracing::tracing_tests::test_throwing_get_return_object_underlying_promise<Result>
     >;
+};
+
+template<
+    typename Result,
+    typename ... Args
+>
+struct coroutine_traits<
+    Phantom::Coroutines::tracing::tracing_tests::test_capture_task<Result, Phantom::Coroutines::tracing::tracing_tests::capture_false_type_tag>,
+    Args...
+>
+{
+    static constexpr auto get_filter(const Args& ... args)
+    {
+        auto tuple = std::tie(args...);
+        auto filter = Phantom::Coroutines::detail::tuple_extract_convertible_elements<
+            const Phantom::Coroutines::tracing::filters::filter&
+        >(tuple);
+
+        if constexpr (std::same_as<std::tuple<>, decltype(filter)>)
+        {
+            return Phantom::Coroutines::tracing::filters::any_event;
+        }
+        else
+        {
+            return get<0>(filter);
+        }
+    }
+
+    using filter_type = decltype(get_filter(std::declval<Args>()...));
+    using promise_type = Phantom::Coroutines::tracing::tracing_tests::test_traced_promise_not_capturing_promise_args<Result, filter_type>;
+};
+
+template<
+    typename Result,
+    typename ... Args
+>
+struct coroutine_traits<
+    Phantom::Coroutines::tracing::tracing_tests::test_capture_task<Result, Phantom::Coroutines::tracing::tracing_tests::capture_true_type_tag>,
+    Args...
+>
+{
+    static constexpr auto get_filter(const Args& ... args)
+    {
+        auto tuple = std::tie(args...);
+        auto filter = Phantom::Coroutines::detail::tuple_extract_convertible_elements<
+            const Phantom::Coroutines::tracing::filters::filter&
+        >(tuple);
+
+        if constexpr (std::same_as<std::tuple<>, decltype(filter)>)
+        {
+            return Phantom::Coroutines::tracing::filters::any_event;
+        }
+        else
+        {
+            return get<0>(filter);
+        }
+    }
+
+    using filter_type = decltype(get_filter(std::declval<Args>()...));
+    using promise_type = Phantom::Coroutines::tracing::tracing_tests::test_traced_promise_always_capturing_promise_args<Result, filter_type>;
+};
+
+template<
+    typename Result,
+    typename ... Args
+>
+struct coroutine_traits<
+    Phantom::Coroutines::tracing::tracing_tests::test_capture_task<Result, Phantom::Coroutines::tracing::tracing_tests::capture_bool_tag>,
+    Args...
+>
+{
+    static constexpr auto get_filter(const Args& ... args)
+    {
+        auto tuple = std::tie(args...);
+        auto filter = Phantom::Coroutines::detail::tuple_extract_convertible_elements<
+            const Phantom::Coroutines::tracing::filters::filter&
+        >(tuple);
+
+        if constexpr (std::same_as<std::tuple<>, decltype(filter)>)
+        {
+            return Phantom::Coroutines::tracing::filters::any_event;
+        }
+        else
+        {
+            return get<0>(filter);
+        }
+    }
+
+    using filter_type = decltype(get_filter(std::declval<Args>()...));
+    using promise_type = Phantom::Coroutines::tracing::tracing_tests::test_traced_promise_conditionally_capturing_promise_args<Result, filter_type>;
 };
 
 }
@@ -3039,6 +3258,244 @@ ASYNC_TEST_F(tracing_tests, traces_get_return_object_exception)
     }
     catch (const std::runtime_error&) { }
     EXPECT_EQ(eventIndex, 2);
+
+    co_return;
+}
+
+ASYNC_TEST_F(tracing_tests, traces_should_capture_promise_creation_arguments_false_type)
+{
+    auto filter = filters::event_type<events::create_promise>;
+
+    auto taskLambda = [](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter) filter
+        ) -> test_capture_task<void, capture_false_type_tag>
+        {
+            co_return;
+        };
+
+    using expected_traced_promise_type = test_traced_promise_not_capturing_promise_args<
+        void,
+        decltype(filter)
+    >;
+    using expected_promise_type = test_capture_underlying_promise<void, capture_false_type_tag>;
+
+    int eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny) mutable
+    {
+        if (eventIndex == 0)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .PromiseCreationArguments = events::empty_arguments,
+            };
+            using expected_event_type = decltype(basic_event(
+                std::source_location{},
+                events::create_promise{},
+                expectedEventData));
+
+            auto& actualEvent = CastEventType<expected_event_type>(actualEventAny);
+            EXPECT_NE(actualEvent.EventData.Promise, nullptr);
+            EXPECT_NE(actualEvent.EventData.TracedPromise, nullptr);
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+        ++eventIndex;
+    } };
+
+    auto task = taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(eventIndex, 1);
+
+    co_return;
+}
+
+ASYNC_TEST_F(tracing_tests, traces_should_capture_promise_creation_arguments_true_type)
+{
+    auto filter = filters::event_type<events::create_promise>;
+
+    auto taskLambda = [](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter) filter
+        ) -> test_capture_task<void, capture_true_type_tag>
+        {
+            co_return;
+        };
+    using lambda_type = decltype(taskLambda);
+
+    using expected_traced_promise_type = test_traced_promise_always_capturing_promise_args<
+        void,
+        decltype(filter)
+    >;
+    using expected_promise_type = test_capture_underlying_promise<void, capture_true_type_tag>;
+
+    int eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny) mutable
+    {
+        if (eventIndex == 0)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .PromiseCreationArguments = events::make_arguments(
+                    taskLambda,
+                    tracedEventsChecker,
+                    filter),
+            };
+            using expected_event_type = decltype(basic_event(
+                std::source_location{},
+                events::create_promise{},
+                expectedEventData));
+
+            auto& actualEvent = CastEventType<expected_event_type>(actualEventAny);
+            EXPECT_NE(actualEvent.EventData.Promise, nullptr);
+            EXPECT_NE(actualEvent.EventData.TracedPromise, nullptr);
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+        ++eventIndex;
+    } };
+
+    auto task = taskLambda(tracedEventsChecker, filter);
+    EXPECT_EQ(eventIndex, 1);
+
+    co_return;
+}
+
+ASYNC_TEST_F(tracing_tests, traces_should_capture_promise_creation_arguments_bool_true)
+{
+    auto filter = filters::event_type<events::create_promise>;
+
+    should_capture_args_flag captureFlag{ true };
+
+    auto taskLambda = [](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter) filter,
+        should_capture_args_flag flag
+        ) -> test_capture_task<void, capture_bool_tag>
+        {
+            co_return;
+        };
+    using lambda_type = decltype(taskLambda);
+
+    using expected_traced_promise_type = test_traced_promise_conditionally_capturing_promise_args<
+        void,
+        decltype(filter)
+    >;
+    using expected_promise_type = test_capture_underlying_promise<void, capture_bool_tag>;
+    using expected_optional_type = std::optional<std::tuple<
+        const lambda_type&,
+        const traced_events_checker&,
+        const decltype(filter)&,
+        const should_capture_args_flag&
+    >>;
+
+    int eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny) mutable
+    {
+        if (eventIndex == 0)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .PromiseCreationArguments = expected_optional_type{},
+            };
+            using expected_event_type = decltype(basic_event(
+                std::source_location{},
+                events::create_promise{},
+                expectedEventData));
+
+            auto& actualEvent = CastEventType<expected_event_type>(actualEventAny);
+            EXPECT_NE(actualEvent.EventData.Promise, nullptr);
+            EXPECT_NE(actualEvent.EventData.TracedPromise, nullptr);
+            EXPECT_TRUE(actualEvent.EventData.PromiseCreationArguments.has_value());
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+        ++eventIndex;
+    } };
+
+    auto task = taskLambda(tracedEventsChecker, filter, captureFlag);
+    EXPECT_EQ(eventIndex, 1);
+
+    co_return;
+}
+
+ASYNC_TEST_F(tracing_tests, traces_should_capture_promise_creation_arguments_bool_false)
+{
+    auto filter = filters::event_type<events::create_promise>;
+
+    should_capture_args_flag captureFlag{ false };
+
+    auto taskLambda = [](
+        this auto& self,
+        traced_events_checker& eventsChecker,
+        decltype(filter) filter,
+        should_capture_args_flag flag
+        ) -> test_capture_task<void, capture_bool_tag>
+        {
+            co_return;
+        };
+    using lambda_type = decltype(taskLambda);
+
+    using expected_traced_promise_type = test_traced_promise_conditionally_capturing_promise_args<
+        void,
+        decltype(filter)
+    >;
+    using expected_promise_type = test_capture_underlying_promise<void, capture_bool_tag>;
+    using expected_optional_type = std::optional<std::tuple<
+        const lambda_type&,
+        const traced_events_checker&,
+        const decltype(filter)&,
+        const should_capture_args_flag&
+    >>;
+
+    int eventIndex = 0;
+    traced_events_checker tracedEventsChecker;
+    tracedEventsChecker = { [&](const std::any& actualEventAny) mutable
+    {
+        if (eventIndex == 0)
+        {
+            auto expectedEventData = events::event_data
+            {
+                .Promise = static_cast<expected_promise_type*>(nullptr),
+                .TracedPromise = static_cast<expected_traced_promise_type*>(nullptr),
+                .PromiseCreationArguments = expected_optional_type{},
+            };
+            using expected_event_type = decltype(basic_event(
+                std::source_location{},
+                events::create_promise{},
+                expectedEventData));
+
+            auto& actualEvent = CastEventType<expected_event_type>(actualEventAny);
+            EXPECT_NE(actualEvent.EventData.Promise, nullptr);
+            EXPECT_NE(actualEvent.EventData.TracedPromise, nullptr);
+            EXPECT_FALSE(actualEvent.EventData.PromiseCreationArguments.has_value());
+        }
+        else
+        {
+            EXPECT_FALSE(true);
+        }
+        ++eventIndex;
+    } };
+
+    auto task = taskLambda(tracedEventsChecker, filter, captureFlag);
+    EXPECT_EQ(eventIndex, 1);
 
     co_return;
 }

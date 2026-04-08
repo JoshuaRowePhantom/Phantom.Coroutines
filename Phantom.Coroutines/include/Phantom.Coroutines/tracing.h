@@ -918,6 +918,27 @@ struct trace_sink_should_trace_return_value_result_type<
     static constexpr bool should_query_for_trace_return_value = std::same_as<type, bool>;
 };
 
+template<
+    typename TraceSink
+>
+struct trace_sink_capture_promise_creation_arguments_result_type
+{
+    // Default: sink does not respond to the query → always capture (current unconditional behavior).
+    static constexpr bool should_not_capture = false;
+    static constexpr bool should_query_at_runtime = false;
+};
+
+template<
+    typename TraceSink
+>
+requires std::invocable<TraceSink, events::should_capture_promise_creation_arguments<events::create_promise>>
+struct trace_sink_capture_promise_creation_arguments_result_type<TraceSink>
+{
+    using type = std::invoke_result_t<TraceSink, events::should_capture_promise_creation_arguments<events::create_promise>>;
+    static constexpr bool should_not_capture = std::same_as<type, std::false_type>;
+    static constexpr bool should_query_at_runtime = std::same_as<type, bool>;
+};
+
 } // namespace detail
 
 auto call_traced_method(
@@ -1144,7 +1165,7 @@ struct traced_awaiter :
                 events::await_suspend_exception{},
             },
             self.get_event_data(
-                make_arguments(arg)),
+                events::make_arguments(arg)),
             [&]() -> decltype(auto)
             {
                 return self.awaiter_wrapper::await_suspend(
@@ -1534,16 +1555,39 @@ public:
         :
         traced_promise_base{ std::forward<Args>(args)... }
     {
-        m_traceSink(
-            events::basic_event(
-                std::source_location::current(),
-                events::create_promise{},
-                events::event_data
-                {
-                    .Promise = &this->get_underlying_promise(),
-                    .TracedPromise = this,
-                    .PromiseCreationArguments = events::make_arguments(args...),
-                }));
+        using capture_result = detail::trace_sink_capture_promise_creation_arguments_result_type<TraceSink>;
+
+        auto emit_create_promise = [&](auto promiseCreationArguments)
+        {
+            m_traceSink(
+                events::basic_event(
+                    std::source_location::current(),
+                    events::create_promise{},
+                    events::event_data
+                    {
+                        .Promise = &this->get_underlying_promise(),
+                        .TracedPromise = this,
+                        .PromiseCreationArguments = promiseCreationArguments,
+                    }));
+        };
+
+        if constexpr (capture_result::should_not_capture)
+        {
+            emit_create_promise(events::empty_arguments);
+        }
+        else if constexpr (capture_result::should_query_at_runtime)
+        {
+            std::optional<std::tuple<const std::decay_t<Args>&...>> capturedArgs;
+            if (m_traceSink(events::should_capture_promise_creation_arguments<events::create_promise>{}))
+            {
+                capturedArgs.emplace(std::tie(args...));
+            }
+            emit_create_promise(capturedArgs);
+        }
+        else
+        {
+            emit_create_promise(events::make_arguments(args...));
+        }
     }
 
     ~traced_promise()
