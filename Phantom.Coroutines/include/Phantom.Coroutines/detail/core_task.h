@@ -55,7 +55,7 @@ public:
         Result value
     ) requires (!std::same_as<void, Result>)
     {
-        self.m_result.emplace<self.result_index>(std::move(value));
+        self.m_result.template emplace<self.result_index>(std::move(value));
     }
 
     void return_variant_result(
@@ -63,7 +63,7 @@ public:
         const Result& value
     )
     {
-        self.m_result.emplace<self.result_index>(value);
+        self.m_result.template emplace<self.result_index>(value);
     }
 };
 

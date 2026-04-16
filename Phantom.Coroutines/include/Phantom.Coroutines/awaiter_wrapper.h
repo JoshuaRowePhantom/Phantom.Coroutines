@@ -105,9 +105,9 @@ template<
 > class awaiter_wrapper;
 
 // The is_awaiter specialization provides the behavior of wrapping
-// an actual awaiter object.
+// an actual awaiter object that has no operator co_await.
 template<
-    is_awaiter Awaiter
+    is_simple_awaiter Awaiter
 > class awaiter_wrapper<
     Awaiter
 > :
@@ -201,15 +201,14 @@ public:
     using awaiter_wrapper::awaiter_wrapper_storage::awaiter_wrapper_storage;
     
 public:
-    decltype(auto) awaiter(
-        this auto& self)
+    decltype(auto) awaiter()
     {
-        if (!self.awaiter_wrapper::m_awaiter)
+        if (!m_awaiter)
         {
-            self.awaiter_wrapper::m_awaiter.emplace(
-                self.awaiter_wrapper::get_awaiter_lambda());
+            m_awaiter.emplace(
+                get_awaiter_lambda());
         }
-        return self.awaiter_wrapper::m_awaiter->awaitable();
+        return m_awaiter->awaitable();
     }
 
     decltype(auto) handle(

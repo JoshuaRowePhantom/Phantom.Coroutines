@@ -1,11 +1,11 @@
 #ifndef PHANTOM_COROUTINES_INCLUDE_ASYNC_TEST_H_H
 #define PHANTOM_COROUTINES_INCLUDE_ASYNC_TEST_H_H
 
-#include <coroutine>
 #include <gtest/gtest.h>
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
+import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.reusable_task;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
 #include "Phantom.Coroutines/reusable_task.h"

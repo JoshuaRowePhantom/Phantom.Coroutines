@@ -18,9 +18,9 @@ set(
     "async_test.h"
     "atomic_state_test.cpp"
     "awaiter_list_test.cpp" 
+    "awaiters.h"
+    "awaiter_wrapper_test.cpp"   
     "contextual_promise_test.cpp" 
-    "detail/awaiter_wrapper_test.cpp"   
-    "detail/awaiters.h"
     "detail/fibonacci_heap_test.cpp"
     "detail/non_copyable_test.cpp"
     "detail/scope_guard_test.cpp"
@@ -48,13 +48,14 @@ set(
     "sync_wait_test.cpp"
     "tagged_pointer_test.cpp"
     "task_test.cpp"
+#    "text_tracing_test.cpp"
     "thread_local_contextual_promise_test.cpp"
     "thread_local_storage_test.cpp"
     "thread_pool_scheduler_test.cpp"
     "tracing_test.cpp"
     "type_traits_test.cpp"
     "value_awaiter_test.cpp"
- )
+)
 
 add_executable(
     Phantom.Coroutines.Test
@@ -73,6 +74,12 @@ target_link_libraries(
     Phantom.Coroutines
     GTest::gtest
     GTest::gtest_main
+)
+
+target_compile_options(
+    Phantom.Coroutines.Test
+    PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
 )
 
 if(DISABLE_LINK_MODULES)
@@ -113,6 +120,12 @@ target_link_libraries(
     Phantom.Coroutines.Modules
     GTest::gtest
     GTest::gtest_main
+)
+
+target_compile_options(
+    Phantom.Coroutines.Modules.Test
+    PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
 )
 
 set_target_properties(
@@ -157,6 +170,12 @@ target_link_libraries(
     Phantom.Coroutines.Modules
     GTest::gtest
     GTest::gtest_main
+)
+
+target_compile_options(
+    Phantom.Coroutines.SingleModule.Test
+    PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
 )
 
 set_target_properties(

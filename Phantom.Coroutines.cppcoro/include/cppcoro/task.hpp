@@ -16,7 +16,7 @@ constexpr auto make_task = [](
     auto&& awaitable
 )
 {
-    return ::Phantom::Coroutines::make_task<task>(
+    return ::Phantom::Coroutines::make_task_wrapper<task>(
         std::forward<decltype(awaitable)>(awaitable));
 };
 

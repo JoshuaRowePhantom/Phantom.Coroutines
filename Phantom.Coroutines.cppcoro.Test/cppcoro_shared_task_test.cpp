@@ -1,5 +1,7 @@
 #include "async_test.h"
 #include "cppcoro/shared_task.hpp"
+#include <concepts>
+#include <coroutine>
 
 static_assert(std::same_as<cppcoro::shared_task<>, Phantom::Coroutines::shared_task<>>);
 static_assert(std::same_as<::Phantom::Coroutines::shared_task<>, decltype(::cppcoro::make_shared_task(std::suspend_always{}))>);

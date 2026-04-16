@@ -3,6 +3,7 @@
 #ifndef PHANTOM_COROUTINES_COMPILING_MODULES
 #include <type_traits>
 #include <utility>
+#include "shared_task.h"
 #include "task.h"
 #include "type_traits.h"
 #endif
@@ -13,31 +14,36 @@ PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 namespace Phantom::Coroutines
 {
 
-PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    template <typename Result> typename Task = task,
+    typename Task,
     typename Awaitable
-> auto make_task(
-    Awaitable&& awaitable
+> Task make_task_wrapper_implementation(
+    Awaitable awaitable
 )
 {
-    using result_task_type = Task<detail::remove_rvalue_reference_t<awaitable_result_type_t<Awaitable>>>;
-
-    if constexpr (std::is_lvalue_reference_v<Awaitable>)
-    {
-        return [](Awaitable awaitable) -> result_task_type
-        {
-            co_return co_await awaitable;
-        }(awaitable);
-    }
-    else
-    {
-        return [](Awaitable awaitable) -> result_task_type
-        {
-            co_return co_await std::move(awaitable);
-        }(std::move(awaitable));
-    }
+    co_return co_await std::forward<Awaitable>(awaitable);
 }
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    template <typename Result> typename Task
+> constexpr auto make_task_wrapper = []<typename Awaitable>(
+    Awaitable&& awaitable
+    )
+{
+    using result_task_type = Task<detail::remove_rvalue_reference_t<awaitable_result_type_t<Awaitable>>>;
+    return make_task_wrapper_implementation<
+        result_task_type,
+        Awaitable
+    >(
+        std::forward<Awaitable>(awaitable));
+};
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+constexpr auto make_task = make_task_wrapper<task>;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+constexpr auto make_shared_task = make_task_wrapper<shared_task>;
 
 }
 #endif

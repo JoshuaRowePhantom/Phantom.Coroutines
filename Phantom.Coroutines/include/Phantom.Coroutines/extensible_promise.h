@@ -54,6 +54,80 @@ is_extensible_promise<Promise>
     { promise.template promise<Promise>() } -> std::same_as<Promise&>;
 };
 
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename T,
+    typename ... Args
+>
+concept is_constructible_from_promise_arguments =
+    std::constructible_from<T, Args...>
+    && !is_empty_type_list<Args...>;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename T,
+    typename ... Args
+>
+concept is_default_constructible_from_promise_arguments =
+    (
+        !std::constructible_from<T, Args...>
+        ||
+        is_empty_type_list<Args...>
+    )
+    && std::constructible_from<T>;
+
+// Derived classes of a promise type should derive from this class to enable
+// delegating promise construction arguments to the base promise type.
+// If the base promise does not accept the argument set, but does accept
+// the defualt constructor, then arguments are not delegated.
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename Base
+> class derived_promise_construction
+    :
+    public Base
+{
+public:
+    // Enable construction by delegating the arguments
+    // to the base class.
+    // This constructor is enabled only if the base class
+    // supports the argument set.
+    template<
+        typename ... Args
+    > 
+    requires
+        is_constructible_from_promise_arguments<Base, Args&&...>
+    derived_promise_construction(
+        Args&&... args
+    )
+    :
+    Base(
+        std::forward<Args>(args)...
+    )
+    {
+    }
+
+    // Enable construction by invoking the default constructor.
+    // This constructor is enabled only if the base class
+    // does not support the argument set and default-constructs
+    // the base class.
+    // This constructor allows derived promises to always pass
+    // arguments to derived_promise, even if the base promise
+    // does not support accepting arguments.
+    template<
+        typename ... Args
+    > requires
+        is_default_constructible_from_promise_arguments<Base, Args&&...>
+    derived_promise_construction(
+        Args&&...
+    ) 
+        :
+        Base()
+    {
+    }
+};
+
 namespace detail
 {
 template<
@@ -103,45 +177,6 @@ public:
     }
 };
 
-template<
-    typename Base
-> class derived_promise_base
-    :
-    public Base
-{
-public:
-    // Enable construction by delegating the arguments
-    // to the base class.
-    // This constructor is enabled only if the base class
-    // supports the argument set.
-    template<
-        typename ... Args
-    > derived_promise_base(
-        Args&&... args
-    )
-        requires std::constructible_from<Base, Args&&...>
-    :
-    Base(
-        std::forward<Args>(args)...
-    )
-    {}
-
-    // Enable construction by invoking the default constructor.
-    // This constructor is enabled only if the base class
-    // does not support the argument set and default-constructs
-    // the base class.
-    template<
-        typename ... Args
-    > derived_promise_base(
-        Args&&...
-    ) requires (
-        !std::constructible_from<Base, Args&&...>
-        && std::constructible_from<Base>)
-        :
-    Base()
-    {}
-};
-
 // The template derived_promise_await_transform ensures there is a valid
 // await_transform() method in the derived_promise implementation,
 // so that it can always be called unconditionally by derived classes.
@@ -151,9 +186,9 @@ template<
 > class derived_promise_await_transform
     :
 public derived_promise_identity_await_transform,
-public derived_promise_base<BasePromise>
+public derived_promise_construction<BasePromise>
 {
-    using derived_promise_base<BasePromise>::derived_promise_base;
+    using derived_promise_construction<BasePromise>::derived_promise_construction;
 };
 
 template<
@@ -165,9 +200,10 @@ class derived_promise_await_transform<
     BasePromise,
     Bases...
 > :
-    public derived_promise_base<BasePromise>
+    public derived_promise_construction<BasePromise>
 {
 public:
+    using derived_promise_construction<BasePromise>::derived_promise_construction;
 };
 
 // A derived_promise is a promise that wraps an extensible_promise
@@ -189,7 +225,7 @@ template<
 >
     :
     public derived_promise_await_transform<BasePromise, Bases...>,
-    public derived_promise_base<Bases>...
+    public derived_promise_construction<Bases>...
 {
 protected:
     using base_promise_type = BasePromise;
@@ -204,13 +240,14 @@ public:
     > derived_promise_impl(
         Args&&... args
     )
-        requires std::constructible_from<derived_promise_await_transform<BasePromise, Bases...>, Args&&...>
-    && (std::constructible_from<derived_promise_base<Bases>, Args&&...> && ...)
+    requires 
+        std::constructible_from<derived_promise_await_transform<BasePromise, Bases...>, Args&&...>
+        && (std::constructible_from<derived_promise_construction<Bases>, Args&&...> && ...)
     :
     derived_promise_await_transform<BasePromise, Bases...>(
         std::forward<Args>(args)...
     ),
-    derived_promise_base<Bases>(
+    derived_promise_construction<Bases>(
         std::forward<Args>(args)...
     )...
     {}
@@ -227,15 +264,15 @@ template<
 >
 class derived_promise :
     public detail::derived_promise_impl<
-    BasePromise,
-    std::tuple<Bases...>,
-    typename detail::filter_types
-    <
-        detail::has_await_transform_filter,
-        detail::derived_promise_await_transform<BasePromise, Bases...>,
-        detail::derived_promise_base<Bases>...
-    >::tuple_type
->
+        BasePromise,
+        std::tuple<Bases...>,
+        typename detail::filter_types
+        <
+            detail::has_await_transform_filter,
+            detail::derived_promise_await_transform<BasePromise, Bases...>,
+            derived_promise_construction<Bases>...
+        >::tuple_type
+    >
 {
     using derived_promise::derived_promise_impl::derived_promise_impl;
 };

@@ -14,6 +14,7 @@ namespace Phantom::Coroutines
 {
 namespace detail
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
 using std::coroutine_traits;
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -90,6 +91,12 @@ using detail::noop_coroutine;
 
 namespace std
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
+using std::coroutine_handle;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+using std::coroutine_traits;
+
 PHANTOM_COROUTINES_MODULE_EXPORT
 using std::coroutine_traits;
 

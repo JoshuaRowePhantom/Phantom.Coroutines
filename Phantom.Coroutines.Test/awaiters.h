@@ -1,14 +1,14 @@
-#include <coroutine>
-#include <functional>
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
 import Phantom.Coroutines.coroutine;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
+#include <coroutine>
+#include <functional>
 #include "Phantom.Coroutines/detail/coroutine.h"
 #endif
 
-namespace Phantom::Coroutines::detail
+namespace Phantom::Coroutines
 {
 
 // These types are used as placeholders in tests.
@@ -18,7 +18,7 @@ template<
 >
 struct typed_awaiter
 {
-    bool await_ready() { std::unreachable(); }
+    bool await_ready() const noexcept { std::unreachable(); }
     TSuspendResult await_suspend(coroutine_handle<>) { std::unreachable(); }
     TResumeResult await_resume() { std::unreachable(); }
 };

@@ -1,0 +1,21 @@
+name: Pull Request Gate
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  continuous-integration-eligibility:
+    uses: JoshuaRowePhantom/Phantom.ContinuousIntegration/.github/workflows/pull-request-gate.yml@main
+    with:
+      repository-profile: Phantom.Coroutines

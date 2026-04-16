@@ -17,6 +17,12 @@ PHANTOM_COROUTINES_ASSERT_IS_MODULE;
 
 namespace Phantom::Coroutines
 {
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename ... T
+>
+concept is_empty_type_list = (sizeof...(T) == 0);
+
 namespace detail
 {
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -314,15 +320,15 @@ struct conflict_detector
 PHANTOM_COROUTINES_MODULE_EXPORT
 struct has_await_suspend_conflicted_name
 {
-    using await_suspend = int;
+    static int await_suspend;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Awaiter
-> concept has_await_suspend = !requires
+> concept has_await_suspend = !requires (conflict_detector<Awaiter, has_await_suspend_conflicted_name> conflictDetector, int result)
 {
-    typename conflict_detector<Awaiter, has_await_suspend_conflicted_name>::await_suspend;
+    { result = conflictDetector.await_suspend };
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -368,8 +374,7 @@ template<
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    typename TAwaiter,
-    typename CoroutineHandle = coroutine_handle<>
+    typename TAwaiter
 >
 concept is_awaiter =
     requires (
@@ -397,18 +402,34 @@ template<
     TAwaitable awaitable
     )
 {
-    { operator co_await(std::forward(awaitable)) } -> is_awaiter;
+    { operator co_await(awaitable) } -> is_awaiter;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename TAwaitable
-> concept is_awaitable =
+> concept has_co_await =
 has_co_await_member<TAwaitable>
 ||
-has_co_await_non_member<TAwaitable>
+has_co_await_non_member<TAwaitable>;
+
+// A simple awaiter is an awaiter that has no co_await member.
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename TAwaiter
+>
+concept is_simple_awaiter =
+is_awaiter<TAwaiter>
+&&
+!has_co_await<TAwaiter>;
+
+PHANTOM_COROUTINES_MODULE_EXPORT
+template<
+    typename TAwaitable
+> concept is_awaitable =
+has_co_await<TAwaitable>
 ||
-is_awaiter<TAwaitable>;
+is_simple_awaiter<TAwaitable>;
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
@@ -434,7 +455,7 @@ decltype(auto) get_awaiter(
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
-    is_awaiter Awaiter
+    is_simple_awaiter Awaiter
 >
 decltype(auto) get_awaiter(
     Awaiter&& awaitable
@@ -485,15 +506,15 @@ template<
 
 struct has_await_transform_conflicted_name
 {
-    using await_transform = int;
+    static int await_transform;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
-> concept has_await_transform = !requires
+> concept has_await_transform = !requires (conflict_detector<Promise, has_await_transform_conflicted_name> conflictDetector, int result)
 {
-    typename conflict_detector<Promise, has_await_transform_conflicted_name>::await_transform;
+    { result = conflictDetector.await_transform };
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -529,15 +550,15 @@ template<
 
 struct has_yield_value_conflicted_name
 {
-    using yield_value = int;
+    static int yield_value;
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
 template<
     typename Promise
-> concept has_yield_value = !requires
+> concept has_yield_value = !requires (conflict_detector<Promise, has_yield_value_conflicted_name> conflictDetector, int result)
 {
-    typename conflict_detector<Promise, has_yield_value_conflicted_name>::yield_value;
+    { result = conflictDetector.yield_value };
 };
 
 PHANTOM_COROUTINES_MODULE_EXPORT
@@ -714,6 +735,8 @@ PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_awaitable;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::is_awaiter;
+PHANTOM_COROUTINES_MODULE_EXPORT
+using detail::is_simple_awaiter;
 PHANTOM_COROUTINES_MODULE_EXPORT
 using detail::has_co_await_member;
 PHANTOM_COROUTINES_MODULE_EXPORT

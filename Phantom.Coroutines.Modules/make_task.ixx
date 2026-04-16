@@ -3,6 +3,7 @@ module;
 #include <utility>
 #include "Phantom.Coroutines/detail/config_macros.h"
 export module Phantom.Coroutines.make_task;
+import Phantom.Coroutines.shared_task;
 import Phantom.Coroutines.task;
 import Phantom.Coroutines.type_traits;
 #include "Phantom.Coroutines/make_task.h"

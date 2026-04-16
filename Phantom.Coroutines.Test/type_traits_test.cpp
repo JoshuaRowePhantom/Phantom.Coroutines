@@ -1,17 +1,19 @@
 #include <gtest/gtest.h>
+#include <tuple>
+#include <type_traits>
 #include "Phantom.Coroutines/detail/config_macros.h"
 #if defined(PHANTOM_COROUTINES_TESTING_SINGLE_MODULE)
 import Phantom.Coroutines;
 #elif defined(PHANTOM_COROUTINES_TESTING_MODULES)
+import Phantom.Coroutines.coroutine;
 import Phantom.Coroutines.type_traits;
 import Phantom.Coroutines.value_awaiter;
 #elif defined(PHANTOM_COROUTINES_TESTING_HEADERS)
+#include "Phantom.Coroutines/detail/coroutine.h"
 #include "Phantom.Coroutines/type_traits.h"
 #include "Phantom.Coroutines/value_awaiter.h"
 #endif
-#include <tuple>
-#include <type_traits>
-#include "detail/awaiters.h"
+#include "awaiters.h"
 
 PHANTOM_COROUTINES_PUSH_DISABLE_INTERNAL_LINKAGE_WARNING()
 
@@ -20,6 +22,10 @@ namespace Phantom::Coroutines::detail
 
 namespace
 {
+static_assert(true == is_empty_type_list<>);
+static_assert(false == is_empty_type_list<int>);
+static_assert(false == is_empty_type_list<int, int>);
+
 static_assert(false == is_in_types<int>);
 static_assert(true == is_in_types<int, int>);
 static_assert(false == is_in_types<int, bool>);
@@ -83,8 +89,8 @@ template<
 >
 struct test_coroutine_function_traits_promise
 {
-    std::suspend_always initial_suspend();
-    std::suspend_always final_suspend() noexcept;
+    suspend_always initial_suspend();
+    suspend_always final_suspend() noexcept;
     void return_void();
     void unhandled_exception();
     test_coroutine_function_traits_task get_return_object();
@@ -240,6 +246,15 @@ static_assert(is_awaiter<typed_awaiter<int&>>);
 static_assert(is_awaiter<typed_awaiter<int&&>>);
 static_assert(!is_awaiter<not_awaitable>);
 
+static_assert(is_awaitable<typed_awaitable<void>>);
+static_assert(is_awaitable<typed_awaitable<void>&>);
+static_assert(is_awaitable<typed_awaitable<void>&&>);
+
+static_assert(is_simple_awaiter<typed_awaiter<void>>);
+static_assert(!is_simple_awaiter<typed_awaitable<void>>);
+static_assert(!is_simple_awaiter<typed_awaitable<void>&>);
+static_assert(!is_simple_awaiter<typed_awaitable<void>&&>);
+
 static_assert(has_co_await_member<typed_awaitable<void>>);
 static_assert(!has_co_await_member<not_awaitable>);
 
@@ -311,6 +326,48 @@ TEST(type_traits_test, get_awaiter_returns_awaiter_lvalue_as_lvalue_reference)
     decltype(auto) result = get_awaiter(awaiter);
     static_assert(std::same_as<generic_awaiter<>&, decltype(result)>);
     ASSERT_EQ(&result, &awaiter);
+}
+
+TEST(type_traits_test, get_awaiter_returns_co_await_on_awaiter_with_member_co_await)
+{
+    struct test_awaiter : generic_awaiter<bool, int>
+    {
+        generic_awaiter<bool, long> m_awaiter;
+
+        auto& operator co_await()
+        {
+            return m_awaiter;
+        }
+    } awaitable;
+
+    decltype(auto) result = get_awaiter(awaitable);
+    static_assert(std::same_as<generic_awaiter<bool, long>&, decltype(result)>);
+    ASSERT_EQ(&awaitable.m_awaiter, &result);
+}
+
+namespace
+{
+
+struct test_awaitable_with_friend_co_await : generic_awaiter<bool, int>
+{
+    generic_awaiter<bool, long> m_awaiter;
+
+    friend auto& operator co_await(
+        test_awaitable_with_friend_co_await& awaitable)
+    {
+        return awaitable.m_awaiter;
+    }
+};
+
+static_assert(has_co_await_non_member<test_awaitable_with_friend_co_await>);
+}
+
+TEST(type_traits_test, get_awaiter_returns_co_await_on_awaiter_with_friend_co_await)
+{
+    test_awaitable_with_friend_co_await awaitable;
+    decltype(auto) result = get_awaiter(awaitable);
+    static_assert(std::same_as<generic_awaiter<bool, long>&, decltype(result)>);
+    ASSERT_EQ(&awaitable.m_awaiter, &result);
 }
 
 TEST(type_traits_test, get_awaiter_returns_awaiter_rvalue_reference_as_rvalue_reference)

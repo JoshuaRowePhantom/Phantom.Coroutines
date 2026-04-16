@@ -36,20 +36,10 @@ public:
 
 private:
     std::optional<thread_local_context_scope> m_scope;
-    std::optional<value_type> m_value;
+    std::optional<value_type> m_value = ThreadLocalContext::current();
 
 public:
-    template<
-        typename... Args
-    > thread_local_contextual_promise(
-        Args&&... args
-    ) :
-        thread_local_contextual_promise::derived_promise{ std::forward<Args>(args)... },
-        m_value
-    {
-        ThreadLocalContext::current()
-    }
-    {}
+    using base_promise::base_promise;
 
     void enter()
     {

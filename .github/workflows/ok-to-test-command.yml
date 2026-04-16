@@ -1,0 +1,21 @@
+name: ok-to-test command
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  ok-to-test:
+    if: >
+      github.event.issue.pull_request &&
+      (github.event.comment.body == '/ok-to-test' ||
+       github.event.comment.body == '/remove-ok-to-test')
+    uses: JoshuaRowePhantom/Phantom.ContinuousIntegration/.github/workflows/ok-to-test-command.yml@main
+    with:
+      repository-profile: Phantom.Coroutines

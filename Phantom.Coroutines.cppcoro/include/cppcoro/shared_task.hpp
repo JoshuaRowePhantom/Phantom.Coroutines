@@ -18,7 +18,7 @@ template<
     Awaitable&& awaitable
 )
 {
-    return ::Phantom::Coroutines::make_task<shared_task>(
+    return ::Phantom::Coroutines::make_task_wrapper<shared_task>(
         std::forward<Awaitable>(awaitable));
 }
 

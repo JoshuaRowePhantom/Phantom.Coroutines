@@ -12,7 +12,7 @@ import Phantom.Coroutines.task;
 #include "Phantom.Coroutines/sync_wait.h"
 #include "Phantom.Coroutines/task.h"
 #endif
-#include "detail/awaiters.h"
+#include "awaiters.h"
 #include <chrono>
 #include <future>
 
@@ -149,7 +149,7 @@ TEST(as_future_test, rethrows_exception_thrown_by_task_lambda)
 
 TEST(as_future_test, rethrows_exception_thrown_by_await_resume)
 {
-    struct awaitable : std::suspend_never
+    struct awaitable : suspend_never
     {
         void await_resume() 
         { 
