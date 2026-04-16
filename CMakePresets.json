@@ -159,6 +159,14 @@
       "configurePreset": "msvc-windows-x64-release"
     },
     {
+      "name": "clang-windows-x64-debug-unit",
+      "configurePreset": "clang-windows-x64-debug"
+    },
+    {
+      "name": "clang-windows-x64-release-unit",
+      "configurePreset": "clang-windows-x64-release"
+    },
+    {
       "name": "clang-linux-x64-debug-unit",
       "configurePreset": "clang-linux-x64-debug"
     },
